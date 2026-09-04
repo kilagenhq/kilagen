@@ -1,5 +1,91 @@
 # Kilagen
 
-Git-native, AI-first framework to build and run a security program — GRC and security engineering — as Markdown and YAML in a Git repository.
+Git-native, AI-first framework to build and run a full security program — GRC and security engineering — as Markdown and YAML in a Git repository.
 
-> 🚧 Early development.
+This repository is the **framework**. You do not run your security program from here: you instantiate it into your own repository, which gets a `program/` layer holding your organization's content.
+
+---
+
+## Using Kilagen
+
+You install the package and scaffold a program in a repository you own. You never clone this one.
+
+```bash
+mkdir acme-security && cd acme-security
+git init
+pip install kilagen
+kilagen init --name "Acme Corp"
+```
+
+`init` also takes `--deployment` (which CI to wire up, default `github`) and `--ai` (which agent integration to render, default `claude`). Both accept `none`. It records everything it copied, with a checksum per file, in `.kilagen-manifest.yml`.
+
+Day to day:
+
+| Command | What it does |
+|---|---|
+| `kilagen check` | Frontmatter, schemas and cross-references across `program/` |
+| `kilagen build` | Validate, regenerate the committed artifacts, build the dashboard |
+| `kilagen build && kilagen serve` | The same, then serve it at `localhost:8000` |
+| `kilagen check reviews` | Documents past their `next_review` date |
+
+Keeping up with new releases:
+
+| Command | What it changes |
+|---|---|
+| `pip install -U kilagen` | The framework itself: schemas, validators, dashboard |
+| `kilagen update config` | The configuration `init` copied into your repo. Reports by default, writes with `--apply`, and leaves anything you edited alone. Never touches `program/` |
+| `kilagen update content` | Your `program/` content, when a release changes what content must look like. Never touches the configuration |
+
+Full walkthrough in [`keel/content/instantiation.md`](keel/content/instantiation.md).
+
+---
+
+## Working on Kilagen
+
+This repository builds the package the section above installs.
+
+```bash
+git clone git@github.com:kilagenhq/kilagen.git
+cd kilagen
+./scripts/dev-setup.sh          # virtualenv, dependencies, git hooks, editable install
+source .venv/bin/activate
+```
+
+| Command | What it does |
+|---|---|
+| `python -m unittest discover -s tests` | The framework's own test suite |
+| `npm test --prefix keel/dashboard` | The dashboard's test suite |
+| `pre-commit run --all-files` | Markdown lint and spell check, as CI runs them |
+| `./scripts/vendor-libs.sh` | Refresh the dashboard's vendored libraries after a version bump |
+
+The dashboard's runtime libraries are committed under `keel/dashboard/vendor/`, so a fresh clone works immediately. They are refreshed only when `package.json` moves, and CI fails if the two disagree.
+
+To exercise a change end to end, instantiate a throwaway program against your working tree:
+
+```bash
+mkdir /tmp/probe && cd /tmp/probe && git init
+kilagen init --name "Probe" && kilagen check && kilagen build && kilagen serve
+```
+
+Releasing:
+
+1. Decide the version. A major means the rules changed: content that was valid
+   before is not, and a migration ships with it. A validator that starts catching
+   something it always should have is a minor.
+2. Edit `version` in `pyproject.toml`. It is the only place: `kilagen --version`
+   reads it from the installed metadata.
+3. If the major changed, update the pin in the seed's workflows. A test fails
+   if you forget, because a stale pin freezes every instance on the old major.
+4. Move the release's entries out of `Unreleased` in `CHANGELOG.md`.
+5. Verify, build, tag, publish:
+
+```bash
+python -m unittest discover -s tests && npm test --prefix keel/dashboard
+python -m build
+git tag v0.2.0 && git push --tags
+```
+
+---
+
+- Framework design and rationale → [`keel/content/design.md`](keel/content/design.md)
+- Compliance model and framework mappings → [`keel/content/compliance.md`](keel/content/compliance.md)

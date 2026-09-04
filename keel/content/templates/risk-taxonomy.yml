@@ -1,0 +1,63 @@
+# Risk taxonomy — the controlled vocabulary risks are classified against.
+#
+# Two independent trees:
+#   categories  what kind of risk it is, as principle > category1 > category2.
+#               An RSK doc's risk_category must name a full valid path.
+#   causes      why it happened. An RSK doc's root_causes name leaf slugs from
+#               any group's items.
+#
+# This is a starting point, not a prescription: replace it with your own
+# taxonomy. Keep slugs kebab-case and stable — documents reference them by
+# slug, and renaming one breaks every risk that used it.
+
+categories:
+  operational-risk:
+    label: "Operational Risk"
+    children:
+      information-security:
+        label: "Information Security"
+        children:
+          unauthorised-access: "Unauthorised access"
+          data-breach: "Data breach"
+          service-disruption: "Service disruption"
+      technology:
+        label: "Technology"
+        children:
+          system-failure: "System failure"
+          change-failure: "Change failure"
+
+  compliance-risk:
+    label: "Compliance Risk"
+    children:
+      regulatory:
+        label: "Regulatory"
+        children:
+          control-failure: "Control failure"
+          reporting-failure: "Reporting failure"
+
+causes:
+  people:
+    label: "People"
+    items:
+      human-error: "Human error"
+      insufficient-training: "Insufficient training"
+      insider-action: "Insider action"
+
+  process:
+    label: "Process"
+    items:
+      missing-process: "No process defined"
+      process-not-followed: "Process not followed"
+
+  systems:
+    label: "Systems"
+    items:
+      misconfiguration: "Misconfiguration"
+      software-defect: "Software defect"
+      unpatched-component: "Unpatched component"
+
+  external:
+    label: "External"
+    items:
+      third-party-failure: "Third-party failure"
+      targeted-attack: "Targeted attack"

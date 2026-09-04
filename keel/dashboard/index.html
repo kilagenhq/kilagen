@@ -1,0 +1,86 @@
+<!--
+  kilagen dashboard
+  Deployed via GitHub Pages. See keel/dashboard/README.md for details.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; font-src 'self';">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta name="referrer" content="no-referrer">
+<title>Security Program</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230e7c6b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>">
+<!-- Vendored libs: marked 16.3.0, DOMPurify 3.2.7, js-yaml 4.1.0. Zero external requests. -->
+<script src="vendor/marked.umd.min.js"></script>
+<script src="vendor/purify.min.js"></script>
+<script src="vendor/js-yaml.min.js"></script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header>
+<button class="hamburger-btn" id="hamburger">&#9776;</button>
+<span class="app-title">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+  Security Program
+</span>
+<div class="toolbar">
+</div>
+<span class="spacer"></span>
+<div class="toolbar-dropdown">
+  <button class="toolbar-trigger">Tools &#x25BE;</button>
+  <div class="toolbar-menu">
+    <button id="view-browse">Browser</button>
+    <button id="view-graph">Dependencies</button>
+    <button id="view-reviews">Reviews</button>
+  </div>
+</div>
+<div class="toolbar-dropdown">
+  <button class="toolbar-trigger">Reference &#x25BE;</button>
+  <div class="toolbar-menu">
+    <button id="view-about">About</button>
+    <button id="view-doc-design">Framework Design</button>
+    <button id="view-doc-compliance">Compliance & GRC</button>
+    <button id="view-doc-lenses">Lenses</button>
+    <button id="view-doc-instantiation">Kit Instantiation</button>
+    <button id="view-schemas">Schemas</button>
+    <button id="view-templates">Templates</button>
+    <button id="view-glossary">Glossary</button>
+    <button id="view-matref">Maturity Guide</button>
+    <button id="view-riskframework">Risk Framework</button>
+  </div>
+</div>
+<button class="theme-toggle" id="dark-toggle" title="Toggle dark mode">&#x263E;</button>
+</header>
+<!-- Keyboard shortcuts modal -->
+<div class="kbd-modal-overlay" id="kbd-modal">
+<div class="kbd-modal">
+  <h2>Keyboard shortcuts</h2>
+  <div class="kbd-modal-row"><span class="kbd-modal-action">Search</span><span class="kbd-modal-key"><span class="kbd">/</span></span></div>
+  <div class="kbd-modal-row"><span class="kbd-modal-action">Go home</span><span class="kbd-modal-key"><span class="kbd">Esc</span></span></div>
+  <div class="kbd-modal-row"><span class="kbd-modal-action">Navigate sidebar</span><span class="kbd-modal-key"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span></span></div>
+  <div class="kbd-modal-row"><span class="kbd-modal-action">Toggle dark mode</span><span class="kbd-modal-key"><span class="kbd">D</span></span></div>
+  <div class="kbd-modal-row"><span class="kbd-modal-action">Show this help</span><span class="kbd-modal-key"><span class="kbd">?</span></span></div>
+  <div class="kbd-modal-row" style="margin-top:12px;border:none;justify-content:center;color:var(--fg3);font-size:12px">Press <span class="kbd" style="margin:0 4px">Esc</span> or <span class="kbd" style="margin:0 4px">?</span> to close</div>
+</div>
+</div>
+<div class="container">
+<div id="sidebar">
+<div class="sidebar-resize" id="sidebar-resize"></div>
+<input id="search" type="text" placeholder="Search... (/)">
+<div id="tree"></div>
+</div>
+<button class="panel-edge-btn left" id="sidebar-toggle" title="Toggle sidebar">&#x2039;</button>
+<div id="main"></div>
+<button class="panel-edge-btn right" id="right-toggle" title="Toggle panel">&#x203A;</button>
+<div class="right-wrapper" id="right-wrapper">
+<div class="right-resize" id="right-resize"></div>
+<div id="right"></div>
+</div>
+</div>
+<div class="tip" id="tooltip"></div>
+<button class="scroll-top-btn" id="scroll-top" title="Scroll to top">&#x2191;</button>
+<script type="module" src="modules/main.js"></script>
+</body>
+</html>

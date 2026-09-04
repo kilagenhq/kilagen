@@ -1,0 +1,676 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kilagen.com/schemas/frontmatter.schema.json",
+  "title": "Kilagen Frontmatter",
+  "description": "Validates YAML frontmatter for all document types in the security program.",
+
+  "$defs": {
+    "iso_date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "ISO 8601 date (YYYY-MM-DD)"
+    },
+    "nullable_iso_date": {
+      "oneOf": [
+        { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        { "type": "null" }
+      ],
+      "description": "ISO 8601 date or null"
+    },
+    "status_enum": {
+      "type": "string",
+      "enum": ["draft", "active", "deprecated", "superseded"]
+    },
+    "domain_enum": {
+      "type": "string",
+      "enum": [
+        "grc", "iam", "infra", "appsec",
+        "secops", "ir", "offensive",
+        "digital-assets", "awareness", "data-security"
+      ]
+    },
+    "severity_enum": {
+      "type": "string",
+      "enum": ["negligible", "low", "medium", "high", "critical"]
+    },
+    "control_effectiveness_enum": {
+      "type": "string",
+      "enum": ["fully", "substantially", "partially", "largely-ineffective", "none", "not-evaluated"]
+    },
+    "treatment_enum": {
+      "type": "string",
+      "enum": ["mitigate", "avoid", "transfer", "accept", "tbd"]
+    },
+    "risk_category_object": {
+      "type": "object",
+      "properties": {
+        "principle":  { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "category1":  { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "category2":  { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }
+      },
+      "required": ["principle", "category1", "category2"],
+      "additionalProperties": false
+    },
+    "capability_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "The capability this document supports (must match an id in the domain's capabilities.yml)"
+    },
+    "role_slug": {
+      "type": "string",
+      "pattern": "^role-[a-z][a-z0-9-]*$",
+      "description": "Reference to a role profile in program/roles/ (e.g. role-cto)"
+    },
+    "role_slug_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/role_slug" },
+      "minItems": 1,
+      "description": "One or more role slug references"
+    },
+    "related_object": {
+      "type": "object",
+      "properties": {
+        "policies":            { "type": "array", "items": { "type": "string" } },
+        "standards":           { "type": "array", "items": { "type": "string" } },
+        "processes":           { "type": "array", "items": { "type": "string" } },
+        "runbooks":            { "type": "array", "items": { "type": "string" } },
+        "playbooks":           { "type": "array", "items": { "type": "string" } },
+        "threat_models":       { "type": "array", "items": { "type": "string" } },
+        "guidelines":          { "type": "array", "items": { "type": "string" } },
+        "systems":             { "type": "array", "items": { "type": "string" } },
+        "vendors":             { "type": "array", "items": { "type": "string" } },
+        "risks":               { "type": "array", "items": { "type": "string", "pattern": "^RSK-[a-z0-9][a-z0-9-]*$" }, "uniqueItems": true },
+        "threats":             { "type": "array", "items": { "type": "string", "pattern": "^THR-[a-z0-9][a-z0-9-]*$" }, "uniqueItems": true },
+        "adrs":                { "type": "array", "items": { "type": "string" } },
+        "incidents":           { "type": "array", "items": { "type": "string" } },
+        "exceptions":          { "type": "array", "items": { "type": "string" } },
+        "data_assets":         { "type": "array", "items": { "type": "string" } },
+        "business_processes":  { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "managed_externally_field": {
+      "oneOf": [
+        { "type": "string", "format": "uri" },
+        { "type": "null" }
+      ],
+      "description": "URL of external source of truth. When set, this document is a snapshot; the authoritative version lives elsewhere."
+    },
+    "common_fields": {
+      "type": "object",
+      "properties": {
+        "id":            { "type": "string", "minLength": 1 },
+        "title":         { "type": "string", "minLength": 1 },
+        "description":   { "type": "string", "minLength": 1 },
+        "type":          { "type": "string" },
+        "status":        { "$ref": "#/$defs/status_enum" },
+        "domain":        { "$ref": "#/$defs/domain_enum" },
+        "owner":         { "$ref": "#/$defs/role_slug" },
+        "last_reviewed": { "$ref": "#/$defs/iso_date" },
+        "next_review":   { "$ref": "#/$defs/iso_date" },
+        "lenses":        { "$ref": "#/$defs/lenses_array" },
+        "managed_externally": { "$ref": "#/$defs/managed_externally_field" }
+      },
+      "required": ["id", "title", "description", "type", "status", "domain", "owner", "last_reviewed", "next_review"]
+    },
+    "lenses_array": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*:[A-Za-z0-9_.]+$"
+      },
+      "description": "Lens tags for alternative navigation views (e.g. nist:PR.AA, ops:prevention). Format: <lens-id>:<tag>"
+    },
+    "frameworks_object": {
+      "type": "object",
+      "description": "Framework mappings — keys are snake_case framework identifiers (e.g. mas_trm_2021, mas_fsm_n21), values are arrays of clause references. Which frameworks are in scope is defined in program/config.yml.",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*$": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "governance_object": {
+      "type": "object",
+      "description": "Governance metadata for IT asset inventory — criticality, CIA ratings, RTO/RPO, used_by, auth, and data assets. (Ownership is tracked via top-level owner/second_owner.)",
+      "properties": {
+        "criticality":     { "$ref": "#/$defs/severity_enum", "description": "Overall criticality = max(C,I,A)" },
+        "cia": {
+          "type": "object",
+          "description": "CIA triad ratings",
+          "properties": {
+            "confidentiality": { "$ref": "#/$defs/severity_enum" },
+            "integrity":       { "$ref": "#/$defs/severity_enum" },
+            "availability":    { "$ref": "#/$defs/severity_enum" }
+          },
+          "additionalProperties": false
+        },
+        "rto":             { "type": "string", "description": "Recovery Time Objective" },
+        "rpo":             { "type": "string", "description": "Recovery Point Objective" },
+        "used_by":         { "type": "array", "items": { "type": "string" }, "description": "Departments that use this system" },
+        "auth":            { "type": "string", "description": "Primary authentication method / identity provider, encoding the SSO protocol where applicable (e.g. okta-saml, okta-swa, google, local, api-key, n/a)" },
+        "data_assets":     { "type": "array", "items": { "type": "string", "pattern": "^DA-[a-z0-9][a-z0-9-]*$" }, "description": "DA-* IDs of data assets this system processes" }
+      },
+      "additionalProperties": false
+    }
+  },
+
+  "oneOf": [
+    {
+      "title": "Policy",
+      "description": "POL-* documents — board-approved principles",
+      "allOf": [{ "$ref": "#/$defs/common_fields" }],
+      "properties": {
+        "id":            { "type": "string", "pattern": "^POL-[a-z0-9][a-z0-9-]*$" },
+        "title":         true,
+        "description":   true,
+        "type":          { "const": "policy" },
+        "status":        true,
+        "domain":        true,
+        "owner":         true,
+        "last_reviewed": true,
+        "next_review":   true,
+        "lenses":        true,
+        "managed_externally": true,
+        "capability":    { "$ref": "#/$defs/capability_id" },
+        "version":       { "type": "string", "description": "Document version for audit trail" },
+        "approved_by":   { "$ref": "#/$defs/role_slug_array" },
+        "reviewed_by":   { "$ref": "#/$defs/role_slug_array" },
+        "related":       { "$ref": "#/$defs/related_object" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Standard",
+      "description": "STD-* documents — collections of numbered requirements with framework mappings",
+      "allOf": [{ "$ref": "#/$defs/common_fields" }],
+      "properties": {
+        "id":            { "type": "string", "pattern": "^STD-[a-z0-9][a-z0-9-]*$" },
+        "title":         true,
+        "description":   true,
+        "type":          { "const": "standard" },
+        "status":        true,
+        "domain":        true,
+        "owner":         true,
+        "last_reviewed": true,
+        "next_review":   true,
+        "lenses":        true,
+        "managed_externally": true,
+        "version":       { "type": "string", "description": "Document version for audit trail (e.g. 1.3)" },
+        "approved_by":   { "$ref": "#/$defs/role_slug_array" },
+        "reviewed_by":   { "$ref": "#/$defs/role_slug_array" },
+        "applies_to": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/domain_enum" },
+          "uniqueItems": true,
+          "description": "Domains where this standard's requirements apply"
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ref": { "type": "string", "description": "Requirement number (e.g. 5.1)" },
+              "summary": { "type": "string", "description": "One-line summary of the requirement" },
+              "domains": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/domain_enum" },
+                "uniqueItems": true,
+                "description": "Which domains this requirement applies to"
+              },
+              "capabilities": {
+                "type": "object",
+                "patternProperties": {
+                  "^(grc|iam|infra|appsec|secops|ir|offensive|digital-assets|awareness|data-security)$": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" }
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Which capabilities this requirement covers, keyed by domain"
+              },
+              "frameworks": { "$ref": "#/$defs/frameworks_object" }
+            },
+            "required": ["ref"],
+            "additionalProperties": false
+          },
+          "description": "Requirement-level framework mappings. Omit frameworks for internal requirements."
+        },
+        "gap_link": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to ticket filter for open gaps against this standard"
+        },
+        "related":       { "$ref": "#/$defs/related_object" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Process",
+      "description": "PRO-* documents",
+      "allOf": [{ "$ref": "#/$defs/common_fields" }],
+      "properties": {
+        "id":            { "type": "string", "pattern": "^PRO-[a-z0-9][a-z0-9-]*$" },
+        "title":         true,
+        "description":   true,
+        "type":          { "const": "process" },
+        "status":        true,
+        "domain":        true,
+        "owner":         true,
+        "last_reviewed": true,
+        "next_review":   true,
+        "lenses":        true,
+        "managed_externally": true,
+        "capability":    { "$ref": "#/$defs/capability_id" },
+        "version":       { "type": "string" },
+        "approved_by":   { "$ref": "#/$defs/role_slug_array" },
+        "related":       { "$ref": "#/$defs/related_object" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Runbook",
+      "description": "RB-* documents — agent-executable processes",
+      "allOf": [{ "$ref": "#/$defs/common_fields" }],
+      "properties": {
+        "id":            { "type": "string", "pattern": "^RB-[a-z0-9][a-z0-9-]*$" },
+        "title":         true,
+        "description":   true,
+        "type":          { "const": "runbook" },
+        "status":        true,
+        "domain":        true,
+        "owner":         true,
+        "last_reviewed": true,
+        "next_review":   true,
+        "lenses":        true,
+        "managed_externally": true,
+        "capability":    { "$ref": "#/$defs/capability_id" },
+        "related":       { "$ref": "#/$defs/related_object" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Playbook",
+      "description": "PB-* documents — incident response playbooks",
+      "allOf": [{ "$ref": "#/$defs/common_fields" }],
+      "properties": {
+        "id":            { "type": "string", "pattern": "^PB-[a-z0-9][a-z0-9-]*$" },
+        "title":         true,
+        "description":   true,
+        "type":          { "const": "playbook" },
+        "status":        true,
+        "domain":        true,
+        "owner":         true,
+        "last_reviewed": true,
+        "next_review":   true,
+        "lenses":        true,
+        "managed_externally": true,
+        "capability":    { "$ref": "#/$defs/capability_id" },
+        "related":       { "$ref": "#/$defs/related_object" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Threat Model",
+      "description": "TM-* documents",
+      "allOf": [{ "$ref": "#/$defs/common_fields" }],
+      "properties": {
+        "id":            { "type": "string", "pattern": "^TM-[a-z0-9][a-z0-9-]*$" },
+        "title":         true,
+        "description":   true,
+        "type":          { "const": "threat-model" },
+        "status":        true,
+        "domain":        true,
+        "owner":         true,
+        "last_reviewed": true,
+        "next_review":   true,
+        "lenses":        true,
+        "managed_externally": true,
+        "capability":    { "$ref": "#/$defs/capability_id" },
+        "related":       { "$ref": "#/$defs/related_object" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Threat",
+      "description": "THR-* documents — threat catalog entries",
+      "allOf": [{ "$ref": "#/$defs/common_fields" }],
+      "properties": {
+        "id":            { "type": "string", "pattern": "^THR-[a-z0-9][a-z0-9-]*$" },
+        "title":         true,
+        "description":   true,
+        "type":          { "const": "threat" },
+        "status":        true,
+        "domain":        true,
+        "owner":         true,
+        "last_reviewed": true,
+        "next_review":   true,
+        "lenses":        true,
+        "managed_externally": true,
+        "capability":    { "$ref": "#/$defs/capability_id" },
+        "severity":      { "$ref": "#/$defs/severity_enum" },
+        "priority":      { "type": "integer", "minimum": 1, "maximum": 10 },
+        "priority_rationale": { "type": "string" },
+        "related":       { "$ref": "#/$defs/related_object" }
+      },
+      "required": ["severity"],
+      "dependentRequired": {
+        "priority": ["priority_rationale"]
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Guideline",
+      "description": "GL-* documents",
+      "allOf": [{ "$ref": "#/$defs/common_fields" }],
+      "properties": {
+        "id":            { "type": "string", "pattern": "^GL-[a-z0-9][a-z0-9-]*$" },
+        "title":         true,
+        "description":   true,
+        "type":          { "const": "guideline" },
+        "status":        true,
+        "domain":        true,
+        "owner":         true,
+        "last_reviewed": true,
+        "next_review":   true,
+        "lenses":        true,
+        "managed_externally": true,
+        "capability":    { "$ref": "#/$defs/capability_id" },
+        "related":       { "$ref": "#/$defs/related_object" }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "System",
+      "description": "SYS-* documents — live in /systems/, use domains (plural) instead of domain (singular)",
+      "properties": {
+        "id":            { "type": "string", "pattern": "^SYS-[a-z0-9][a-z0-9-]*$" },
+        "title":         { "type": "string", "minLength": 1 },
+        "description":   { "type": "string", "minLength": 1 },
+        "type":          { "const": "system" },
+        "category": {
+          "type": "string",
+          "enum": ["security-tool", "business-app", "infrastructure"],
+          "description": "security-tool = security operates it; business-app = security configures controls only; infrastructure = platform where security applies controls"
+        },
+        "status":        { "$ref": "#/$defs/status_enum" },
+        "domains": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/domain_enum" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "capabilities": {
+          "type": "object",
+          "patternProperties": {
+            "^(grc|iam|infra|appsec|secops|ir|offensive|digital-assets|awareness|data-security)$": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" }
+            }
+          },
+          "additionalProperties": false
+        },
+        "vendor":        { "type": "string" },
+        "deployment": {
+          "type": "string",
+          "enum": ["saas", "iaas", "self-hosted", "hybrid"]
+        },
+        "url":           { "type": "string", "format": "uri", "description": "Primary console / admin URL for the system" },
+        "owner":         { "$ref": "#/$defs/role_slug" },
+        "second_owner":  { "$ref": "#/$defs/role_slug" },
+        "last_reviewed": { "$ref": "#/$defs/iso_date" },
+        "next_review":   { "$ref": "#/$defs/iso_date" },
+        "lenses":        { "$ref": "#/$defs/lenses_array" },
+        "managed_externally": { "$ref": "#/$defs/managed_externally_field" },
+        "governance": {
+          "oneOf": [
+            { "$ref": "#/$defs/governance_object" },
+            { "type": "null" }
+          ]
+        },
+        "related":       { "$ref": "#/$defs/related_object" }
+      },
+      "required": ["id", "title", "description", "type", "category", "status", "domains", "capabilities", "deployment", "owner", "last_reviewed", "next_review"],
+      "additionalProperties": false
+    },
+    {
+      "title": "Vendor",
+      "description": "VEN-* documents — third-party risk profiles in 01-grc/vendors/",
+      "allOf": [{ "$ref": "#/$defs/common_fields" }],
+      "properties": {
+        "id":            { "type": "string", "pattern": "^VEN-[a-z0-9][a-z0-9-]*$" },
+        "title":         true,
+        "description":   true,
+        "type":          { "const": "vendor" },
+        "status":        true,
+        "domain":        true,
+        "owner":         true,
+        "last_reviewed": true,
+        "next_review":   true,
+        "lenses":        true,
+        "managed_externally": true,
+        "capability":    { "$ref": "#/$defs/capability_id" },
+        "vendor_name":   { "type": "string" },
+        "tier":          { "$ref": "#/$defs/severity_enum", "description": "Vendor criticality tier on the shared 5-tier scale" },
+        "system": {
+          "type": "string",
+          "pattern": "^SYS-[a-z0-9][a-z0-9-]*$",
+          "description": "Corresponding SYS-* ID if security operates or touches this product"
+        },
+        "certifications": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "related":       { "$ref": "#/$defs/related_object" }
+      },
+      "required": ["vendor_name", "tier"],
+      "additionalProperties": false
+    },
+    {
+      "title": "Risk",
+      "description": "RSK-* documents — risk register entries",
+      "allOf": [{ "$ref": "#/$defs/common_fields" }],
+      "properties": {
+        "id":                    { "type": "string", "pattern": "^RSK-[a-z0-9][a-z0-9-]*$" },
+        "title":                 true,
+        "description":           true,
+        "type":                  { "const": "risk" },
+        "status":                true,
+        "domain":                true,
+        "owner":                 true,
+        "last_reviewed":         true,
+        "next_review":           true,
+        "lenses":                true,
+        "managed_externally":    true,
+        "capability":            { "$ref": "#/$defs/capability_id" },
+        "severity":              { "$ref": "#/$defs/severity_enum" },
+        "likelihood":            { "$ref": "#/$defs/severity_enum" },
+        "impact":                { "$ref": "#/$defs/severity_enum" },
+        "control_effectiveness": { "$ref": "#/$defs/control_effectiveness_enum" },
+        "treatment":             { "$ref": "#/$defs/treatment_enum" },
+        "root_causes":           { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }, "minItems": 1, "uniqueItems": true },
+        "risk_category":         { "$ref": "#/$defs/risk_category_object" },
+        "related":               { "$ref": "#/$defs/related_object" }
+      },
+      "required": ["severity", "likelihood", "impact"],
+      "additionalProperties": false
+    },
+    {
+      "title": "ADR",
+      "description": "ADR-NNNN-* documents — immutable architecture decision records",
+      "allOf": [{ "$ref": "#/$defs/common_fields" }],
+      "properties": {
+        "id":              { "type": "string", "pattern": "^ADR-\\d{4}-[a-z0-9][a-z0-9-]*$" },
+        "title":           true,
+        "description":     true,
+        "type":            { "const": "adr" },
+        "status":          true,
+        "domain":          true,
+        "owner":           true,
+        "last_reviewed":   true,
+        "next_review":     true,
+        "lenses":          true,
+        "managed_externally": true,
+        "capability":      { "$ref": "#/$defs/capability_id" },
+        "immutable":       { "const": true },
+        "decision_date":   { "$ref": "#/$defs/iso_date" },
+        "supersedes":      { "type": "array", "items": { "type": "string", "pattern": "^ADR-\\d{4}-" } },
+        "superseded_by":   { "type": "string", "pattern": "^ADR-\\d{4}-" },
+        "related":         { "$ref": "#/$defs/related_object" }
+      },
+      "required": ["immutable", "decision_date"],
+      "additionalProperties": false
+    },
+    {
+      "title": "Incident",
+      "description": "INC-YYYY-* documents — immutable postmortems",
+      "allOf": [{ "$ref": "#/$defs/common_fields" }],
+      "properties": {
+        "id":              { "type": "string", "pattern": "^INC-\\d{4}-[a-z0-9][a-z0-9-]*$" },
+        "title":           true,
+        "description":     true,
+        "type":            { "const": "incident" },
+        "status":          true,
+        "domain":          true,
+        "owner":           true,
+        "last_reviewed":   true,
+        "next_review":     true,
+        "lenses":          true,
+        "managed_externally": true,
+        "capability":      { "$ref": "#/$defs/capability_id" },
+        "immutable":       { "const": true },
+        "incident_date":   { "$ref": "#/$defs/iso_date" },
+        "severity":        { "$ref": "#/$defs/severity_enum" },
+        "regulator_reportable": { "type": "boolean", "description": "Whether this incident triggers regulatory reporting obligations" },
+        "resolved_date":   { "$ref": "#/$defs/nullable_iso_date" },
+        "backlog_link":    { "type": "string", "format": "uri", "description": "URL to the ticket or board tracking post-incident actions" },
+        "related":         { "$ref": "#/$defs/related_object" }
+      },
+      "required": ["immutable", "incident_date", "severity", "resolved_date"],
+      "additionalProperties": false
+    },
+    {
+      "title": "Exception",
+      "description": "EXC-* documents — approved deviations from standard requirements",
+      "properties": {
+        "id":              { "type": "string", "pattern": "^EXC-[a-z0-9][a-z0-9-]*$" },
+        "title":           { "type": "string", "minLength": 1 },
+        "description":     { "type": "string", "minLength": 1 },
+        "type":            { "const": "exception" },
+        "status": {
+          "type": "string",
+          "enum": ["active", "expired", "revoked"]
+        },
+        "domain":          { "$ref": "#/$defs/domain_enum" },
+        "owner":         { "$ref": "#/$defs/role_slug" },
+        "last_reviewed":   { "$ref": "#/$defs/iso_date" },
+        "next_review":     { "$ref": "#/$defs/iso_date" },
+        "lenses":          { "$ref": "#/$defs/lenses_array" },
+        "managed_externally": { "$ref": "#/$defs/managed_externally_field" },
+        "capability":      { "$ref": "#/$defs/capability_id" },
+        "requested_by":    { "type": "string", "minLength": 1, "description": "Team or role that requested the deviation" },
+        "approved_by":   { "$ref": "#/$defs/role_slug_array" },
+        "decision_date":   { "$ref": "#/$defs/iso_date" },
+        "expires":         { "$ref": "#/$defs/iso_date", "description": "Mandatory re-evaluation date (max 12 months, per organizational policy)" },
+        "risk_severity":   { "$ref": "#/$defs/severity_enum", "description": "Residual risk after compensating controls" },
+        "standard":        { "type": "string", "pattern": "^STD-[a-z0-9][a-z0-9-]*$", "description": "The standard being deviated from" },
+        "requirement_ref": { "type": "string", "description": "The specific requirement number being deviated from (e.g. 4.16)" },
+        "related":         { "$ref": "#/$defs/related_object" }
+      },
+      "required": ["id", "title", "description", "type", "status", "domain", "owner", "last_reviewed", "next_review", "requested_by", "approved_by", "decision_date", "expires", "risk_severity", "standard", "requirement_ref"],
+      "additionalProperties": false
+    },
+    {
+      "title": "Data Asset",
+      "description": "DA-* documents — information asset inventory entries",
+      "allOf": [{ "$ref": "#/$defs/common_fields" }],
+      "properties": {
+        "id":                      { "type": "string", "pattern": "^DA-[a-z0-9][a-z0-9-]*$" },
+        "title":                   true,
+        "description":             true,
+        "type":                    { "const": "data-asset" },
+        "status":                  true,
+        "domain":                  true,
+        "owner":                   true,
+        "last_reviewed":           true,
+        "next_review":             true,
+        "lenses":                  true,
+        "managed_externally":      true,
+        "classification": {
+          "type": "string",
+          "enum": ["public", "internal", "confidential", "restricted"],
+          "description": "Data classification level"
+        },
+        "pii": {
+          "oneOf": [{ "type": "boolean" }, { "type": "null" }],
+          "description": "Whether this asset contains personally identifiable information"
+        },
+        "retention_years":         { "oneOf": [{ "type": "number" }, { "type": "null" }], "description": "Retention period in years (null if not applicable)" },
+        "retention_justification": { "type": "string", "description": "Regulatory or business reason for the retention period" },
+        "criticality":             { "$ref": "#/$defs/severity_enum", "description": "Overall criticality = max(C,I,A)" },
+        "confidentiality":         { "$ref": "#/$defs/severity_enum" },
+        "integrity":               { "$ref": "#/$defs/severity_enum" },
+        "availability":            { "$ref": "#/$defs/severity_enum" },
+        "related":                 { "$ref": "#/$defs/related_object" }
+      },
+      "required": ["id", "title", "description", "type", "status", "domain", "owner", "last_reviewed", "next_review", "classification", "criticality"],
+      "additionalProperties": false
+    },
+    {
+      "title": "Business Process",
+      "description": "BP-* documents — key business process inventory with BIA data",
+      "allOf": [{ "$ref": "#/$defs/common_fields" }],
+      "properties": {
+        "id":                  { "type": "string", "pattern": "^BP-[a-z0-9][a-z0-9-]*$" },
+        "title":               true,
+        "description":         true,
+        "type":                { "const": "business-process" },
+        "status":              true,
+        "domain":              true,
+        "owner":               true,
+        "last_reviewed":       true,
+        "next_review":         true,
+        "lenses":              true,
+        "managed_externally":  true,
+        "business_function":   { "type": "string" },
+        "customer_facing": {
+          "oneOf": [{ "type": "boolean" }, { "type": "null" }],
+          "description": "Whether this process directly affects external customers"
+        },
+        "criticality":         { "$ref": "#/$defs/severity_enum", "description": "Overall criticality of the business process" },
+        "rto":                 { "oneOf": [{ "type": "string" }, { "type": "null" }], "description": "Recovery Time Objective — most restrictive across activities (null if none)" },
+        "related":             { "$ref": "#/$defs/related_object" }
+      },
+      "required": ["id", "title", "description", "type", "status", "domain", "owner", "last_reviewed", "next_review", "criticality"],
+      "additionalProperties": false
+    },
+    {
+      "title": "Role",
+      "description": "Organizational role profiles in program/roles/",
+      "properties": {
+        "id":                  { "type": "string", "pattern": "^role-[a-z][a-z0-9-]*$" },
+        "title":               { "type": "string", "minLength": 1 },
+        "description":         { "type": "string", "minLength": 1 },
+        "type":                { "const": "role" },
+        "status":              { "$ref": "#/$defs/status_enum" },
+        "domain":              { "$ref": "#/$defs/domain_enum" },
+        "managed_externally":  { "$ref": "#/$defs/managed_externally_field" },
+        "role_type": {
+          "type": "string",
+          "enum": ["lead", "individual-contributor", "team-member", "committee"]
+        },
+        "team":                { "type": "string" },
+        "reports_to": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^role-[a-z][a-z0-9-]*$" }
+        },
+        "direct_reports": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^role-[a-z][a-z0-9-]*$" }
+        },
+        "related":             { "$ref": "#/$defs/related_object" }
+      },
+      "required": ["id", "title", "description", "type", "status", "domain", "role_type"],
+      "additionalProperties": false
+    }
+  ]
+}

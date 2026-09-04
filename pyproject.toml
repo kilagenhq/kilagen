@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kilagen"
+version = "0.1.0"
+description = "Git-native, AI-first toolkit to build and run a security program as Markdown and YAML in a Git repository"
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["security", "grc", "compliance", "docs-as-code"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Information Technology",
+  "Programming Language :: Python :: 3",
+  "Topic :: Security",
+]
+
+# Runtime dependencies of the shipped framework only. Development tooling for
+# this repository lives in scripts/requirements.txt and is not part of the
+# package: an instance installs kilagen, it does not develop it.
+dependencies = [
+  "pyyaml>=6.0",
+  "jsonschema>=4.23",
+]
+
+[project.scripts]
+kilagen = "kilagen.cli:main"
+
+[project.urls]
+Homepage = "https://kilagen.com"
+
+# The directory keeps its architectural name (keel — the framework layer the
+# instance is built on) while the package is installed and imported under the
+# product name.
+[tool.setuptools]
+package-dir = { "kilagen" = "keel", "kilagen.libs" = "keel/libs", "kilagen.migrations" = "keel/migrations" }
+packages = ["kilagen", "kilagen.libs", "kilagen.migrations"]
+# The framework's data travels with the code. The file list lives in
+# MANIFEST.in rather than in package-data globs, which silently skip the
+# dotfiles the instance seed is made of.
+include-package-data = true

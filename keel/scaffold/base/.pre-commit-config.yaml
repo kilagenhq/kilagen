@@ -1,0 +1,25 @@
+# pre-commit hooks — run `pre-commit install` after cloning.
+# Docs: https://pre-commit.com
+repos:
+  # Markdown linting — config in .markdownlint-cli2.yaml
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: d174eb7a8f35e05d4065c82d375ad84aa0b32352 # v0.17.2
+    hooks:
+      - id: markdownlint-cli2
+
+  # Spell checking — config in .codespellrc
+  - repo: https://github.com/codespell-project/codespell
+    rev: 63c8f8312b7559622c0d82815639671ae42132ac # v2.4.1
+    hooks:
+      - id: codespell
+
+  # program/ content changed but registry.md was not regenerated. Provided by
+  # the installed kilagen package, so there is no script to keep in sync here.
+  - repo: local
+    hooks:
+      - id: registry-staleness
+        name: Check registry.md is staged when program/ changes
+        entry: kilagen check registry
+        language: system
+        pass_filenames: false
+        always_run: true

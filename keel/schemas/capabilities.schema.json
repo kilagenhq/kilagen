@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kilagen.com/schemas/capabilities.schema.json",
+  "title": "Kilagen Capabilities",
+  "description": "Validates XX-domain/capabilities.yml files.",
+
+  "$defs": {
+    "domain_enum": {
+      "type": "string",
+      "enum": [
+        "grc", "iam", "infra", "appsec",
+        "secops", "ir", "offensive",
+        "digital-assets", "awareness", "data-security"
+      ]
+    },
+    "iso_date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "maturity_enum": {
+      "type": "string",
+      "enum": [
+        "L0-none", "L1-ad-hoc", "L2-defined",
+        "L3-integrated", "L4-measured", "L5-optimizing"
+      ]
+    },
+    "capability": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "description": "Short, kebab-case, unique within domain (max 40 chars)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable capability name"
+        },
+        "summary": {
+          "type": "string",
+          "description": "One-sentence definition of what this capability is"
+        },
+        "why": {
+          "type": "string",
+          "description": "Business-anchored justification for why it matters"
+        },
+        "maturity": { "$ref": "#/$defs/maturity_enum" },
+        "systems": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^SYS-[a-z0-9-]+$"
+          },
+          "description": "List of SYS-* IDs implementing this capability; empty array if maturity is L0-none"
+        },
+        "owner": {
+          "type": "string",
+          "description": "Team or individual responsible"
+        },
+        "scope": {
+          "type": "string",
+          "description": "What this capability covers (repos, environments, etc.)"
+        },
+        "backlog_link": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to the ticket epic or filter for this capability's backlog"
+        },
+        "gap_link": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to ticket filter for open compliance gaps against this capability"
+        },
+        "lenses": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*:[A-Za-z0-9_.]+$" },
+          "description": "Lens tags for alternative navigation views (e.g. nist:PR.AA)"
+        },
+        "last_reviewed": { "$ref": "#/$defs/iso_date" }
+      },
+      "required": [
+        "id", "name", "summary", "why", "maturity",
+        "systems", "owner", "scope", "last_reviewed"
+      ],
+      "additionalProperties": false
+    }
+  },
+
+  "type": "object",
+  "properties": {
+    "domain": { "$ref": "#/$defs/domain_enum" },
+    "backlog_link": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to the ticket board or filter for this domain's security backlog"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/capability" }
+    }
+  },
+  "required": ["domain", "capabilities"],
+  "additionalProperties": false
+}

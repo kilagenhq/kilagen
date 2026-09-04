@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kilagen.com/schemas/framework-vocab.schema.json",
+  "title": "Kilagen Framework Clause Vocabulary",
+  "description": "Validates program/frameworks/<id>.yml — the authoritative, edition-pinned clause-reference list for one framework. Reference-not-copy: clause refs only (the text lives at the framework's url in config.yml). The file stem is the framework id and must match a config.yml frameworks[].id.",
+
+  "type": "object",
+  "properties": {
+    "clauses": {
+      "type": "array",
+      "description": "Flat list of clause-reference strings, unique within the file. Quote every value so numeric-looking refs (e.g. \"13.60\") are not collapsed to floats by the YAML parser.",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  },
+  "required": ["clauses"],
+  "additionalProperties": false
+}

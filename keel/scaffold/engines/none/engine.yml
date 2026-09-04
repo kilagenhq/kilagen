@@ -1,0 +1,3 @@
+# No agent integration. The skills still ship inside the package; nothing is
+# written into the instance. Omitting skills_dir is what makes that happen.
+name: None
