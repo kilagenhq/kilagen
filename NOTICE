@@ -1,0 +1,46 @@
+Kilagen
+Copyright 2026 Kilagen
+
+This product includes software developed at Kilagen (https://kilagen.com).
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+--------------------------------------------------------------------------
+Files copied into your own repository
+--------------------------------------------------------------------------
+
+Some directories are licensed MIT No Attribution (MIT-0) instead, because
+`kilagen init` copies or renders their contents into the user's repository
+and a program should carry no attribution obligation from its scaffolding.
+Each carries its own LICENSE file:
+
+    keel/scaffold/           CI configuration and repository files
+    keel/ai/                 agent skills rendered per engine
+    keel/content/templates/  document templates
+    keel/content/starter/    the starting capabilities, documents and
+                             framework vocabularies
+
+--------------------------------------------------------------------------
+Third-party software redistributed with this package
+--------------------------------------------------------------------------
+
+The dashboard has no bundler, so these libraries are committed verbatim in
+keel/dashboard/vendor/ and served to the browser as-is.
+
+marked
+    Copyright (c) 2011-2025, Christopher Jeffrey
+    Licensed under the MIT License.
+    https://github.com/markedjs/marked
+
+DOMPurify
+    Copyright (c) Cure53 and other contributors
+    Licensed under the Apache License 2.0 and the Mozilla Public License 2.0.
+    https://github.com/cure53/DOMPurify
+
+js-yaml
+    Copyright (c) 2011-2015 by Vitaly Puzrin
+    Licensed under the MIT License.
+    https://github.com/nodeca/js-yaml
+
+    The minified build carries no banner of its own, so this notice is the
+    only place its copyright travels. Do not remove it.

@@ -1,5 +1,7 @@
 [build-system]
-requires = ["setuptools>=68"]
+# 77 is the first release that understands the PEP 639 "license" expression
+# and "license-files"; on anything older the fields below are silently ignored.
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +9,13 @@ name = "kilagen"
 version = "0.1.0"
 description = "Git-native, AI-first toolkit to build and run a security program as Markdown and YAML in a Git repository"
 readme = "README.md"
+# Strictly this distribution is "Apache-2.0 AND MIT-0": the directories that
+# kilagen init copies into the user's repository are MIT-0, so a program
+# carries no attribution obligation from its own scaffolding. Declared as
+# Apache-2.0 alone because that is what PyPI displays and what people search
+# on, and the nested LICENSE files carry the nuance. Deliberate.
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE", "keel/*/LICENSE", "keel/content/*/LICENSE"]
 requires-python = ">=3.10"
 keywords = ["security", "grc", "compliance", "docs-as-code"]
 classifiers = [

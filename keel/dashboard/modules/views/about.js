@@ -2,6 +2,27 @@ import { mk, mkMetaRow } from '../dom.js';
 import { state } from '../state.js';
 import { setActiveView, setBread, mainEl, rightEl } from '../nav.js';
 
+/**
+ * Upstream attribution, required by Apache-2.0 section 4(d).
+ *
+ * This site is a redistribution: the build copies the framework's schemas,
+ * lenses and reference documents into _site/keel/ and the instance publishes
+ * it. Rendered into the right panel rather than the main column so it is
+ * present on every About page without competing with the program's own
+ * content — including the empty state, which is what a new instance shows.
+ */
+function appendAttribution() {
+  rightEl.appendChild(mk('h3', '', 'Framework'));
+  var link = mk('a', 'about-fw-link', 'Kilagen');
+  link.href = 'https://kilagen.com';
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  var row = mk('div', 'meta-row');
+  row.appendChild(link);
+  row.appendChild(document.createTextNode(' · Apache-2.0'));
+  rightEl.appendChild(row);
+}
+
 export function renderAbout() {
   setActiveView('about'); mainEl.textContent = ''; rightEl.textContent = '';
   setBread([{ label: 'Reference' }, { label: 'About' }]);
@@ -14,6 +35,7 @@ export function renderAbout() {
     empty.appendChild(mk('h2', '', 'No organization data'));
     empty.appendChild(mk('p', '', 'Add an organization section to program/config.yml.'));
     mainEl.appendChild(empty);
+    appendAttribution();
     return;
   }
 
@@ -92,4 +114,6 @@ export function renderAbout() {
   if (org.license) rightEl.appendChild(mkMetaRow('License', org.license));
   if (org.remote_first) rightEl.appendChild(mkMetaRow('Remote-first', 'Yes'));
   rightEl.appendChild(mkMetaRow('Source', 'program/config.yml'));
+
+  appendAttribution();
 }

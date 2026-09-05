@@ -12,11 +12,15 @@ exist as files next to it.
 
 ## Do not strip the banners
 
-Each file opens with its own copyright and license notice. Those notices are
-what the licenses require us to keep when redistributing, and this package does
-redistribute them — they ship inside every release. A minifier or a
-comment-stripping pass run over this directory would break that. Copy the files
-verbatim; never process them.
+`marked.umd.min.js` and `purify.min.js` open with their own copyright and
+license notice. Those notices are what the licenses require us to keep when
+redistributing, and this package does redistribute them — they ship inside
+every release. A minifier or a comment-stripping pass run over this directory
+would break that. Copy the files verbatim; never process them.
+
+`js-yaml.min.js` is the exception: its minified build carries **no banner at
+all**, so the root `NOTICE` is the only place its copyright travels. Keep that
+entry there, and check for a banner again after any version bump.
 
 ## Refreshing
 
