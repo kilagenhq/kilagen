@@ -6,7 +6,7 @@ description: >
 type: threat-model
 status: draft
 domain: REPLACE-ME
-owner: security-eng
+owner: role-REPLACE-ME
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
 related:                     # optional — remove section if unused

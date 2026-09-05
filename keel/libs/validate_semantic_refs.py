@@ -389,7 +389,13 @@ def _check_role_ref(errors: list, rel: Path, field: str, value, role_ids: set[st
         )
         return
     if value not in role_ids:
-        errors.append(f"  {rel}: {field} references '{value}' which does not exist in program/roles/")
+        # Roles are discovered by filename, so a profile saved under any other
+        # name is invisible however correct its frontmatter. Naming the
+        # expected path turns "it is right there" into a one-line fix.
+        errors.append(
+            f"  {rel}: {field} references '{value}', which has no profile at "
+            f"program/roles/{value}.md"
+        )
 
 
 def validate_role_refs(role_ids: set[str]) -> list[str]:

@@ -32,7 +32,7 @@ capabilities:                # keys must be a subset of domains above
   REPLACE-ME: []             # array of capability IDs from that domain's capabilities.yml
 vendor: REPLACE-ME           # vendor name (lowercase, kebab-case)
 deployment: saas             # saas | iaas | self-hosted | hybrid
-url:                         # optional — primary console / admin URL
+# url:                       # optional — primary console / admin URL
 owner: role-REPLACE-ME        # primary IT owner per STD-asset-management §1.5 (role-* slug)
 second_owner: role-REPLACE-ME # backup IT owner per STD-asset-management §1.23 (role-* slug)
 last_reviewed: 2026-01-01

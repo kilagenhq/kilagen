@@ -6,7 +6,7 @@ description: >
 type: threat
 status: draft
 domain: grc                  # threats live in 01-grc
-owner: security-eng
+owner: role-REPLACE-ME
 severity: medium             # critical | high | medium | low
 last_reviewed: 2026-01-01
 next_review: 2027-01-01

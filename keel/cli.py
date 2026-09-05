@@ -219,6 +219,30 @@ def cmd_init(args: argparse.Namespace) -> int:
                     {rel: {"version": __version__, "sha256": _sha256(target / rel)}
                      for rel in copied})
 
+    # The generated artifacts are committed content, and "check artifacts"
+    # compares against them — so an instance that has never generated them
+    # fails its own first check, and the first pull request of a brand new
+    # program opens red. Generating them here is what makes the closing
+    # line of this command true. Their own progress output belongs to
+    # "build", not to "init".
+    import contextlib
+    import io
+
+    from .libs import generate_coverage, generate_registry
+
+    # keel_lib discovered these when it was imported — before this command
+    # created the program it is now asked to scan. Point them at what was
+    # just built.
+    keel_lib.REPO, keel_lib.PROGRAM = target, program
+
+    with contextlib.redirect_stdout(io.StringIO()):
+        failed = generate_coverage.main() or generate_registry.main()
+    if failed:
+        raise CommandError(
+            "the program was created but its generated artifacts could not be "
+            "written. Run 'kilagen build artifacts' to see why."
+        )
+
     print(f"Initialised '{args.name}' in {target}")
     print(f"  deployment: {args.deployment}    agent: {args.agent}")
     print(f"  {len(copied)} files copied, tracked in {MANIFEST_NAME}")
@@ -291,11 +315,22 @@ def _check_registry() -> int:
     if not content:
         return 0
 
+    if "program/registry.md" in staged:
+        return 0
+
+    # A repository with no commits has no HEAD to diff against, and git says
+    # so on stderr — noise on the very first commit of a new instance, where
+    # everything is staged anyway. Nothing to compare means nothing to warn
+    # about.
+    if subprocess.run(["git", "rev-parse", "--verify", "-q", "HEAD"],
+                      capture_output=True).returncode != 0:
+        return 0
+
     # Nothing to stage if the registry itself has not been regenerated.
     dirty = subprocess.run(
         ["git", "diff", "--quiet", "HEAD", "--", "program/registry.md"]
     ).returncode
-    if dirty == 0 or "program/registry.md" in staged:
+    if dirty == 0:
         return 0
 
     print("\n  WARNING: program/registry.md has been updated but is not staged.")

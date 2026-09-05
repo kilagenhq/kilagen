@@ -96,7 +96,10 @@ class CheckRoleRefTests(unittest.TestCase):
         vsr._check_role_ref(errors, Path("x.md"), "owner", "role-typo", self.role_ids)
         self.assertEqual(len(errors), 1)
         self.assertIn("role-typo", errors[0])
-        self.assertIn("does not exist", errors[0])
+        # The message has to name the path, because roles are found by
+        # filename and "it does not exist" is false when it is simply
+        # saved under another name.
+        self.assertIn("program/roles/role-typo.md", errors[0])
 
     def test_non_string_value_is_shape_error(self):
         errors: list = []

@@ -6,7 +6,7 @@ description: >
 type: vendor
 status: draft
 domain: grc                  # vendors live in 01-grc/vendors/
-owner: security-eng
+owner: role-REPLACE-ME
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
 vendor_name: "REPLACE ME"    # official vendor name
@@ -15,7 +15,7 @@ system: SYS-REPLACE-ME      # optional — corresponding SYS-* ID if security op
 certifications:              # optional — remove if unknown
   - "SOC 2 Type II"
   - "ISO 27001"
-related:                     # optional — remove section if unused
+# related:                   # optional — uncomment and fill in if needed
 ---
 
 # REPLACE ME — Vendor Title

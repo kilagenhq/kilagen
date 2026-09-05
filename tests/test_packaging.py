@@ -19,7 +19,9 @@ from kilagen import __version__
 from kilagen.libs import keel_lib
 
 WORKFLOWS = keel_lib.KEEL / "scaffold" / "deployments" / "github" / ".github" / "workflows"
-PIN_RE = re.compile(r'pip install [^\n]*"(kilagen[^"]*)"')
+# The seed installs "${{ vars.KILAGEN_SPEC || 'kilagen<1' }}": the pin is the
+# default inside the expression, so match either quote style.
+PIN_RE = re.compile(r"""pip install [^\n]*['\"](kilagen[<>=][^'\"]*)['\"]""")
 
 
 def expected_pin(version: str) -> str:

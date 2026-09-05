@@ -10,7 +10,7 @@ last_reviewed: 2026-01-01
 next_review: 2027-01-01
 managed_externally: null
 business_function: REPLACE-ME
-owner: REPLACE-ME
+owner: role-REPLACE-ME
 customer_facing: false
 criticality: medium
 rto: null

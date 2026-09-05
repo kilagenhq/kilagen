@@ -123,7 +123,7 @@
     },
     "frameworks_object": {
       "type": "object",
-      "description": "Framework mappings — keys are snake_case framework identifiers (e.g. mas_trm_2021, mas_fsm_n21), values are arrays of clause references. Which frameworks are in scope is defined in program/config.yml.",
+      "description": "Framework mappings — keys are snake_case framework identifiers (e.g. nist_csf, soc2), values are arrays of clause references. Which frameworks are in scope is defined in program/config.yml.",
       "patternProperties": {
         "^[a-z][a-z0-9_]*$": { "type": "array", "items": { "type": "string" } }
       },

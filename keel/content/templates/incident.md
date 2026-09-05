@@ -6,7 +6,7 @@ description: >
 type: incident
 status: active
 domain: ir                   # incidents live in 06-ir
-owner: security-eng
+owner: role-REPLACE-ME
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
 immutable: true              # postmortems are immutable — never edit after publication
@@ -14,7 +14,7 @@ incident_date: 2026-01-01   # date the incident was detected
 severity: medium             # critical | high | medium | low
 regulator_reportable: false  # true if this incident triggers regulatory reporting obligations
 resolved_date: 2026-01-02   # date the incident was resolved; null if ongoing
-backlog_link:                # optional — URL to the ticket or board tracking post-incident actions
+# backlog_link:              # optional — URL to the ticket or board tracking post-incident actions
 related:                     # optional — remove section if unused
   runbooks: []
 ---

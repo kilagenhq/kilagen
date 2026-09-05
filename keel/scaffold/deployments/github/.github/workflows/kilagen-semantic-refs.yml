@@ -29,8 +29,13 @@ jobs:
       # program's content, which must be a deliberate act rather than
       # something a Monday morning CI run does. "kilagen update config"
       # raises the pin when you choose to move.
+      #
+      # Set the KILAGEN_SPEC repository variable to override the source —
+      # a branch or commit of the framework, say, while a change to it is
+      # being reviewed. The ref then acts as the pin. Repository variables
+      # are settable only by those who could edit this file anyway.
       - name: Install dependencies
-        run: pip install --quiet "kilagen<1"
+        run: pip install --quiet "${{ vars.KILAGEN_SPEC || 'kilagen<1' }}"
 
       - name: Validate cross-references
         run: kilagen check refs

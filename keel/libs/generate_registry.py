@@ -15,7 +15,8 @@ import re
 import sys
 from datetime import datetime, timezone
 
-from .keel_lib import PROGRAM, scan_all
+from . import keel_lib
+from .keel_lib import scan_all
 
 _DATE_RE = re.compile(r"^Generated:\s*(\d{4}-\d{2}-\d{2})", re.MULTILINE)
 
@@ -83,7 +84,10 @@ def build_registry_md(config, documents, capabilities, lenses, coverage, date: s
 
 
 def output_path():
-    return PROGRAM / "registry.md"
+    # Read from the module rather than bound at import: "init" creates the
+    # program after this module is loaded, and would otherwise write to
+    # wherever the framework happened to be discovered first.
+    return keel_lib.PROGRAM / "registry.md"
 
 
 def strip_date(text: str) -> str:
@@ -133,6 +137,6 @@ def main() -> int:
     output_path().write_text(registry_md, encoding="utf-8")
     print("done")
 
-    print(f"\n  program/registry.md  ({(PROGRAM / 'registry.md').stat().st_size // 1024}KB)")
+    print(f"\n  program/registry.md  ({(keel_lib.PROGRAM / 'registry.md').stat().st_size // 1024}KB)")
     return 0
 

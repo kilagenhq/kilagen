@@ -6,7 +6,7 @@ description: >
 type: adr
 status: active               # typically active on creation; superseded if replaced
 domain: REPLACE-ME
-owner: security-eng
+owner: role-REPLACE-ME
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
 immutable: true              # ADRs are immutable — supersede instead of editing

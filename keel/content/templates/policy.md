@@ -7,10 +7,10 @@ description: >
 type: policy
 status: draft
 domain: grc
-owner: security-eng
+owner: role-REPLACE-ME
 version: "1.0"
-approved_by: []              # array of role slugs that approved this policy
-reviewed_by: ""              # role(s) that reviewed this policy (same shape as approved_by)
+approved_by: [role-REPLACE-ME]   # array of role slugs that approved this policy
+reviewed_by: [role-REPLACE-ME]   # role(s) that reviewed this policy (same shape as approved_by)
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
 related:                     # optional — remove section if unused

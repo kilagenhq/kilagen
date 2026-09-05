@@ -1,4 +1,6 @@
 ---
+# Save this file as program/roles/<id>.md — role profiles are discovered by
+# filename, so program/roles/role-security-eng.md holds id: role-security-eng.
 id: role-REPLACE-ME
 title: "REPLACE ME"
 description: >

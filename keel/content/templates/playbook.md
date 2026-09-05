@@ -6,7 +6,7 @@ description: >
 type: playbook
 status: draft
 domain: ir                   # playbooks typically live in 06-ir
-owner: security-eng
+owner: role-REPLACE-ME
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
 related:                     # optional — remove section if unused

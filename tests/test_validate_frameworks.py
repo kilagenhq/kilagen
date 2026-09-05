@@ -24,37 +24,37 @@ VOCAB_SCHEMA_PATH = keel_lib.KEEL / "schemas" / "framework-vocab.schema.json"
 
 class CheckFrameworkMappingsTests(unittest.TestCase):
     def setUp(self):
-        self.config_ids = {"mas_trm_2021", "mas_fsm_n22"}
-        self.vocab = {"mas_trm_2021": ["13.1", "9.1"], "mas_fsm_n22": ["IV.2"]}
+        self.config_ids = {"nist_csf", "soc2"}
+        self.vocab = {"nist_csf": ["13.1", "9.1"], "soc2": ["IV.2"]}
 
     def _rec(self, fw, clause, std="STD-x", ref="5.1"):
         return {"std_id": std, "ref": ref, "fw": fw, "clause": clause}
 
     def test_resolved_mapping_passes(self):
         errors = []
-        vf._check_framework_mappings(errors, [self._rec("mas_trm_2021", "13.1")],
+        vf._check_framework_mappings(errors, [self._rec("nist_csf", "13.1")],
                                      self.config_ids, self.vocab)
         self.assertEqual(errors, [])
 
     def test_unknown_framework_errors(self):
         errors = []
-        vf._check_framework_mappings(errors, [self._rec("mas_trm_2020", "13.1")],
+        vf._check_framework_mappings(errors, [self._rec("iso_27002", "13.1")],
                                      self.config_ids, self.vocab)
         self.assertEqual(len(errors), 1)
-        self.assertIn("mas_trm_2020", errors[0])
+        self.assertIn("iso_27002", errors[0])
 
     def test_unresolved_clause_errors(self):
         errors = []
-        vf._check_framework_mappings(errors, [self._rec("mas_trm_2021", "99.9")],
+        vf._check_framework_mappings(errors, [self._rec("nist_csf", "99.9")],
                                      self.config_ids, self.vocab)
         self.assertEqual(len(errors), 1)
         self.assertIn("99.9", errors[0])
 
     def test_configured_framework_without_vocab_is_unresolved(self):
         errors = []
-        # mas_fsm_n22 is configured but absent from this vocab -> clause can't resolve.
-        vf._check_framework_mappings(errors, [self._rec("mas_fsm_n22", "IV.2")],
-                                     self.config_ids, {"mas_trm_2021": ["13.1"]})
+        # soc2 is configured but absent from this vocab -> clause can't resolve.
+        vf._check_framework_mappings(errors, [self._rec("soc2", "IV.2")],
+                                     self.config_ids, {"nist_csf": ["13.1"]})
         self.assertEqual(len(errors), 1)
         self.assertIn("IV.2", errors[0])
 
@@ -112,25 +112,25 @@ class ValidateFrameworkCoverageRefsCompositionTests(unittest.TestCase):
             setattr(vf, k, v)
 
     def _wire(self, records, vocab):
-        vf.load_config = lambda: {"frameworks": [{"id": "mas_trm_2021"}]}
+        vf.load_config = lambda: {"frameworks": [{"id": "nist_csf"}]}
         vf.load_framework_vocab = lambda: vocab
         vf.scan_framework_mappings = lambda: records
 
     def test_resolved_mapping_passes(self):
-        self._wire([{"std_id": "STD-x", "ref": "1.1", "fw": "mas_trm_2021", "clause": "13.1"}],
-                   {"mas_trm_2021": ["13.1"]})
+        self._wire([{"std_id": "STD-x", "ref": "1.1", "fw": "nist_csf", "clause": "13.1"}],
+                   {"nist_csf": ["13.1"]})
         self.assertEqual(vf.validate_framework_coverage_refs(), [])
 
     def test_unresolved_clause_errors(self):
-        self._wire([{"std_id": "STD-x", "ref": "1.1", "fw": "mas_trm_2021", "clause": "99.9"}],
-                   {"mas_trm_2021": ["13.1"]})
+        self._wire([{"std_id": "STD-x", "ref": "1.1", "fw": "nist_csf", "clause": "99.9"}],
+                   {"nist_csf": ["13.1"]})
         errors = vf.validate_framework_coverage_refs()
         self.assertEqual(len(errors), 1)
         self.assertIn("99.9", errors[0])
 
     def test_unknown_framework_errors(self):
         self._wire([{"std_id": "STD-x", "ref": "1.1", "fw": "iso_27001", "clause": "A.8"}],
-                   {"mas_trm_2021": ["13.1"]})
+                   {"nist_csf": ["13.1"]})
         errors = vf.validate_framework_coverage_refs()
         self.assertEqual(len(errors), 1)
         self.assertIn("iso_27001", errors[0])

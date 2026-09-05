@@ -6,25 +6,25 @@ description: >
 type: standard
 status: draft
 domain: grc                  # standards live centralized in 01-grc
-owner: security-eng
+owner: role-REPLACE-ME
 version: "1.0"
-approved_by: []              # array of role slugs that approved this standard
-reviewed_by: ""              # role(s) that reviewed this standard (same shape as approved_by)
+approved_by: [role-REPLACE-ME]   # array of role slugs that approved this standard
+reviewed_by: [role-REPLACE-ME]   # role(s) that reviewed this standard (same shape as approved_by)
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
 applies_to: []               # domains where this standard's requirements apply (e.g. [appsec, infra])
 requirements:                # requirement-level mappings
   - ref: "X.1"               # requirement number as used in the body
     domains: []               # which domains this requirement applies to (e.g. [appsec, infra])
-    capabilities:             # which capabilities this requirement covers
-      # appsec: [sast, sca]
+    # capabilities:           # optional — which capabilities this requirement covers
+    #   appsec: [sast, sca]
     frameworks:               # omit frameworks for internal requirements
-      mas_trm_2021: []
+      nist_csf: []
   - ref: "X.2"               # no frameworks = internal requirement
     domains: []
 # gap_link:                  # optional — URL to ticket filter for open gaps
 related:
-  policies: [POL-information-security]
+  policies: [POL-REPLACE-ME]   # the policy this standard implements
   standards: []              # cross-references to other standards
 ---
 

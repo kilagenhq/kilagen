@@ -21,7 +21,7 @@ from kilagen.libs import keel_lib
 from kilagen.libs import generate_coverage as gen
 
 COVERAGE_MAP = {
-    "mas_trm_2021": {
+    "nist_csf": {
         "13.1": {"coverage": "mapped"},
         "9.5": {"coverage": "unmapped", "posture": "not-assessed"},
     }
@@ -39,8 +39,8 @@ class RenderCoverageYamlTests(unittest.TestCase):
 
     def test_unmapped_carries_not_assessed(self):
         loaded = yaml.safe_load(gen.render_coverage_yaml(COVERAGE_MAP))
-        self.assertEqual(loaded["mas_trm_2021"]["9.5"]["posture"], "not-assessed")
-        self.assertNotIn("posture", loaded["mas_trm_2021"]["13.1"])
+        self.assertEqual(loaded["nist_csf"]["9.5"]["posture"], "not-assessed")
+        self.assertNotIn("posture", loaded["nist_csf"]["13.1"])
 
 
 class GeneratorMainTests(unittest.TestCase):
@@ -52,13 +52,17 @@ class GeneratorMainTests(unittest.TestCase):
         self.repo = Path(self._tmp.name)
         (self.repo / "program" / "01-grc" / "compliance").mkdir(parents=True)
         self._orig = {k: getattr(gen, k) for k in
-                      ("REPO", "load_config", "load_framework_vocab", "scan_framework_mappings")}
-        gen.REPO = self.repo
+                      ("load_config", "load_framework_vocab", "scan_framework_mappings")}
+        # The generator resolves the repository through keel_lib at call
+        # time, so that is what a test has to move.
+        self._orig_repo = keel_lib.REPO
+        keel_lib.REPO = self.repo
         keel_lib._warnings = 0
 
     def tearDown(self):
         for k, v in self._orig.items():
             setattr(gen, k, v)
+        keel_lib.REPO = self._orig_repo
         keel_lib._warnings = 0
         self._tmp.cleanup()
 

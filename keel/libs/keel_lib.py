@@ -167,7 +167,7 @@ def _extract_frameworks(requirements: list) -> dict:
             ``{fw_key: [clause, ...]}``.
 
     Returns:
-        Dict keyed by framework key (e.g. ``"mas_trm_2021"``), with lists of
+        Dict keyed by framework key (e.g. ``"nist_csf"``), with lists of
         clause strings as values.
     """
     frameworks: dict[str, list] = {}

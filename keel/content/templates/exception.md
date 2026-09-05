@@ -6,9 +6,9 @@ description: >
 type: exception
 status: active               # active | expired | revoked
 domain: grc                  # exceptions live in 01-grc
-owner: security-eng
-requested_by: ""             # team or role that requested the deviation
-approved_by: ""              # role or name of approver
+owner: role-REPLACE-ME
+requested_by: REPLACE-ME     # team or role that requested the deviation
+approved_by: [role-REPLACE-ME]   # role slugs that approved this exception
 decision_date: 2026-01-01   # when approved
 expires: 2027-01-01          # mandatory re-evaluation date (max 12 months, per organizational policy)
 risk_severity: medium        # residual risk after compensating controls: critical | high | medium | low

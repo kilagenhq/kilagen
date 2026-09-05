@@ -22,8 +22,8 @@ import sys
 
 import yaml
 
+from . import keel_lib
 from .keel_lib import (
-    REPO,
     _warn,
     compute_coverage_map,
     config_framework_ids,
@@ -75,7 +75,8 @@ def compute() -> dict:
 
 
 def output_path():
-    return REPO / "program" / "01-grc" / "compliance" / "coverage.yml"
+    # See the note in generate_registry.output_path().
+    return keel_lib.REPO / "program" / "01-grc" / "compliance" / "coverage.yml"
 
 
 def main() -> int:

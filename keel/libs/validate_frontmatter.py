@@ -84,6 +84,29 @@ def load_yaml(text: str) -> dict | None:
     return yaml.load(text, Loader=StringLoader)
 
 
+def _branch_errors(error, fm: dict) -> list:
+    """Narrow a top-level ``oneOf`` failure to the branch the document meant.
+
+    The schema is seventeen document types in a ``oneOf``, so a single wrong
+    field reports as "is not valid under any of the given schemas" with the
+    whole frontmatter echoed back — every other branch also failed, for the
+    uninteresting reason that the document is not a policy, a risk, or a
+    vendor. The branch whose ``type`` const matches is the one the author
+    intended, and only its errors describe the actual mistake.
+    """
+    branches = (error.schema or {}).get("oneOf") or []
+    doc_type = fm.get("type")
+    for index, branch in enumerate(branches):
+        spec = (branch.get("properties") or {}).get("type") or {}
+        if spec.get("const") != doc_type and doc_type not in (spec.get("enum") or []):
+            continue
+        # "type" itself is excluded: it matched, so any error on it is noise
+        # from a branch that was never in the running.
+        return [e for e in (error.context or [])
+                if list(e.schema_path)[:1] == [index] and list(e.path)[:1] != ["type"]]
+    return []
+
+
 def validate_frontmatter(fm_schema: dict) -> list[str]:
     """Validate every ``.md`` frontmatter against the frontmatter JSON Schema.
 
@@ -107,10 +130,11 @@ def validate_frontmatter(fm_schema: dict) -> list[str]:
             continue
         if fm is None or "type" not in fm:
             continue
-        errs = list(validator.iter_errors(fm))
-        for e in errs:
-            field = ".".join(str(p) for p in e.absolute_path) if e.absolute_path else "(root)"
-            errors.append(f"  {path.relative_to(REPO)}: {field} — {e.message}")
+        for e in validator.iter_errors(fm):
+            for reported in _branch_errors(e, fm) or [e]:
+                field = ".".join(str(p) for p in reported.absolute_path) \
+                    if reported.absolute_path else "(root)"
+                errors.append(f"  {path.relative_to(REPO)}: {field} — {reported.message}")
     return errors
 
 

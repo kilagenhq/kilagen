@@ -6,7 +6,7 @@ description: >
 type: data-asset
 status: draft
 domain: data-security
-owner: REPLACE-ME
+owner: role-REPLACE-ME
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
 classification: confidential

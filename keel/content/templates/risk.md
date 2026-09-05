@@ -6,7 +6,7 @@ description: >
 type: risk
 status: draft
 domain: grc
-owner: role-cto
+owner: role-REPLACE-ME
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
 severity: medium             # negligible | low | medium | high | critical
