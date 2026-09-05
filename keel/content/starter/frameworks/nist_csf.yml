@@ -1,0 +1,32 @@
+# NIST Cybersecurity Framework 2.0 — clause vocabulary.
+#
+# Reference-not-copy: clause references only. The framework text lives at the
+# url recorded for this framework in program/config.yml.
+#
+# These are the CSF 2.0 categories, the same taxonomy the shipped nist-csf
+# lens renders — so the coverage view and the lens view cannot disagree.
+# Map at subcategory level instead (GV.OC-01) by replacing this list.
+
+clauses:
+  - "GV.OC"
+  - "GV.RM"
+  - "GV.RR"
+  - "GV.PO"
+  - "GV.OV"
+  - "GV.SC"
+  - "ID.AM"
+  - "ID.RA"
+  - "ID.IM"
+  - "PR.AA"
+  - "PR.AT"
+  - "PR.DS"
+  - "PR.PS"
+  - "PR.IR"
+  - "DE.CM"
+  - "DE.AE"
+  - "RS.MA"
+  - "RS.AN"
+  - "RS.CO"
+  - "RS.MI"
+  - "RC.RP"
+  - "RC.CO"

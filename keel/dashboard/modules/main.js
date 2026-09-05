@@ -120,7 +120,10 @@ darkBtn.addEventListener('click', function() {
 
 /* ===== View buttons (toolbar: Tools + Reference dropdowns) ===== */
 const viewBtns = {};
-['browse', 'graph', 'reviews', 'about', 'schemas', 'templates', 'glossary', 'matref', 'riskframework'].forEach(function(v) {
+// 'domains', 'maturity' and 'nist-csf' are the coverage views. Their routes
+// always existed; without a button the only way in was to type the hash.
+['browse', 'graph', 'reviews', 'about', 'schemas', 'templates', 'glossary', 'matref', 'riskframework',
+ 'domains', 'maturity', 'nist-csf'].forEach(function(v) {
   var el = document.getElementById('view-' + v);
   if (!el) return;
   viewBtns[v] = el;

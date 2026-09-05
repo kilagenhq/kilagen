@@ -183,6 +183,57 @@ class RealInstanceTests(unittest.TestCase):
                          "dashboard/index.html"):
             self.assertTrue((site / expected).is_file(), expected)
 
+    def test_every_domain_arrives_with_capabilities_at_L0(self):
+        """The dashboard draws a domain only if that domain has capabilities.
+
+        So an empty capabilities layer is not a cosmetic gap: it is a home page
+        with nothing on it. L0-none is the honest maturity for a program that
+        was created seconds ago, and the schema requires `systems: []` to
+        match it.
+        """
+        domains = sorted((self.instance / "program").glob("[0-9][0-9]-*"))
+        self.assertEqual(len(domains), 10, [d.name for d in domains])
+        for domain in domains:
+            data = yaml.safe_load((domain / "capabilities.yml").read_text())
+            self.assertTrue(data["capabilities"], domain.name)
+            for capability in data["capabilities"]:
+                self.assertEqual(capability["maturity"], "L0-none", capability["id"])
+                self.assertEqual(capability["systems"], [], capability["id"])
+
+    def test_the_seeded_standard_maps_to_both_frameworks(self):
+        """The traceability chain has to resolve, not just look plausible.
+
+        A mapping to a clause absent from the vocabulary, or to a framework
+        absent from config.yml, fails validation — so this asserts the whole
+        chain the starter exists to demonstrate: requirement to clause, clause
+        to vocabulary, framework to config.
+        """
+        coverage = yaml.safe_load(
+            (self.instance / "program" / "01-grc" / "compliance" / "coverage.yml").read_text())
+        self.assertEqual(set(coverage), {"nist_csf", "pci_dss"})
+        for framework, clauses in coverage.items():
+            mapped = [c for c, v in clauses.items() if v.get("coverage") == "mapped"]
+            self.assertTrue(mapped, f"{framework} has no mapped clause")
+
+    def test_seeded_documents_are_drafts(self):
+        # A starter document that says "active" is a lie the user did not tell.
+        for name in ("01-grc/policies/POL-information-security.md",
+                     "01-grc/standards/STD-access-control.md"):
+            fm = keel_lib.extract_frontmatter(self.instance / "program" / name)
+            self.assertEqual(fm["status"], "draft", name)
+
+    def test_no_byte_code_is_copied_or_tracked(self):
+        """`pip install` compiles the seed's .py file and leaves a __pycache__.
+
+        Copying it is invisible — the seeded .gitignore hides it — until a
+        Python upgrade changes the hash the manifest recorded and `update
+        config` reports a file nobody edited.
+        """
+        manifest = yaml.safe_load(
+            (self.instance / cli.MANIFEST_NAME).read_text())["files"]
+        self.assertEqual([f for f in manifest if "__pycache__" in f or f.endswith(".pyc")], [])
+        self.assertEqual(list(self.instance.rglob("*.pyc")), [])
+
     def test_nothing_generated_escapes_gitignore(self):
         ignored = (self.instance / ".gitignore").read_text().split()
         for pattern in ("_site/", "__pycache__/", "node_modules/"):

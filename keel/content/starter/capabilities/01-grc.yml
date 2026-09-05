@@ -1,0 +1,110 @@
+# Capabilities for the GRC domain.
+#
+# A starting inventory: what this domain can cover, with every capability at
+# L0-none. L0 means the capability is acknowledged and nothing has been built
+# for it yet — the honest state of a new program. Raise the maturity as each
+# one becomes real, list the systems that implement it, and delete the ones
+# that do not apply to you.
+#
+# See keel/maturity.md for the scale and its graduation criteria.
+
+domain: grc
+
+capabilities:
+  - id: policy-lifecycle
+    name: Policy and Standard Lifecycle
+    summary: >
+      Authoring, approval, versioning and scheduled review of policies and
+      standards.
+    why: >
+      Documents nobody reviews stop describing what the organisation
+      actually does, and an auditor can tell.
+    maturity: L0-none
+    systems: []
+    owner: role-security-owner
+    scope: >
+      All policies, standards, processes and guidelines in the program.
+    lenses: [nist:GV.PO]
+    last_reviewed: 2026-01-01
+
+  - id: risk-management
+    name: Risk Management
+    summary: >
+      A maintained register of security risks with severity, treatment and
+      ownership.
+    why: >
+      Prioritisation without a register is prioritisation by whoever argues
+      loudest.
+    maturity: L0-none
+    systems: []
+    owner: role-security-owner
+    scope: >
+      Identification, assessment, treatment and periodic review of security
+      risks.
+    lenses: [nist:GV.RM, nist:ID.RA]
+    last_reviewed: 2026-01-01
+
+  - id: compliance-mapping
+    name: Compliance Mapping
+    summary: >
+      Mapping requirements to the clauses of each framework in scope, and
+      tracking coverage.
+    why: >
+      Answering an auditor from the same source of truth the engineers work
+      from, rather than a spreadsheet rebuilt each cycle.
+    maturity: L0-none
+    systems: []
+    owner: role-security-owner
+    scope: >
+      Every framework declared in scope and the requirements that map to its
+      clauses.
+    lenses: [nist:GV.OC]
+    last_reviewed: 2026-01-01
+
+  - id: exception-management
+    name: Exception Management
+    summary: >
+      Approved, time-bounded deviations from a standard, with compensating
+      controls recorded.
+    why: >
+      Undocumented deviations are indistinguishable from failures; a dated
+      exception makes the decision visible and forces re-evaluation.
+    maturity: L0-none
+    systems: []
+    owner: role-security-owner
+    scope: >
+      All approved deviations from any requirement, with mandatory expiry.
+    lenses: [nist:GV.RM]
+    last_reviewed: 2026-01-01
+
+  - id: gap-management
+    name: Gap Management
+    summary: >
+      Tracking unapproved shortfalls against requirements through to
+      remediation.
+    why: >
+      A gap that is not written down is a gap nobody owns.
+    maturity: L0-none
+    systems: []
+    owner: role-security-owner
+    scope: >
+      Shortfalls against any requirement, from identification to closure.
+    lenses: [nist:ID.IM]
+    last_reviewed: 2026-01-01
+
+  - id: third-party-risk
+    name: Third-Party Risk Management
+    summary: >
+      Assessment and periodic review of the security posture of vendors and
+      service providers.
+    why: >
+      Third parties inherit access to data and systems; their weaknesses
+      become the organisation's.
+    maturity: L0-none
+    systems: []
+    owner: role-security-owner
+    scope: >
+      Vendors and service providers handling company or customer data, or
+      holding system access.
+    lenses: [nist:GV.SC]
+    last_reviewed: 2026-01-01

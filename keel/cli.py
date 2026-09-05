@@ -53,12 +53,20 @@ def _tree_plan(src: Path, prefix: Path | None = None) -> dict[Path, Path]:
     A README.md at the root of the source describes the option itself — what
     this deployment wires up, when to pick it — and stays behind. Copying it
     would overwrite the instance's own README.
+
+    Byte-code is skipped. The seed contains a .py file, so `pip install`
+    compiles it and leaves a __pycache__ beside it in site-packages; copying
+    that would put a stale .pyc in the instance and, worse, record it in the
+    manifest, where a later Python version changes its hash and `update
+    config` reports a file the user never touched.
     """
     plan: dict[Path, Path] = {}
     if not src.is_dir():
         return plan
     for item in sorted(src.rglob("*")):
         if not item.is_file():
+            continue
+        if item.suffix in (".pyc", ".pyo") or "__pycache__" in item.parts:
             continue
         rel = item.relative_to(src)
         if rel == Path("README.md"):
@@ -149,8 +157,13 @@ def _program_config(name: str) -> str:
         f"schema_version: {SCHEMA_VERSION}\n"
         "\n"
         "# Compliance frameworks this program maps to. Each id needs a matching\n"
-        "# program/frameworks/<id>.yml holding its clause vocabulary.\n"
-        "frameworks: []\n"
+        "# program/frameworks/<id>.yml holding its clause vocabulary. Remove the\n"
+        "# ones you are not measured against — coverage is computed over these.\n"
+        "frameworks:\n"
+        "  - id: nist_csf\n"
+        "    url: https://www.nist.gov/cyberframework\n"
+        "  - id: pci_dss\n"
+        "    url: https://www.pcisecuritystandards.org/\n"
     )
 
 
@@ -210,10 +223,29 @@ def cmd_init(args: argparse.Namespace) -> int:
     # starting content stays editable data instead of strings in the CLI.
     for template in ("gaps.yml", "risk-taxonomy.yml"):
         shutil.copy2(keel_lib.KEEL / "content" / "templates" / template, program / template)
-    for domain in INITIAL_DOMAINS:
-        (program / domain).mkdir(exist_ok=True)
     for sub in ("systems", "roles", "frameworks"):
         (program / sub).mkdir(exist_ok=True)
+
+    # A new program is not an empty one: it is a map of what does not exist
+    # yet. Every domain arrives with its capabilities at L0-none, which is the
+    # honest reading of "just installed" and is also what makes the dashboard
+    # render anything at all — it draws a domain only if that domain has
+    # capabilities. The starting documents are drafts whose bodies say to
+    # replace or delete them.
+    starter = keel_lib.KEEL / "content" / "starter"
+    for source in sorted((starter / "capabilities").glob("*.yml")):
+        domain_dir = program / source.stem
+        domain_dir.mkdir(exist_ok=True)
+        shutil.copy2(source, domain_dir / "capabilities.yml")
+    for source in sorted((starter / "frameworks").glob("*.yml")):
+        shutil.copy2(source, program / "frameworks" / source.name)
+    for source, destination in (
+        ("role-security-owner.md", program / "roles"),
+        ("POL-information-security.md", program / INITIAL_DOMAINS[0] / "policies"),
+        ("STD-access-control.md", program / INITIAL_DOMAINS[0] / "standards"),
+    ):
+        destination.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(starter / "documents" / source, destination / source)
 
     _write_manifest(target, args.deployment, args.agent,
                     {rel: {"version": __version__, "sha256": _sha256(target / rel)}
@@ -246,7 +278,10 @@ def cmd_init(args: argparse.Namespace) -> int:
     print(f"Initialised '{args.name}' in {target}")
     print(f"  deployment: {args.deployment}    agent: {args.agent}")
     print(f"  {len(copied)} files copied, tracked in {MANIFEST_NAME}")
-    print("\nNext: add your first standard under program/01-grc/, then run 'kilagen check'.")
+    print("\nYour program starts as a map of what does not exist yet: every")
+    print("capability at L0-none, two frameworks in scope, one draft policy and")
+    print("standard to replace or delete.\n")
+    print("  kilagen build && kilagen serve    see it at http://localhost:8000")
     return 0
 
 
