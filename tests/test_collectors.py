@@ -145,5 +145,95 @@ class InventoryTests(ProgramTestCase):
         self.assertIn("manual", registry["collectors"])
 
 
+class RewriteTests(unittest.TestCase):
+    """`update evidence --apply` edits the user's own frontmatter in place.
+
+    It works on text rather than round-tripping YAML, because reformatting a
+    whole document to change two lines is not a diff anybody wants to review.
+    The price of that choice is that every shape a person might have written
+    has to be handled, so each one here is a shape that appears in real files.
+    """
+
+    FRESH = {"url": "https://new.example/report.pdf", "collected": "2026-09-21"}
+
+    def _apply(self, text: str):
+        return collect_evidence._rewrite(text, "manual", self.FRESH)
+
+    def _entry(self, text: str, index: int = 0) -> dict:
+        """Parse the result and hand back one evidence entry."""
+        import yaml
+        front = yaml.safe_load(text.split("---")[1])
+        return front["requirements"][0]["evidence"][index]
+
+    def test_it_replaces_the_pointer_and_the_date(self):
+        text = ("---\nrequirements:\n- ref: '1.1'\n  evidence:\n  - name: A\n"
+                "    url: https://old.example/a.pdf\n    collected: '2026-01-01'\n"
+                "    collector: manual\n---\nbody\n")
+        out, changed = self._apply(text)
+        self.assertTrue(changed)
+        entry = self._entry(out)
+        self.assertEqual(entry["url"], self.FRESH["url"])
+        self.assertEqual(str(entry["collected"]), self.FRESH["collected"])
+        self.assertTrue(out.endswith("body\n"), "the body must be untouched")
+
+    def test_it_adds_a_date_to_an_entry_that_never_had_one(self):
+        text = ("---\nrequirements:\n- ref: '1.1'\n  evidence:\n  - name: A\n"
+                "    url: https://old.example/a.pdf\n    collector: manual\n---\n")
+        out, changed = self._apply(text)
+        self.assertTrue(changed)
+        self.assertEqual(str(self._entry(out)["collected"]), self.FRESH["collected"])
+
+    def test_it_leaves_alone_an_entry_that_names_no_collector(self):
+        text = ("---\nrequirements:\n- ref: '1.1'\n  evidence:\n"
+                "  - name: A\n    url: https://old.example/a.pdf\n    collected: '2026-01-01'\n"
+                "  - name: B\n    url: https://old.example/b.pdf\n    collected: '2026-02-02'\n"
+                "    collector: manual\n---\n")
+        out, _ = self._apply(text)
+        self.assertEqual(self._entry(out, 0)["url"], "https://old.example/a.pdf")
+        self.assertEqual(self._entry(out, 1)["url"], self.FRESH["url"])
+
+    def test_it_keeps_one_kind_of_line_ending(self):
+        """A file written on Windows must not come back half converted."""
+        text = ("---\r\nrequirements:\r\n- ref: '1.1'\r\n  evidence:\r\n  - name: A\r\n"
+                "    url: https://old.example/a.pdf\r\n    collected: '2026-01-01'\r\n"
+                "    collector: manual\r\n---\r\n")
+        out, changed = self._apply(text)
+        self.assertTrue(changed)
+        endings = {line.endswith("\r") for line in out.split("\n") if line}
+        self.assertEqual(endings, {True}, "the rewrite left mixed line endings")
+
+    def test_it_survives_indentation_nobody_else_uses(self):
+        text = ("---\nrequirements:\n    - ref: '1.1'\n      evidence:\n"
+                "          - name: A\n            url: https://old.example/a.pdf\n"
+                "            collected: '2026-01-01'\n            collector: manual\n---\n")
+        out, changed = self._apply(text)
+        self.assertTrue(changed)
+        self.assertEqual(self._entry(out)["url"], self.FRESH["url"])
+
+    def test_a_name_with_a_colon_is_not_treated_as_a_key(self):
+        text = ("---\nrequirements:\n- ref: '1.1'\n  evidence:\n"
+                "  - name: 'Q3: the access review'\n    url: https://old.example/a.pdf\n"
+                "    collected: '2026-01-01'\n    collector: manual\n---\n")
+        out, _ = self._apply(text)
+        self.assertEqual(self._entry(out)["name"], "Q3: the access review")
+        self.assertEqual(self._entry(out)["url"], self.FRESH["url"])
+
+    def test_it_reports_no_change_when_the_collector_returns_what_is_there(self):
+        """Idempotence: running it twice must not produce a second diff."""
+        text = ("---\nrequirements:\n- ref: '1.1'\n  evidence:\n  - name: A\n"
+                f"    url: https://new.example/report.pdf\n    collected: '2026-09-21'\n"
+                "    collector: manual\n---\n")
+        out, changed = self._apply(text)
+        self.assertFalse(changed, "nothing moved, so nothing should be rewritten")
+        self.assertEqual(out, text)
+
+    def test_an_entry_for_another_collector_is_not_touched(self):
+        text = ("---\nrequirements:\n- ref: '1.1'\n  evidence:\n  - name: A\n"
+                "    url: https://old.example/a.pdf\n    collector: somebody-else\n---\n")
+        out, changed = self._apply(text)
+        self.assertFalse(changed)
+        self.assertEqual(out, text)
+
+
 if __name__ == "__main__":
     unittest.main()

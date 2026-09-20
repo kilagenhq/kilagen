@@ -42,5 +42,7 @@ js-yaml
     Licensed under the MIT License.
     https://github.com/nodeca/js-yaml
 
-    The minified build carries no banner of its own, so this notice is the
-    only place its copyright travels. Do not remove it.
+    The build npm publishes carries no banner of its own. The vendoring
+    script writes one into our copy so the artefact can say which version
+    it is, but that banner is ours, not upstream's — this notice is where
+    the copyright actually lives. Do not remove either.

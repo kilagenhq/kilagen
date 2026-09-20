@@ -121,21 +121,28 @@ def _rewrite(text: str, name: str, fresh: dict) -> tuple[str, bool]:
         changed = False
         seen_collected = False
         for i, line in enumerate(entry):
+            # A file written on Windows has \r on every line, and `.*$` eats it.
+            # Replacing a line without putting it back leaves one file with two
+            # kinds of line ending, which turns a two-line change into a diff
+            # that looks like something happened to the whole block.
+            eol = "\r" if line.endswith("\r") else ""
             if re.match(r"^\s*url:", line):
-                replacement = re.sub(r"^(\s*url:\s*).*$", lambda m: m.group(1) + fresh["url"], line)
+                replacement = re.sub(r"^(\s*url:\s*).*$",
+                                     lambda m: m.group(1) + fresh["url"] + eol, line)
                 if replacement != line:
                     entry[i] = replacement
                     changed = True
             elif re.match(r"^\s*collected:", line):
                 seen_collected = True
                 replacement = re.sub(r"^(\s*collected:\s*).*$",
-                                     lambda m: m.group(1) + "'" + fresh["collected"] + "'", line)
+                                     lambda m: m.group(1) + "'" + fresh["collected"] + "'" + eol, line)
                 if replacement != line:
                     entry[i] = replacement
                     changed = True
         if not seen_collected:
             pad = " " * (indent + 2)
-            entry.append(f"{pad}collected: '{fresh['collected']}'")
+            tail = "\r" if entry and entry[-1].endswith("\r") else ""
+            entry.append(f"{pad}collected: '{fresh['collected']}'{tail}")
             changed = True
         if not changed:
             return text, False

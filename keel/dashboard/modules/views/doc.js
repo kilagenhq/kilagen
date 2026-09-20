@@ -2,7 +2,7 @@ import { mk, mkIcon, mkEmpty, mkMetaRow, mkCopyBtn, mkSourcePanel, formatRoles, 
 import { state, isLiveException, supersededBy, statusOf } from '../state.js';
 import { go, setActiveView, setBread, mainEl, rightEl, showRightPanel } from '../nav.js';
 import { renderMd, safeHtmlNode } from '../parsers.js';
-import { safeFetch, hookLinks } from '../security.js';
+import { safeFetch, hookLinks, safeUrl } from '../security.js';
 import { renderConnections } from '../connections.js';
 import { idLink } from '../doclink.js';
 import { renderStandardTabs } from './standard.js';
@@ -79,10 +79,11 @@ function contestBlock(container, fm) {
   }
   block.appendChild(stateLine);
 
-  if (fm.tracker) {
+  const trackerHref = safeUrl(fm.tracker);
+  if (trackerHref) {
     const work = mk('div', 'contest-work');
     const link = mk('a', 'action-link', 'Open in tracker \u2197');
-    link.href = fm.tracker; link.target = '_blank'; link.rel = 'noopener noreferrer';
+    link.href = trackerHref; link.target = '_blank'; link.rel = 'noopener noreferrer';
     work.appendChild(link);
     work.appendChild(mk('span', 'contest-work-note',
       'The tracker owns this work\u2019s lifecycle. Nothing here mirrors its state.'));
@@ -109,9 +110,10 @@ function certificationSection(certifications) {
   rightEl.appendChild(mk('h3', '', 'Certifications'));
   certifications.forEach(function(cert) {
     const row = mk('div', 'meta-row');
-    if (cert.url) {
+    const certHref = safeUrl(cert.url);
+    if (certHref) {
       const link = mk('a', 'source-link', cert.name || '');
-      link.href = cert.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+      link.href = certHref; link.target = '_blank'; link.rel = 'noopener noreferrer';
       row.appendChild(link);
     } else {
       row.appendChild(mk('span', 'meta-key', cert.name || ''));
@@ -238,9 +240,16 @@ export function navigateDoc(path) {
   if (fm.source_of_truth) {
     const banner = mk('div', 'doc-banner doc-banner-source');
     banner.appendChild(mk('span', '', 'This document is a record. The original lives at '));
-    const link = mk('a', 'source-link', fm.source_of_truth);
-    link.href = fm.source_of_truth; link.target = '_blank'; link.rel = 'noopener noreferrer';
-    banner.appendChild(link);
+    /* Where it points still gets said even when it is not a link anybody
+       should follow: the reader needs to know this copy is not the original. */
+    const origin = safeUrl(fm.source_of_truth);
+    if (origin) {
+      const link = mk('a', 'source-link', fm.source_of_truth);
+      link.href = origin; link.target = '_blank'; link.rel = 'noopener noreferrer';
+      banner.appendChild(link);
+    } else {
+      banner.appendChild(mk('span', 'id-link-missing', String(fm.source_of_truth)));
+    }
     mainEl.appendChild(banner);
   }
 
@@ -287,9 +296,10 @@ export function navigateDoc(path) {
   /* A risk's tracker has nowhere else to go: it has no requirement, so it has
      no contest block. For a gap or an exception the link is already in the
      document, beside the sentence that says what state it is in. */
-  if (fm.tracker && !fm.requirement) {
+  const panelTracker = safeUrl(fm.tracker);
+  if (panelTracker && !fm.requirement) {
     const link = mk('a', 'action-link', 'Open in tracker \u2197');
-    link.href = fm.tracker; link.target = '_blank'; link.rel = 'noopener noreferrer';
+    link.href = panelTracker; link.target = '_blank'; link.rel = 'noopener noreferrer';
     rightEl.appendChild(link);
     rightEl.appendChild(mk('div', 'right-note-sm',
       'The tracker owns this work\u2019s lifecycle. Nothing here mirrors its state.'));

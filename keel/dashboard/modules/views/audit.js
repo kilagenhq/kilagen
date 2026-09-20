@@ -1,4 +1,5 @@
 import { mk, mkEmpty } from '../dom.js';
+import { safeUrl } from '../security.js';
 import { state, docById, isOpenGap, isLiveException } from '../state.js';
 import { go, setActiveView, setBread, mainEl, hideRightPanel } from '../nav.js';
 import { fwLabel, BINDING_NOTE, today } from '../constants.js';
@@ -71,9 +72,10 @@ function requirementBlock(container, ref) {
     const list = mk('div', 'audit-evidence');
     list.appendChild(mk('span', 'audit-evidence-label', 'Evidence'));
     evidence.forEach(function(item) {
-      if (item.url) {
+      const href = safeUrl(item.url);
+      if (href) {
         const link = mk('a', 'audit-evidence-link', item.name || item.url);
-        link.href = item.url;
+        link.href = href;
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
         list.appendChild(link);

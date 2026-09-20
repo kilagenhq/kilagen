@@ -18,9 +18,14 @@ redistributing, and this package does redistribute them — they ship inside
 every release. A minifier or a comment-stripping pass run over this directory
 would break that. Copy the files verbatim; never process them.
 
-`js-yaml.min.js` is the exception: its minified build carries **no banner at
-all**, so the root `NOTICE` is the only place its copyright travels. Keep that
-entry there, and check for a banner again after any version bump.
+`js-yaml.min.js` is the exception, and not in the way it used to be. The build
+npm publishes carries **no banner at all**, so `scripts/vendor-libs.sh` writes
+one as it copies. That line is ours: it exists so the shipped artefact can say
+which version it is, which is how a stale copy is caught — and a stale copy sat
+in this directory twice before it existed. Do not strip it either, keep the
+root `NOTICE` entry (that is where the copyright actually lives), and re-check
+for an upstream banner after a version bump, because the day js-yaml ships one
+this stamping should stop.
 
 ## Refreshing
 

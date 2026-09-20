@@ -1,6 +1,7 @@
 import { mk, mkEmpty } from '../dom.js';
 import { state } from '../state.js';
 import { setActiveView, setBread, mainEl, rightEl, showRightPanel } from '../nav.js';
+import { safeUrl } from '../security.js';
 
 /* What exists in a capability's space — not what this organisation runs.
  *
@@ -65,11 +66,20 @@ export function renderTools() {
       const list = mk('div', 'tools-list');
       (entry.tools || []).forEach(function(tool) {
         const row = mk('div', 'tools-row');
-        const link = mk('a', 'tools-name', tool.name);
-        link.href = tool.url;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        row.appendChild(link);
+        /* This inventory is maintained by pull request in another repository,
+           partly by the vendors themselves. Its schema requires https, but the
+           schema is asserted by the test suite rather than at build time, so
+           the rendering guards it too. */
+        const href = safeUrl(tool.url);
+        if (href) {
+          const link = mk('a', 'tools-name', tool.name);
+          link.href = href;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          row.appendChild(link);
+        } else {
+          row.appendChild(mk('span', 'tools-name', tool.name));
+        }
         row.appendChild(mk('span', 'tools-licence', tool.license || ''));
         row.appendChild(mk('span', 'tools-note', tool.note || ''));
         list.appendChild(row);

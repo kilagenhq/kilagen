@@ -56,7 +56,11 @@ class LicenceFileTests(unittest.TestCase):
             self.assertIn("MIT No Attribution", licence.read_text())
 
     def test_the_notice_credits_every_vendored_library(self):
-        """js-yaml's minified build has no banner, so NOTICE is its only home.
+        """Every redistributed library is credited where its copyright lives.
+
+        js-yaml's upstream build carries no banner; the version line in our
+        copy is written by `scripts/vendor-libs.sh` and is not a copyright
+        notice, so NOTICE is where that credit has to be.
 
         The map is spelled out because a file name is not a package name:
         `purify.min.js` is DOMPurify. A new vendored file with no entry here
