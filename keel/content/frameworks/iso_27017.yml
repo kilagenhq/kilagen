@@ -1,0 +1,61 @@
+# ISO/IEC 27017:2015 — shipped with kilagen.
+#
+# Reference-not-copy: control reference and published title only. The guidance
+# text is behind `resources`, at ISO's own URL.
+
+name: ISO/IEC 27017:2015
+description: >
+  The code of practice for information security controls for cloud services.
+  It is an extension standard, not a standalone one — it does two separate
+  things, and only one of them is expressible as a clause list.
+granularity: >
+  The seven cloud-specific CLD controls of Annex A only. ISO/IEC 27017 also
+  supplies cloud implementation guidance over controls that already exist in
+  ISO/IEC 27002; that half is not enumerated here, because it adds no new
+  control references to map against. Cover it through iso_27001, whose Annex A
+  controls are the same controls.
+
+resources:
+  - name: ISO/IEC 27017:2015
+    url: https://www.iso.org/standard/43757.html
+  - name: ITU-T X.1631 — the identical Recommendation, published free by the ITU
+    url: https://www.itu.int/rec/T-REC-X.1631/en
+
+groups:
+  - id: "CLD.6"
+    name: Organization of information security
+    description: "The one control that has no on-premises equivalent: who is responsible for what once the stack is split between two organisations."
+    clauses:
+      - ref: "CLD.6.3.1"
+        name: Shared roles and responsibilities within a cloud computing environment
+        description: The split of security duties between provider and customer, written down and agreed rather than assumed.
+  - id: "CLD.8"
+    name: Asset management
+    clauses:
+      - ref: "CLD.8.1.5"
+        name: Removal of cloud service customer assets
+        description: What happens to the customer's assets when the contract ends.
+  - id: "CLD.9"
+    name: Access control
+    clauses:
+      - ref: "CLD.9.5.1"
+        name: Segregation in virtual computing environments
+        description: Keeping one tenant's virtual environment away from another's.
+      - ref: "CLD.9.5.2"
+        name: Virtual machine hardening
+        description: Configuring virtual machines to the same standard as physical ones.
+  - id: "CLD.12"
+    name: Operations security
+    clauses:
+      - ref: "CLD.12.1.5"
+        name: Administrator's operational security
+        description: Documented procedures for the administrative operations a customer can perform.
+      - ref: "CLD.12.4.5"
+        name: Monitoring of cloud services
+        description: Giving the customer the monitoring capability it needs over its own use of the service.
+  - id: "CLD.13"
+    name: Communications security
+    clauses:
+      - ref: "CLD.13.1.4"
+        name: Alignment of security management for virtual and physical networks
+        description: One network security posture, whether the network is virtual or physical.

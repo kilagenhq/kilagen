@@ -1,0 +1,84 @@
+# CIS Critical Security Controls v8 — shipped with kilagen.
+#
+# Reference-not-copy: the control number and its published title, plus a
+# one-line description in our own words. The safeguard text is behind
+# `resources`, at CIS's own URL.
+#
+# A flat list on purpose. v8 dropped the Basic / Foundational / Organizational
+# grouping that v7 had and published nothing in its place, so inventing one
+# here would be inventing structure the framework does not have. The
+# Implementation Groups (IG1, IG2, IG3) are not a grouping of controls either —
+# they are a property of each of the 153 safeguards beneath them, which is a
+# level down from what this file pins.
+#
+# The id is the edition. A v9 is a new id, not an edit of this file.
+
+name: CIS Critical Security Controls v8
+description: >
+  A prioritised set of defensive actions, ordered by what stops the most
+  common attacks first. Unlike a certification standard nobody audits you
+  against it: its value is the order, which is why it maps well onto the
+  question of what a program should build next.
+granularity: The 18 top-level Controls. Map at safeguard level (5.3) by overriding this file with the full set of 153.
+
+resources:
+  - name: CIS Critical Security Controls v8
+    url: https://www.cisecurity.org/controls/v8
+  - name: CIS Controls v8 — Implementation Groups
+    url: https://www.cisecurity.org/controls/implementation-groups
+
+clauses:
+  - ref: "1"
+    name: Inventory and Control of Enterprise Assets
+    description: Know every device that can reach the network, including the ones nobody asked for.
+  - ref: "2"
+    name: Inventory and Control of Software Assets
+    description: Know what runs, and stop what should not.
+  - ref: "3"
+    name: Data Protection
+    description: Identify, classify, retain and dispose of data on purpose rather than by default.
+  - ref: "4"
+    name: Secure Configuration of Enterprise Assets and Software
+    description: Harden from a known baseline instead of from whatever the vendor shipped.
+  - ref: "5"
+    name: Account Management
+    description: Who exists, and what happens to the account when they leave.
+  - ref: "6"
+    name: Access Control Management
+    description: What each account may reach, granted and revoked deliberately.
+  - ref: "7"
+    name: Continuous Vulnerability Management
+    description: Find what is exploitable, and fix it on a clock.
+  - ref: "8"
+    name: Audit Log Management
+    description: Collect and keep the record an investigation will need before it needs it.
+  - ref: "9"
+    name: Email and Web Browser Protections
+    description: The two doors most attacks come through.
+  - ref: "10"
+    name: Malware Defenses
+    description: Stop malicious code running, and see it when it does.
+  - ref: "11"
+    name: Data Recovery
+    description: Backups that have been restored from, not just taken.
+  - ref: "12"
+    name: Network Infrastructure Management
+    description: Keep the network itself current, segmented and understood.
+  - ref: "13"
+    name: Network Monitoring and Defense
+    description: Watch the traffic and act on what it shows.
+  - ref: "14"
+    name: Security Awareness and Skills Training
+    description: The part of the program that runs on people.
+  - ref: "15"
+    name: Service Provider Management
+    description: The suppliers who hold your data are part of your attack surface.
+  - ref: "16"
+    name: Application Software Security
+    description: Build it, test it and fix it as software rather than as infrastructure.
+  - ref: "17"
+    name: Incident Response Management
+    description: Decide who does what before the day you need to know.
+  - ref: "18"
+    name: Penetration Testing
+    description: Have somebody try, and believe what they find.

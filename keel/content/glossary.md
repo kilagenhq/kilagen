@@ -1,79 +1,90 @@
 # Glossary
 
-Controlled vocabulary for the Kilagen framework. Each term has a short definition and, where relevant, a pointer to where it is used.
+The controlled vocabulary of the framework: document types, structural terms,
+and the words this product uses with a narrower meaning than usual.
 
-This glossary covers **framework concepts** — document types, structural terms, and universal security acronyms. It does not list capability definitions (those live in each domain's `capabilities.yml`) or regulatory terms specific to a jurisdiction (those live in `01-grc/`).
+It does not list capability definitions — those are in
+`program/model/capabilities.yml`, which is the instance's own vocabulary.
 
-## Document types and prefixes
+## Document types
 
-**ADR** (`ADR-NNNN-`). Architecture Decision Record. Immutable document capturing the why behind a design or tooling decision. Lives in `/adr/`.
+Each type is a folder under `program/`, an id prefix, and a schema branch.
 
-**Standard requirement**. A numbered item within a standard (e.g. 5.1). Carries framework mappings (`frameworks:`) to regulatory clauses, feeding the auto-generated coverage map.
+| Type | Prefix | What it is |
+|---|---|---|
+| Policy | `pol-` | What the organization intends, and who may issue standards. |
+| Standard | `std-` | Numbered requirements, each carrying its framework mappings. |
+| Process | `pro-` | A human step-by-step procedure. |
+| Runbook | `rb-` | An executable procedure, written so an agent can follow it. |
+| Playbook | `pb-` | An incident-response procedure. |
+| Guideline | `gl-` | A recommended practice. Advisory, not enforceable. |
+| Decision | `dec-` | A decision and its reasoning. Immutable; superseded, never edited. |
+| Role | `role-` | The accountable role every ownership field points at. |
+| Vendor | `vnd-` | A third-party assessment, reassessed on its `next_review`. |
+| Threat | `thr-` | A generic threat scenario. |
+| Threat model | `tm-` | A STRIDE/PASTA analysis of a system or feature. |
+| Data asset | `da-` | An information asset and how it must be handled. |
+| Business process | `bp-` | A business process and what breaks if it stops. |
+| Risk | `rsk-` | A risk. Optional: content here, lifecycle in the tracker. |
+| Exception | `exc-` | An approved deviation from a requirement, with an expiry. |
+| Gap | `gap-` | An unapproved shortfall against a requirement. |
+| Incident | `inc-` | A post-incident record. Immutable. |
 
-**Guideline** (`GL-`). Recommended practice with examples. Advisory, not enforceable. Lives in the owning domain's `guidelines/` subfolder.
+## Structural terms
 
-**Incident** (`INC-YYYY-`). Immutable post-incident review (postmortem). Lives in `06-ir/postmortems/`.
+**Facet.** A classification carried in frontmatter and validated against a
+closed vocabulary in `program/model/`: `domains`, `capabilities`, `systems`.
+All are multivalued, because real documents span more than one.
 
-**Playbook** (`PB-`). Incident response runbook with severity matrix, containment, eradication, and recovery steps. Lives in `06-ir/playbooks/`.
+**Domain.** A functional area of a security program — IAM, AppSec, SecOps. A
+label on a document, never a folder.
 
-**Policy** (`POL-`). Board-approved principle stating the what and why. Lives in the owning domain's `policies/` subfolder.
+**Capability.** A named, bounded security function within a domain, namespaced
+`<domain>.<capability>`. It is the menu of what a program can build and the
+facet documents are grouped by. It carries no assessment.
 
-**Process** (`PRO-`). Human step-by-step process. Lives in the owning domain's `processes/` subfolder.
+**System.** An id and a name. What is actually deployed, how it is configured
+and who uses it is the estate's truth, not this repository's.
 
-**Risk** (`RSK-`). Entry in the risk register. Lives in `01-grc/risks/`.
+**Requirement.** A numbered item inside a standard, addressable as
+`<standard-id>#<ref>`. Framework clauses map to it; gaps and exceptions are
+filed against it.
 
-**Runbook** (`RB-`). Executable process designed to be run by an agent with minimal human judgement. Lives in the owning domain's `runbooks/` subfolder.
+**Lens.** A computed projection of the same documents for one audience —
+Browse, Domains, Compliance, Schedule, Doc. The repository is neutral;
+nobody navigates folders.
 
-**Standard** (`STD-`). Enforceable technical requirement. Auditable and testable. Lives in the owning domain's `standards/` subfolder.
+**Partition.** A year directory under a dated type (`gaps/2026/`). It splits
+storage, never the namespace: ids stay unique across the whole program.
 
-**System** (`SYS-`). Ground truth of a current system or service. Lives in `/systems/` at the repo root, never inside a domain folder.
+**Write-once fact.** A date that records that something happened and is never
+revised: `remediated:`, `revoked:`, `decided:`, `occurred:`. Used wherever a
+mutable status would otherwise mirror a truth the tracker owns.
 
-**Threat Model** (`TM-`). STRIDE/PASTA analysis of a feature or system. Lives in the owning domain's `threat-models/` subfolder.
+**Evidence.** A named link to material held outside the repository. The record
+lives here; the bulk does not, and no binary is committed.
 
-**Vendor** (`VEN-`). Third-party risk profile. Lives in `01-grc/vendors/`.
+## Coverage
 
-## Framework concepts
+**Coverage.** Whether a framework clause has a requirement mapped to it. The
+only coverage computed, because a framework's clause list is an external,
+finite denominator.
 
-**Capability**. A named, bounded security function within a domain (e.g. SAST, IdP, SIEM). Declared in `capabilities.yml` with a maturity level.
+**Posture.** A judgement about whether a clause is *met*. The generator may
+assert exactly one, `not-assessed`, and only where nothing maps at all.
+Everything else is a human's to write down.
 
-**Domain**. A functional area of the security program (e.g. IAM, AppSec, SecOps). Numbered `01-` to `10-` in the repo. Each domain has a `capabilities.yml` and optional subfolders for document types.
+**Binding.** Who checks a framework: `mandatory` (a law, a regulator or a
+contract requires it), `voluntary` (you audit yourself and assert conformity),
+or `reference` (guidance you assert nothing against).
 
-**Lens**. An alternative projection over the framework data for a different audience. Defined by a taxonomy file in `keel/lenses/` and `lenses:` tags in documents and capabilities.
+## Acronyms
 
-**Maturity level**. How well a capability works, on a scale from L0 (nothing) to L5 (optimizing). See `maturity.md` for graduation criteria.
-
-**Related**. The `related:` frontmatter object that expresses semantic links between documents by ID. CI validates that all referenced IDs exist.
-
-## Universal acronyms
-
-**AML**. Anti-Money Laundering. Regulatory requirements and processes to prevent financial crime.
-
-**CMM**. Capability Maturity Model. Framework originally developed by Carnegie Mellon's SEI to measure process maturity. The L0-L5 maturity scale in this framework (see `maturity.md`) is adapted from CMM for security capabilities.
-
-**CVE**. Common Vulnerabilities and Exposures. Standardized identifier for publicly known security vulnerabilities.
-
-**HSM**. Hardware Security Module. Tamper-resistant device for cryptographic key storage and operations.
-
-**IOC**. Indicator of Compromise. Observable artifact (IP, hash, domain) indicating a potential security breach.
-
-**ISO 27001:2022**. International standard for Information Security Management Systems (ISMS). Annex A provides a control catalogue.
-
-**JML**. Joiner-Mover-Leaver. Identity lifecycle process covering onboarding, role changes, and offboarding.
-
-**MISP**. Malware Information Sharing Platform. Open-source threat intelligence platform for sharing IOCs.
-
-**NIST CSF 2.0**. NIST Cybersecurity Framework version 2.0. Functions: Govern, Identify, Protect, Detect, Respond, Recover.
-
-**OWASP**. Open Worldwide Application Security Project. Non-profit producing application security guidance including the Top 10.
-
-**PCI DSS 4.0**. Payment Card Industry Data Security Standard version 4.0. Requirements for entities handling cardholder data.
-
-**SDLC**. Software Development Lifecycle. The process of planning, creating, testing, and deploying software.
-
-**SOC** (security operations). Security Operations Centre. Team and facility responsible for monitoring and responding to security events.
-
-**SOC 2**. Service Organization Control 2. AICPA audit standard for service providers, based on Trust Services Criteria.
-
-**STRIDE**. Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege. Microsoft threat modelling framework.
-
-**TIP**. Threat Intelligence Platform. System for aggregating, enriching, and sharing threat intelligence (e.g. MISP).
+**ADR** — Architecture Decision Record. The framework's own decisions about
+itself, shipped in `keel/adrs/`. A program's own decisions are `decision`
+documents (`dec-`) in its repository.
+**CMDB** — Configuration Management Database; the inventory of what is deployed.
+**GRC** — Governance, Risk and Compliance.
+**IdP** — Identity Provider.
+**SoD** — Segregation of Duties.
+**STRIDE** — Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege.

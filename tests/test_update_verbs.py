@@ -6,9 +6,10 @@ runs the verbs, so until now `kilagen update content` had no coverage at all:
 the version gate, the clean-tree requirement, the schema_version rewrite and
 idempotence were only ever verified by hand.
 
-The migration used here is injected, never shipped. `keel/migrations/` stays
-empty because schema 1 is the first contract — a real one arriving is the
-event that makes this test's fixture redundant, not wrong.
+The migration used here is injected rather than shipped, so these tests keep
+exercising the verb itself — the version gate, the clean-tree requirement, the
+schema_version rewrite — independently of what the real migrations do. Those
+are covered in `test_migrations.py`.
 
 Run from the repository root:
 
@@ -21,6 +22,7 @@ import argparse
 import contextlib
 import io
 import os
+import re
 import subprocess
 import tempfile
 import unittest
@@ -61,6 +63,11 @@ class MigrateTests(unittest.TestCase):
         _quiet(cli.cmd_init, argparse.Namespace(
             name="Acme", deployment="none", agent="none", force=False))
         keel_lib.REPO, keel_lib.PROGRAM = self.instance, self.instance / "program"
+        # init writes the contract this release speaks; the verb under test is
+        # what happens to a program that is one behind.
+        config = self.instance / "program" / "config.yml"
+        config.write_text(re.sub(r"^schema_version:.*$", "schema_version: 1",
+                                 config.read_text(), count=1, flags=re.M))
         _git("add", "-A", cwd=self.instance)
         _git("commit", "-qm", "initial", cwd=self.instance)
 
@@ -77,6 +84,12 @@ class MigrateTests(unittest.TestCase):
 
     def _step(self, program: Path, dry_run: bool) -> list[str]:
         marker = program / "migrated.txt"
+        if not dry_run:
+            # A migration may rewrite config.yml itself. Stamping the new
+            # schema_version onto text read before the step ran would silently
+            # undo that, which is exactly what used to happen.
+            config = program / "config.yml"
+            config.write_text(config.read_text() + "\n# touched by the migration\n")
         if marker.exists():
             return []                      # idempotent, as a migration must be
         if not dry_run:
@@ -123,6 +136,12 @@ class MigrateTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertTrue((self.instance / "program" / "migrated.txt").is_file())
         self.assertEqual(self._config()["schema_version"], 2)
+
+    def test_the_version_stamp_keeps_what_the_migration_wrote_to_config(self):
+        _quiet(cli.cmd_migrate, argparse.Namespace(apply=True))
+        config = (self.instance / "program" / "config.yml").read_text()
+        self.assertIn("# touched by the migration", config)
+        self.assertIn("schema_version: 2", config)
 
     def test_running_it_twice_is_a_no_op(self):
         _quiet(cli.cmd_migrate, argparse.Namespace(apply=True))

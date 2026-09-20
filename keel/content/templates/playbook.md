@@ -1,58 +1,40 @@
 ---
-id: PB-REPLACE-ME
+id: pb-replace-me
+type: playbook
 title: "REPLACE ME"
 description: >
-  REPLACE ME — one or two sentences an LLM can use to decide relevance.
-type: playbook
+  REPLACE ME — one or two sentences an agent can use to decide relevance. This
+  is the field retrieval leans on hardest.
 status: draft
-domain: ir                   # playbooks typically live in 06-ir
-owner: role-REPLACE-ME
+owner: role-replace-me
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
-related:                     # optional — remove section if unused
-  runbooks: []
+domains: []                  # ids from program/model/domains.yml — a document may declare several
+capabilities: []             # ids from program/model/capabilities.yml
+systems: []                  # ids from program/model/systems.yml
+related: []                  # flat list of ids; the prefix says what each one is
+# publish: [confluence]      # overrides the per-type default in program/publish.yml
+# source_of_truth: https://example.com/replace-me   # the original lives there; this is the record
 ---
 
 # REPLACE ME — Playbook Title
 
-## Purpose
+## Detection
 
-What incident type this playbook addresses.
+What raises this, and the signals that confirm it.
 
-## Scenario
+## Triage
 
-Narrative description of the incident scenario and its potential impact.
-
-## Severity matrix
-
-| Indicator | Low | Medium | High | Critical |
-|---|---|---|---|---|
-| ... | ... | ... | ... | ... |
-
-## Detection signals
-
-How this incident is detected (alerts, logs, user reports).
+How to assess severity and decide whether to escalate.
 
 ## Containment
 
-Immediate actions to limit the blast radius.
+Immediate actions to stop the bleeding.
 
-## Eradication
+## Eradication and recovery
 
-Steps to remove the threat actor, malware, or root cause.
+Removing the cause and returning to normal service.
 
-## Recovery
+## Afterwards
 
-Steps to restore normal operations and verify integrity.
-
-## Post-incident
-
-Lessons learned, action items, and follow-up tasks.
-
-## Communications
-
-Who to notify, when, and through which channels (internal, regulatory, customer).
-
-## References
-
-- Links to related controls, runbooks, or systems.
+The post-incident record is an `inc-*` document.

@@ -1,0 +1,125 @@
+# HIPAA Security Rule (45 CFR Part 164, Subpart C) — shipped with kilagen.
+#
+# Reference-not-copy: the citation and its published standard name, plus a
+# one-line description in our own words. The regulatory text is behind
+# `resources`, at eCFR, where it is free.
+#
+# The denominator is the twenty-two **standards** of the Security Rule, grouped
+# by the section they live in. Beneath each standard sit implementation
+# specifications, each marked required or addressable — "addressable" means
+# you may implement an equivalent measure and write down why, not that you may
+# skip it. That distinction is a level down from what this file pins; an entity
+# that wants to map at specification level overrides this file.
+#
+# Only Subpart C is here. The Privacy Rule (Subpart E) and the Breach
+# Notification Rule (Subpart D) are different obligations with different
+# denominators, and folding them in would produce a number that means nothing.
+#
+# The id is the edition. The 2025 notice of proposed rulemaking would remove
+# the required/addressable distinction; if it is finalised, that is a new id.
+
+name: HIPAA Security Rule
+description: >
+  The United States federal standard for protecting electronic protected
+  health information, binding on covered entities and their business
+  associates. It is drafted to be technology-neutral and scalable, which is
+  why it reads as a list of outcomes rather than of controls.
+granularity: The 22 standards of 45 CFR Part 164 Subpart C, grouped by section. Map at implementation-specification level by overriding this file.
+
+resources:
+  - name: 45 CFR Part 164 Subpart C — Security Standards (eCFR)
+    url: https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C
+  - name: HHS — HIPAA Security Rule guidance
+    url: https://www.hhs.gov/hipaa/for-professionals/security/index.html
+
+groups:
+  - id: "164.308"
+    name: Administrative safeguards
+    description: The management half — who is responsible, how risk is assessed, and what happens when somebody joins, moves or leaves.
+    clauses:
+      - ref: "164.308(a)(1)"
+        name: Security management process
+        description: Analyse risk, manage it, sanction policy violations and review activity.
+      - ref: "164.308(a)(2)"
+        name: Assigned security responsibility
+        description: One named person is accountable.
+      - ref: "164.308(a)(3)"
+        name: Workforce security
+        description: Authorisation, supervision and termination of access.
+      - ref: "164.308(a)(4)"
+        name: Information access management
+        description: Who may reach which health information, and on what basis.
+      - ref: "164.308(a)(5)"
+        name: Security awareness and training
+        description: Reminders, malware, login monitoring and passwords, for everybody.
+      - ref: "164.308(a)(6)"
+        name: Security incident procedures
+        description: Identify, respond to and document incidents.
+      - ref: "164.308(a)(7)"
+        name: Contingency plan
+        description: Backup, disaster recovery, emergency operation and testing.
+      - ref: "164.308(a)(8)"
+        name: Evaluation
+        description: Periodic technical and non-technical review against the rule.
+      - ref: "164.308(b)(1)"
+        name: Business associate contracts and other arrangements
+        description: Written assurances from whoever else handles the data.
+
+  - id: "164.310"
+    name: Physical safeguards
+    description: The building, the desk and the disk.
+    clauses:
+      - ref: "164.310(a)(1)"
+        name: Facility access controls
+        description: Who may enter where the systems are.
+      - ref: "164.310(b)"
+        name: Workstation use
+        description: What may be done at a workstation, and in what surroundings.
+      - ref: "164.310(c)"
+        name: Workstation security
+        description: Physical protection of the workstations themselves.
+      - ref: "164.310(d)(1)"
+        name: Device and media controls
+        description: Movement, reuse and disposal of hardware and media holding health data.
+
+  - id: "164.312"
+    name: Technical safeguards
+    description: What the systems themselves have to do.
+    clauses:
+      - ref: "164.312(a)(1)"
+        name: Access control
+        description: Unique identification, emergency access, logoff and encryption.
+      - ref: "164.312(b)"
+        name: Audit controls
+        description: Record and examine activity in systems holding health data.
+      - ref: "164.312(c)(1)"
+        name: Integrity
+        description: Protect health information from improper alteration or destruction.
+      - ref: "164.312(d)"
+        name: Person or entity authentication
+        description: Prove that whoever is asking is who they claim to be.
+      - ref: "164.312(e)(1)"
+        name: Transmission security
+        description: Protect health information moving across a network.
+
+  - id: "164.314"
+    name: Organizational requirements
+    description: What the contracts have to say.
+    clauses:
+      - ref: "164.314(a)(1)"
+        name: Business associate contracts or other arrangements
+        description: The terms a business associate agreement has to carry.
+      - ref: "164.314(b)(1)"
+        name: Requirements for group health plans
+        description: What a plan sponsor's documents have to commit to.
+
+  - id: "164.316"
+    name: Policies and procedures and documentation requirements
+    description: Write it down, keep it six years, and review it.
+    clauses:
+      - ref: "164.316(a)"
+        name: Policies and procedures
+        description: Implement policies that meet the rule, and change them when you need to.
+      - ref: "164.316(b)(1)"
+        name: Documentation
+        description: Keep the record in writing, retain it for six years, review and update it.

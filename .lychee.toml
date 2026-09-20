@@ -16,7 +16,10 @@ exclude = [
 
 # Skip build output (stale copies of source markdown) and the instance seed
 # (templates with placeholder/instance-relative paths, not real links).
-exclude_path = ["_site", "keel/scaffold"]
+# node_modules is absent in the link-check job but present on a developer's
+# machine, so without it here the local run reports other projects' dead
+# links and the real ones get lost in the noise.
+exclude_path = ["_site", "keel/scaffold", "keel/dashboard/node_modules"]
 
 # Do not check mailto: links.
 include_mail = false

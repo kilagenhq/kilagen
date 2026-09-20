@@ -1,0 +1,14 @@
+# The system vocabulary — flat ids for the systems: facet.
+#
+# A system here is a label, not a profile. What is deployed, how it is
+# configured, who uses it and what it costs is the estate's truth: link to its
+# entry in the real inventory with url: and let that system answer.
+# See keel/adrs/adr-truth-boundaries.md.
+#
+# Add one line per system a document needs to reference. Empty is fine: a new
+# program has nothing to point at yet.
+
+systems: []
+  # - id: okta
+  #   name: Okta
+  #   url: https://cmdb.example.com/ci/okta

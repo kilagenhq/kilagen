@@ -117,3 +117,44 @@ describe('parseYml', () => {
     expect(result).toBeUndefined();
   });
 });
+
+/* The tests that were missing, and whose absence hid a real breakage.
+ *
+ * DOMPurify sat pinned on a version with an open advisory because three
+ * sanitisation tests "broke" on the upgrade. They had not: the sanitiser was
+ * fine and the *test DOM* was what could not keep up — under it DOMPurify
+ * silently degraded to stripping every element. Nothing noticed, because
+ * every test here asserted what must be REMOVED and none asserted what must
+ * SURVIVE. A sanitiser that deletes everything passes that suite perfectly
+ * while being useless.
+ *
+ * These are the other half of the contract. They go through renderMd, which
+ * is the path the dashboard actually uses.
+ */
+describe('sanitisation keeps what it is supposed to keep', () => {
+  [
+    ['a paragraph', 'hi', '<p>'],
+    ['a link', '[hi](https://example.com)', '<a'],
+    ['emphasis', '**b**', '<strong>'],
+    ['a list', '- one', '<li>'],
+    ['a heading', '# Title', '<h1'],
+    ['a table', '| a |\n|---|\n| b |', '<td>'],
+    ['a code block', '```\nx\n```', '<code>'],
+    ['a local image', '![A diagram](diagram.png)', '<img'],
+  ].forEach(([what, md, fragment]) => {
+    it('keeps ' + what, () => {
+      expect(renderMd(md)).toContain(fragment);
+    });
+  });
+
+  it('keeps the text inside what it keeps', () => {
+    expect(renderMd('hello **there**').trim()).toBe('<p>hello <strong>there</strong></p>');
+  });
+
+  it('keeps an external link clickable, with the opener sealed', () => {
+    const html = renderMd('[x](https://example.com)');
+    expect(html).toContain('href="https://example.com"');
+    expect(html).toContain('rel="noopener noreferrer"');
+    expect(html).toContain('target="_blank"');
+  });
+});

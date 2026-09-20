@@ -26,6 +26,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import jsonschema
 import yaml
@@ -40,60 +41,44 @@ TEMPLATES = keel_lib.KEEL / "content" / "templates"
 # exercises frontmatter validation, role resolution and both generators.
 ROLE = """---
 id: role-security-eng
+type: role
 title: "Security Engineering"
 description: >
   Accountable for technical security controls and their evidence.
-type: role
 status: active
-domain: grc
-role_type: lead
-team: security
-reports_to: []
-direct_reports: []
-managed_externally: null
+owner: role-security-eng
+domains: [grc]
+role_type: individual
+last_reviewed: 2026-01-01
+next_review: 2099-01-01
 ---
 
 # Security Engineering
 
-## Scope
-
 Technical security controls.
-
-## Owned artifacts
 """
 
 STANDARD = """---
-id: STD-access-control
-title: "Access Control Standard"
+id: std-production-access
+type: standard
+title: "Production Access Standard"
 description: >
   Minimum requirements for access to production systems.
-type: standard
 status: draft
-domain: grc
 owner: role-security-eng
 version: "1.0"
+domains: [iam]
 approved_by: [role-security-eng]
-reviewed_by: [role-security-eng]
 last_reviewed: 2026-01-01
 next_review: 2099-01-01
-applies_to: []
 requirements:
   - ref: "1.1"
-    domains: []
-related:
-  policies: []
-  standards: []
+    text: Access is granted through an approved request.
 ---
 
-# Access Control Standard
-
-## Purpose
+# Production Access Standard
 
 Define the minimum controls for access to production systems.
-
-## Requirements
-
-1.1 Access is granted through an approved request.
 """
 
 
@@ -114,14 +99,15 @@ def _repoint(root: Path) -> None:
     test scans a directory that has since been deleted.
 
     Not a defect in the shipped tool, so it is corrected here rather than by
-    rewriting forty-five call sites; see the note in the roadmap.
+    rewriting every call site; the libs are single-command processes in real use.
     """
     keel_lib.REPO, keel_lib.PROGRAM = root, root / "program"
+    keel_lib.MODEL = root / "program" / "model"
     for name, module in list(sys.modules.items()):
         if not name.startswith("kilagen.libs"):
             continue
         for attribute, value in (("REPO", root), ("PROGRAM", root / "program"),
-                                 ("SITE", root / "_site")):
+                                 ("MODEL", root / "program" / "model")):
             if hasattr(module, attribute):
                 setattr(module, attribute, value)
 
@@ -133,7 +119,7 @@ class RealInstanceTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.instance = Path(self._tmp.name).resolve()
         self._cwd = os.getcwd()
-        self._paths = (keel_lib.REPO, keel_lib.PROGRAM)
+        self._paths = (keel_lib.REPO, keel_lib.PROGRAM, keel_lib.MODEL)
         os.chdir(self.instance)
         _repoint(self.instance)
         _quiet(cli.cmd_init, argparse.Namespace(
@@ -143,14 +129,13 @@ class RealInstanceTests(unittest.TestCase):
 
     def tearDown(self):
         os.chdir(self._cwd)
-        keel_lib.REPO, keel_lib.PROGRAM = self._paths
+        keel_lib.REPO, keel_lib.PROGRAM, keel_lib.MODEL = self._paths
         self._tmp.cleanup()
 
     def _add_content(self):
-        (self.instance / "program" / "roles" / "role-security-eng.md").write_text(ROLE)
-        standards = self.instance / "program" / "01-grc" / "standards"
-        standards.mkdir(parents=True, exist_ok=True)
-        (standards / "STD-access-control.md").write_text(STANDARD)
+        program = self.instance / "program"
+        (program / "roles" / "role-security-eng.md").write_text(ROLE)
+        (program / "standards" / "std-production-access.md").write_text(STANDARD)
         _quiet(cli.cmd_build, argparse.Namespace(target="artifacts"))
 
     def test_a_fresh_instance_passes_its_own_checks(self):
@@ -158,10 +143,18 @@ class RealInstanceTests(unittest.TestCase):
         status, output = _quiet(cli.cmd_check, argparse.Namespace(target=[]))
         self.assertEqual(status, 0, output)
 
-    def test_init_writes_the_artifacts_check_artifacts_expects(self):
-        self.assertTrue((self.instance / "program" / "registry.md").is_file())
-        self.assertTrue((self.instance / "program" / "01-grc" / "compliance"
-                         / "coverage.yml").is_file())
+    def test_init_writes_a_readme_about_the_structure_not_the_contents(self):
+        readme = (self.instance / "program" / "README.md").read_text(encoding="utf-8")
+        self.assertIn("A folder names a **document type**", readme)
+        self.assertIn("kilagen new standard", readme)
+        # A list of documents would be stale the day after it was written.
+        self.assertNotIn("pol-information-security", readme)
+
+    def test_init_generates_no_committed_artifacts(self):
+        # A content change must not oblige anyone to regenerate a file. The
+        # index is the dashboard; nothing under program/ is written by build.
+        program = self.instance / "program"
+        self.assertFalse((program / "indexes").exists())
 
     def test_the_full_cycle_runs_on_a_real_program(self):
         self._add_content()
@@ -183,22 +176,71 @@ class RealInstanceTests(unittest.TestCase):
                          "dashboard/index.html"):
             self.assertTrue((site / expected).is_file(), expected)
 
-    def test_every_domain_arrives_with_capabilities_at_L0(self):
-        """The dashboard draws a domain only if that domain has capabilities.
+    def test_the_program_arrives_with_one_capability_vocabulary(self):
+        """The menu ships as a checklist, in one file, carrying no assessment.
 
-        So an empty capabilities layer is not a cosmetic gap: it is a home page
-        with nothing on it. L0-none is the honest maturity for a program that
-        was created seconds ago, and the schema requires `systems: []` to
-        match it.
+        Ten files of capabilities with a maturity each was the shape of a
+        self-assessment. One file of ids, names and descriptions is the shape
+        of a vocabulary, which is all a capability is now.
         """
-        domains = sorted((self.instance / "program").glob("[0-9][0-9]-*"))
-        self.assertEqual(len(domains), 10, [d.name for d in domains])
-        for domain in domains:
-            data = yaml.safe_load((domain / "capabilities.yml").read_text())
-            self.assertTrue(data["capabilities"], domain.name)
-            for capability in data["capabilities"]:
-                self.assertEqual(capability["maturity"], "L0-none", capability["id"])
-                self.assertEqual(capability["systems"], [], capability["id"])
+        model = self.instance / "program" / "model"
+        self.assertEqual(sorted(p.name for p in model.glob("*.yml")),
+                         ["capabilities.yml", "domains.yml", "risk-taxonomy.yml", "systems.yml"])
+
+        domains = yaml.safe_load((model / "domains.yml").read_text())["domains"]
+        capabilities = yaml.safe_load((model / "capabilities.yml").read_text())["capabilities"]
+        self.assertEqual(len(domains), 10)
+        self.assertTrue(capabilities)
+
+        domain_ids = {d["id"] for d in domains}
+        for capability in capabilities:
+            self.assertEqual(set(capability) - {"why"},
+                             {"id", "name", "domain", "description"}, capability["id"])
+            self.assertIn(capability["domain"], domain_ids, capability["id"])
+            self.assertTrue(capability["id"].startswith(capability["domain"] + "."),
+                            capability["id"])
+
+    def test_no_document_folder_is_a_domain(self):
+        # The numbered domain directories are what the refactor removed. A
+        # folder under program/ is a document type or model/.
+        program = self.instance / "program"
+        folders = {p.name for p in program.iterdir() if p.is_dir()}
+        self.assertEqual(folders - {"model"},
+                         {t.folder for t in keel_lib.TYPES})
+
+    def test_the_seeded_program_demonstrates_the_triangle(self):
+        """A standard, a gap and an exception against the same requirement.
+
+        This is the distinction the product turns on, and a new user meets it
+        on the first screen rather than in the documentation.
+        """
+        program = self.instance / "program"
+        gap = next(program.glob("gaps/*/gap-*.md"))
+        exception = next(program.glob("exceptions/*/exc-*.md"))
+        gap_fm = keel_lib.extract_frontmatter(gap)
+        exception_fm = keel_lib.extract_frontmatter(exception)
+        self.assertEqual(gap_fm["requirement"], exception_fm["requirement"])
+
+        index = keel_lib.requirement_index(keel_lib.scan_documents())
+        self.assertIn(gap_fm["requirement"], index)
+
+        # The gap is open because nothing closed it, not because a field says so.
+        self.assertTrue(keel_lib.is_open_gap(gap_fm))
+        self.assertNotIn("status", {k for k in gap_fm if k.endswith("_status")})
+
+    def test_a_fresh_instance_has_nothing_overdue(self):
+        """The starter's dates are relative to today, not frozen in the seed.
+
+        A seeded review date in the past would make every new program open
+        with an overdue document and a failing check — an own goal that gets
+        worse the longer the release is on PyPI.
+        """
+        from kilagen.libs import check_reviews
+
+        found = check_reviews.collect(keel_lib.scan_documents())
+        self.assertEqual(found["overdue"], [])
+        self.assertEqual(found["expired"], [])
+        self.assertEqual(found["stale_gaps"], [])
 
     def test_the_seeded_standard_maps_to_both_frameworks(self):
         """The traceability chain has to resolve, not just look plausible.
@@ -208,17 +250,19 @@ class RealInstanceTests(unittest.TestCase):
         chain the starter exists to demonstrate: requirement to clause, clause
         to vocabulary, framework to config.
         """
-        coverage = yaml.safe_load(
-            (self.instance / "program" / "01-grc" / "compliance" / "coverage.yml").read_text())
+        from kilagen.libs.generate_coverage import build_coverage
+
+        coverage = build_coverage(keel_lib.load_config(), keel_lib.scan_documents(),
+                                  keel_lib.load_framework_vocab())
         self.assertEqual(set(coverage), {"nist_csf", "pci_dss"})
         for framework, clauses in coverage.items():
-            mapped = [c for c, v in clauses.items() if v.get("coverage") == "mapped"]
+            mapped = [c for c, v in clauses.items() if v["coverage"] == "mapped"]
             self.assertTrue(mapped, f"{framework} has no mapped clause")
 
     def test_seeded_documents_are_drafts(self):
         # A starter document that says "active" is a lie the user did not tell.
-        for name in ("01-grc/policies/POL-information-security.md",
-                     "01-grc/standards/STD-access-control.md"):
+        for name in ("policies/pol-information-security.md",
+                     "standards/std-access-control.md"):
             fm = keel_lib.extract_frontmatter(self.instance / "program" / name)
             self.assertEqual(fm["status"], "draft", name)
 
@@ -271,7 +315,8 @@ class SeededWorkflowTests(unittest.TestCase):
         for path in sorted(SEEDED_WORKFLOWS.glob("*.yml")):
             workflow = yaml.safe_load(path.read_text())
             for job in (workflow.get("jobs") or {}).values():
-                installed = {"python", "pip", "npm", "git"}
+                # What a GitHub-hosted runner already has on PATH.
+                installed = {"python", "pip", "npm", "git", "gh"}
                 for step in job.get("steps") or []:
                     script = step.get("run")
                     if not script:
@@ -312,14 +357,12 @@ class ShippedTemplateTests(unittest.TestCase):
     def test_no_template_names_a_document_that_will_not_exist(self):
         """Cross-references have to be placeholders too.
 
-        The schema cannot see this one: `POL-information-security` is a
+        The schema cannot see this one: `pol-information-security` is a
         perfectly well-formed policy id, so frontmatter validation passes and
         `kilagen check refs` then fails on a program that has no such policy —
         a first run that breaks on a value the author was never told to change.
         """
-        pattern = re.compile(
-            r"^(?:POL|STD|PRO|RB|PB|TM|THR|GL|SYS|VEN|RSK|ADR|INC|EXC|DA|BP)"
-            r"-[A-Za-z0-9-]+$")
+        pattern = re.compile(keel_lib.ID_RE.pattern)
 
         def ids(value):
             """Every id-shaped string in a parsed frontmatter value."""
@@ -333,25 +376,33 @@ class ShippedTemplateTests(unittest.TestCase):
 
         offenders = []
         for path in sorted(TEMPLATES.glob("*.md")):
-            # Parsed, not grepped: an id named in a YAML comment is prose, and
-            # a numeric segment (ADR-0000-REPLACE-ME) is still a placeholder.
+            # Parsed, not grepped: an id named in a YAML comment is prose.
             frontmatter = keel_lib.extract_frontmatter(path) or {}
             offenders += [f"{path.name}: {hit}" for hit in ids(frontmatter)
-                          if "REPLACE" not in hit]
+                          if "replace-me" not in hit]
         self.assertEqual(offenders, [], "\n".join(offenders))
 
-    def test_every_remaining_error_is_on_a_placeholder(self):
+    def test_every_template_validates_as_it_ships(self):
+        """A template is a valid document with REPLACE ME where the words go.
+
+        The facets are empty lists rather than placeholder ids, so nothing in
+        a template names a vocabulary entry that does not exist — which means
+        the schema has no excuse to fail on any of them.
+        """
         offenders = []
         for path in sorted(TEMPLATES.glob("*.md")):
             fm = keel_lib.extract_frontmatter(path)
             if not fm or "type" not in fm:
                 continue
             for error in self.validator.iter_errors(fm):
-                for real in cli_branch_errors(error, fm):
-                    if "REPLACE" not in json.dumps(real.instance, default=str):
-                        field = "/".join(str(p) for p in real.path) or "(root)"
-                        offenders.append(f"{path.name}: {field} — {real.message}")
+                for real in cli_branch_errors(error, fm) or [error]:
+                    field = "/".join(str(p) for p in real.path) or "(root)"
+                    offenders.append(f"{path.name}: {field} — {real.message}")
         self.assertEqual(offenders, [], "\n".join(offenders))
+
+    def test_every_type_in_the_registry_has_a_template(self):
+        shipped = {path.stem for path in TEMPLATES.glob("*.md")}
+        self.assertEqual(shipped, {t.name for t in keel_lib.TYPES})
 
 
 def cli_branch_errors(error, fm):
@@ -362,3 +413,66 @@ def cli_branch_errors(error, fm):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GuidedInitTests(unittest.TestCase):
+    """--guided is an option, never a requirement: init must still ask nothing."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.instance = Path(self._tmp.name).resolve()
+        self._cwd = os.getcwd()
+        self._paths = (keel_lib.REPO, keel_lib.PROGRAM, keel_lib.MODEL)
+        self.addCleanup(lambda: (os.chdir(self._cwd),
+                                 setattr(keel_lib, "REPO", self._paths[0]),
+                                 setattr(keel_lib, "PROGRAM", self._paths[1]),
+                                 setattr(keel_lib, "MODEL", self._paths[2]),
+                                 self._tmp.cleanup()))
+        os.chdir(self.instance)
+        self._repoint()
+
+    def _repoint(self):
+        """keel_lib resolves these once, at import — before this program existed."""
+        keel_lib.REPO = self.instance
+        keel_lib.PROGRAM = self.instance / "program"
+        keel_lib.MODEL = keel_lib.PROGRAM / "model"
+
+    def _init(self, answers, **kwargs):
+        args = argparse.Namespace(name=None, deployment="none", agent="none",
+                                  force=False, guided=True, **kwargs)
+        with mock.patch("builtins.input", side_effect=answers):
+            status, output = _quiet(cli.cmd_init, args)
+        self._repoint()
+        return status, output
+
+    def _config(self):
+        return yaml.safe_load(
+            (self.instance / "program" / "config.yml").read_text(encoding="utf-8"))
+
+    def test_the_three_answers_shape_the_program(self):
+        self._init(["Acme Corp", "iso_27001, soc2", "Head of Security"])
+        config = self._config()
+        self.assertEqual(config["name"], "Acme Corp")
+        self.assertEqual([f["id"] for f in config["frameworks"]], ["iso_27001", "soc2"])
+        role = (self.instance / "program" / "roles" / "role-security-owner.md").read_text()
+        self.assertIn('title: "Head of Security"', role)
+        # The id everything points at is untouched, so nothing dangles.
+        self.assertIn("id: role-security-owner", role)
+
+    def test_a_guided_program_passes_its_own_first_check(self):
+        """Choosing other frameworks must not leave the seed mapping to absent ones."""
+        self._init(["Acme Corp", "iso_27001", "Head of Security"])
+        status, output = _quiet(cli.cmd_check, argparse.Namespace(target=[], strict=False))
+        self.assertEqual(status, 0, output)
+
+    def test_pressing_enter_three_times_gives_the_defaults(self):
+        self._init(["", "", ""])
+        config = self._config()
+        self.assertEqual(config["name"], "Security Program")
+        self.assertEqual([f["id"] for f in config["frameworks"]], ["nist_csf", "pci_dss"])
+
+    def test_an_unknown_framework_is_refused_before_anything_is_written(self):
+        with self.assertRaises(cli.CommandError) as caught:
+            self._init(["Acme", "iso_9001", ""])
+        self.assertIn("iso_9001", str(caught.exception))
+        self.assertFalse((self.instance / "program").exists())

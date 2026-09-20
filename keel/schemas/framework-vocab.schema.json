@@ -2,17 +2,107 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://kilagen.com/schemas/framework-vocab.schema.json",
   "title": "Kilagen Framework Clause Vocabulary",
-  "description": "Validates program/frameworks/<id>.yml — the authoritative, edition-pinned clause-reference list for one framework. Reference-not-copy: clause refs only (the text lives at the framework's url in config.yml). The file stem is the framework id and must match a config.yml frameworks[].id.",
+  "description": "Validates one framework edition: its clause list, and optionally the structure the framework itself publishes. Resolved from keel/content/frameworks/<id>.yml (shipped with the package) or, when an instance overrides or adds one, program/model/frameworks/<id>.yml. The file stem is the framework id and must match a config.yml frameworks[].id.",
+
+  "$comment": "REFERENCE-NOT-COPY, AND WHERE THE LINE IS. A clause may carry its official `name`, because a name is an identifier — 'PR.AA Identity Management' says something, 'PR.AA' says nothing. A `description` must be written in our own words, brief and generic; if it reads like the standard's prose, it is a copy and it is wrong. The normative text is never reproduced here: it lives behind `resources`, at the publisher's own URL. Do not 'complete' these descriptions from the standard.",
 
   "type": "object",
   "properties": {
+    "name": {
+      "type": "string",
+      "description": "The edition's human name, e.g. 'NIST Cybersecurity Framework 2.0'.",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "description": "What this framework is and who it applies to, in our own words. Never copied from the standard.",
+      "minLength": 1
+    },
+    "granularity": {
+      "type": "string",
+      "description": "The level the clause list is pinned at, e.g. 'CSF 2.0 Categories (22)'. The denominator is half of any coverage percentage, so it has to be visible.",
+      "minLength": 1
+    },
+    "resources": {
+      "type": "array",
+      "description": "Where to read the normative text. This is what makes reference-not-copy work: whoever needs the wording goes to the publisher.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "url": { "type": "string", "pattern": "^https://" }
+        },
+        "required": ["name", "url"],
+        "additionalProperties": false
+      }
+    },
+    "groups": {
+      "type": "array",
+      "description": "The structure the framework publishes — functions, requirement families, themes, criteria. Optional: a framework that publishes a flat list gets a flat list, and nothing invents structure for it.",
+      "items": { "$ref": "#/$defs/group" },
+      "minItems": 1
+    },
     "clauses": {
       "type": "array",
-      "description": "Flat list of clause-reference strings, unique within the file. Quote every value so numeric-looking refs (e.g. \"13.60\") are not collapsed to floats by the YAML parser.",
-      "items": { "type": "string", "minLength": 1 },
-      "uniqueItems": true
+      "description": "Flat clause list, for a framework with no published grouping. Mutually exclusive with 'groups'.",
+      "items": { "$ref": "#/$defs/clause" },
+      "minItems": 1
     }
   },
-  "required": ["clauses"],
-  "additionalProperties": false
+  "oneOf": [
+    { "required": ["clauses"], "not": { "required": ["groups"] } },
+    { "required": ["groups"], "not": { "required": ["clauses"] } }
+  ],
+  "additionalProperties": false,
+
+  "$defs": {
+    "clause": {
+      "description": "A clause reference: the bare ref, or the ref with its official name and our own short description.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "description": "Quote every value so a numeric-looking ref (e.g. \"13.60\") is not collapsed to a float by the YAML parser."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ref": { "type": "string", "minLength": 1 },
+            "name": { "type": "string", "minLength": 1 },
+            "description": { "type": "string", "minLength": 1 }
+          },
+          "required": ["ref"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "group": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "description": "The publisher's own identifier for the group, e.g. 'GV' or 'A.5'."
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "color": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "The framework's own colour for this group, where it publishes one. Identity, never a score: nothing in this file may encode how well a clause is met."
+        },
+        "center": {
+          "type": "boolean",
+          "description": "This group sits at the centre of the wheel rather than on the rim — NIST CSF's Govern function, which the framework itself draws that way."
+        },
+        "clauses": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/clause" },
+          "minItems": 1
+        }
+      },
+      "required": ["id", "name", "clauses"],
+      "additionalProperties": false
+    }
+  }
 }

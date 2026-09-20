@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 import yaml
@@ -24,9 +25,23 @@ SCAFFOLD = keel_lib.KEEL / "scaffold"
 SKILLS = keel_lib.KEEL / "ai" / "skills"
 MANIFEST_NAME = ".kilagen-manifest.yml"
 
-# Domains a fresh program starts with. Numbered because the framework
-# discovers them by the NN- prefix; more can be added by hand later.
-INITIAL_DOMAINS = ["01-grc"]
+# The date every seeded document is written against. init rewrites those dates
+# relative to the day the program is created, so the starter keeps the offsets
+# its author intended — a gap found today, a review due in a year — instead of
+# arriving pre-expired for everyone who installs it after this date.
+STARTER_ANCHOR = date(2026, 1, 1)
+
+# Frontmatter fields init re-anchors. Each is a date the starter chose relative
+# to "the day this program began"; an absolute date would not belong in seed
+# content at all.
+STARTER_DATE_FIELDS = (
+    "last_reviewed", "next_review", "found", "expires", "decided", "occurred",
+)
+
+_FM_DATE_RE = re.compile(
+    r"^(?P<key>" + "|".join(STARTER_DATE_FIELDS) + r"): (?P<date>\d{4}-\d{2}-\d{2})\s*$",
+    re.MULTILINE,
+)
 
 
 class CommandError(Exception):
@@ -39,6 +54,25 @@ class CommandError(Exception):
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _reanchor_dates(text: str, today: date) -> str:
+    """Shift a starter document's dates so they are relative to today.
+
+    The offsets are what the starter actually encodes: a review a year out, a
+    gap found the day the program began. Freezing them to a literal date would
+    mean every program created after it opens with an overdue review and a
+    stale gap — failing its own first check for no reason but the calendar.
+    """
+    def shift(match: re.Match) -> str:
+        original = date.fromisoformat(match.group("date"))
+        moved = today + timedelta(days=(original - STARTER_ANCHOR).days)
+        return f"{match.group('key')}: {moved.isoformat()}"
+
+    head, sep, rest = text.partition("\n---\n")
+    if not sep:  # no frontmatter block: leave the file alone
+        return text
+    return _FM_DATE_RE.sub(shift, head) + sep + rest
 
 
 def _options(kind: str) -> list[str]:
@@ -76,9 +110,22 @@ def _tree_plan(src: Path, prefix: Path | None = None) -> dict[Path, Path]:
 
 
 def _write_plan(plan: dict[Path, Path], dest: Path) -> list[Path]:
-    """Apply a plan, returning the destination-relative paths written."""
+    """Apply a plan, returning the destination-relative paths written.
+
+    Every target is resolved and confirmed to be inside ``dest`` before
+    anything is written. Today the only relative path that is not derived
+    straight from the shipped tree is the ``skills_dir`` an engine declares,
+    so this is a guard rather than a fix — but it is the difference between
+    "nothing escapes because of how the inputs happen to look" and "nothing
+    escapes because it cannot".
+    """
+    root = dest.resolve()
     for rel, source in sorted(plan.items()):
-        target = dest / rel
+        target = (dest / rel).resolve()
+        if not target.is_relative_to(root):
+            raise CommandError(
+                f"refusing to write outside {dest}: seed entry '{rel}' resolves to {target}"
+            )
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target)
     return sorted(plan)
@@ -146,7 +193,25 @@ def _read_manifest(target: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
 
-def _program_config(name: str) -> str:
+# What a program starts measured against when nobody chooses: the two the
+# starter content is written for.
+DEFAULT_FRAMEWORKS = ("nist_csf", "pci_dss")
+
+FRAMEWORK_URLS = {
+    "nist_csf": "https://www.nist.gov/cyberframework",
+    "pci_dss": "https://www.pcisecuritystandards.org/",
+    "iso_27001": "https://www.iso.org/standard/27001",
+    "iso_27017": "https://www.iso.org/standard/43757.html",
+    "iso_27018": "https://www.iso.org/standard/76559.html",
+    "soc2": "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2",
+}
+
+# Who checks. Guidance frameworks assert nothing; the rest is the user's call,
+# so only the one we know from the outside is stated.
+DEFAULT_BINDING = {"nist_csf": "reference", "iso_27017": "reference", "iso_27018": "reference"}
+
+
+def _program_config(name: str, frameworks=None) -> str:
     return (
         "# Identity and framework selection for this program.\n"
         f"name: {name}\n"
@@ -156,14 +221,26 @@ def _program_config(name: str) -> str:
         "# do not edit by hand.\n"
         f"schema_version: {SCHEMA_VERSION}\n"
         "\n"
-        "# Compliance frameworks this program maps to. Each id needs a matching\n"
-        "# program/frameworks/<id>.yml holding its clause vocabulary. Remove the\n"
-        "# ones you are not measured against — coverage is computed over these.\n"
+        "# Compliance frameworks this program is measured against. Kilagen ships\n"
+        "# the clause vocabularies, so declaring an id here is all it takes; run\n"
+        "# 'kilagen check' to see the ids it knows. Remove the ones you are not\n"
+        "# measured against — coverage is computed over these, and it is the only\n"
+        "# coverage this program claims.\n"
+        "#\n"
+        "# To override a shipped edition, or to add a framework of your own, drop\n"
+        "# the file at program/model/frameworks/<id>.yml; it wins over the shipped\n"
+        "# one of the same id.\n"
+        "#\n"
+        "# binding says who checks: mandatory (a law, a regulator or a contract\n"
+        "# requires it), voluntary (you audit yourself and assert conformity), or\n"
+        "# reference (guidance you assert nothing against).\n"
         "frameworks:\n"
-        "  - id: nist_csf\n"
-        "    url: https://www.nist.gov/cyberframework\n"
-        "  - id: pci_dss\n"
-        "    url: https://www.pcisecuritystandards.org/\n"
+        + "".join(
+            f"  - id: {fw}\n"
+            + (f"    url: {FRAMEWORK_URLS[fw]}\n" if fw in FRAMEWORK_URLS else "")
+            + f"    binding: {DEFAULT_BINDING.get(fw, 'mandatory')}\n"
+            for fw in (frameworks or DEFAULT_FRAMEWORKS)
+        )
     )
 
 
@@ -199,7 +276,79 @@ def _require_schema_version() -> None:
 # commands
 
 
+def _scope_frameworks(text: str, in_scope) -> str:
+    """Drop framework mappings the program is not measured against.
+
+    The starter's standard maps its requirements to NIST CSF and PCI DSS
+    clauses. A program that chose neither would be born failing its own first
+    check over references to frameworks it never declared — so the mapping
+    goes, and the requirement is simply unmapped, which is the truth.
+    """
+    known = set(keel_lib.framework_files())
+    drop = {fw for fw in known if fw not in set(in_scope)}
+    if not drop:
+        return text
+
+    lines = text.split("\n")
+    kept = []
+    for line in lines:
+        stripped = line.strip()
+        key = stripped.split(":", 1)[0]
+        if line.startswith(" ") and key in drop and stripped.startswith(key + ":"):
+            continue
+        kept.append(line)
+
+    # A frameworks: block whose entries all went is now an empty mapping,
+    # which is not what the schema means by one.
+    result = []
+    for index, line in enumerate(kept):
+        if line.strip() == "frameworks:":
+            indent = len(line) - len(line.lstrip())
+            following = kept[index + 1] if index + 1 < len(kept) else ""
+            if not following.strip() or (len(following) - len(following.lstrip())) <= indent:
+                continue
+        result.append(line)
+    return "\n".join(result)
+
+
+def _ask(question: str, default: str) -> str:
+    """One prompt. Empty input takes the default, which is always shown."""
+    try:
+        answer = input(f"{question} [{default}]: ").strip()
+    except EOFError:                       # piped stdin: take every default
+        print()
+        return default
+    return answer or default
+
+
+def _run_guided(args: argparse.Namespace) -> None:
+    """Fill in the three answers that shape a new program.
+
+    Interactive is the option, never the requirement: `kilagen init --name X`
+    still asks nothing, which is what CI needs.
+    """
+    available = sorted(keel_lib.framework_files())
+    print("\nThree questions. Enter takes the default.\n")
+    args.name = _ask("Program name", args.name or "Security Program")
+    print("\n  Frameworks Kilagen ships: " + ", ".join(available))
+    chosen = _ask("Frameworks in scope, comma-separated", "nist_csf, pci_dss")
+    picked = [fw.strip() for fw in chosen.split(",") if fw.strip()]
+    unknown = [fw for fw in picked if fw not in available]
+    if unknown:
+        raise CommandError(
+            f"unknown framework {', '.join(unknown)} — available: {', '.join(available)}"
+        )
+    args.frameworks = picked
+    args.owner_title = _ask("Who owns the program by default", "Security Owner")
+    print()
+
+
 def cmd_init(args: argparse.Namespace) -> int:
+    if getattr(args, "guided", False):
+        _run_guided(args)
+    if not args.name:
+        raise CommandError("--name is required, or use --guided to be asked")
+
     target = Path.cwd().resolve()
     program = target / "program"
 
@@ -218,69 +367,64 @@ def cmd_init(args: argparse.Namespace) -> int:
     # The program layer is the user's, so it is generated rather than copied
     # and never appears in the manifest: upgrade must not touch it.
     program.mkdir(parents=True, exist_ok=True)
-    (program / "config.yml").write_text(_program_config(args.name), encoding="utf-8")
-    # Seeded from the shipped templates rather than written here, so the
-    # starting content stays editable data instead of strings in the CLI.
-    for template in ("gaps.yml", "risk-taxonomy.yml"):
-        shutil.copy2(keel_lib.KEEL / "content" / "templates" / template, program / template)
-    for sub in ("systems", "roles", "frameworks"):
-        (program / sub).mkdir(exist_ok=True)
+    (program / "config.yml").write_text(
+        _program_config(args.name, getattr(args, "frameworks", None)), encoding="utf-8")
 
-    # A new program is not an empty one: it is a map of what does not exist
-    # yet. Every domain arrives with its capabilities at L0-none, which is the
-    # honest reading of "just installed" and is also what makes the dashboard
-    # render anything at all — it draws a domain only if that domain has
-    # capabilities. The starting documents are drafts whose bodies say to
-    # replace or delete them.
+    # A folder means the document type and nothing else. All of them are
+    # created up front: an empty folder is the menu of what this program can
+    # hold, and it costs nothing.
+    for doc_type in keel_lib.TYPES:
+        (program / doc_type.folder).mkdir(exist_ok=True)
+
+    # The vocabularies and the publishing contract are seeded from the shipped
+    # starter rather than written here, so they stay editable data instead of
+    # strings in the CLI.
     starter = keel_lib.KEEL / "content" / "starter"
-    for source in sorted((starter / "capabilities").glob("*.yml")):
-        domain_dir = program / source.stem
-        domain_dir.mkdir(exist_ok=True)
-        shutil.copy2(source, domain_dir / "capabilities.yml")
-    for source in sorted((starter / "frameworks").glob("*.yml")):
-        shutil.copy2(source, program / "frameworks" / source.name)
-    for source, destination in (
-        ("role-security-owner.md", program / "roles"),
-        ("POL-information-security.md", program / INITIAL_DOMAINS[0] / "policies"),
-        ("STD-access-control.md", program / INITIAL_DOMAINS[0] / "standards"),
-    ):
-        destination.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(starter / "documents" / source, destination / source)
+    shutil.copytree(starter / "model", program / "model", dirs_exist_ok=True)
+    shutil.copy2(starter / "publish.yml", program / "publish.yml")
+    # Structure, not a table of contents: a list of documents would be stale
+    # the day after it was written, and the dashboard is the index.
+    shutil.copy2(starter / "program-README.md", program / "README.md")
+    # Seeded empty but commented: the Schedule lens is useful without it, and
+    # an instance that never learns the file exists never gets the recurring
+    # half of the calendar. An empty activities list is valid.
+    shutil.copy2(starter / "schedule.yml", program / "schedule.yml")
+
+    # A new program is not an empty one: it arrives with the whole capability
+    # menu as a checklist, two frameworks in scope — whose vocabularies ship
+    # with the package rather than being copied here, so nobody types 93 ISO
+    # controls by hand — and five draft documents that exercise the chain end
+    # to end: a policy, the standard it authorises, the role that owns them,
+    # and a gap and an exception filed against the same requirement so the
+    # difference between the two is visible on day one.
+    today = date.today()
+    for source in sorted((starter / "documents").glob("*.md")):
+        doc_type = keel_lib.type_of_id(source.stem)
+        folder = program / doc_type.folder
+        if doc_type.dated:
+            folder = folder / str(today.year)
+        folder.mkdir(parents=True, exist_ok=True)
+        text = _reanchor_dates(source.read_text(encoding="utf-8"), today)
+        text = _scope_frameworks(text, getattr(args, "frameworks", None) or DEFAULT_FRAMEWORKS)
+        owner_title = getattr(args, "owner_title", None)
+        if owner_title and source.stem == "role-security-owner":
+            # The id every seeded document points at stays; only the human
+            # name changes, so nothing is left dangling.
+            text = re.sub(r'^title:.*$', f'title: "{owner_title}"', text, count=1, flags=re.M)
+        (folder / source.name).write_text(text, encoding="utf-8")
 
     _write_manifest(target, args.deployment, args.agent,
                     {rel: {"version": __version__, "sha256": _sha256(target / rel)}
                      for rel in copied})
 
-    # The generated artifacts are committed content, and "check artifacts"
-    # compares against them — so an instance that has never generated them
-    # fails its own first check, and the first pull request of a brand new
-    # program opens red. Generating them here is what makes the closing
-    # line of this command true. Their own progress output belongs to
-    # "build", not to "init".
-    import contextlib
-    import io
-
-    from .libs import generate_coverage, generate_registry
-
-    # keel_lib discovered these when it was imported — before this command
-    # created the program it is now asked to scan. Point them at what was
-    # just built.
-    keel_lib.REPO, keel_lib.PROGRAM = target, program
-
-    with contextlib.redirect_stdout(io.StringIO()):
-        failed = generate_coverage.main() or generate_registry.main()
-    if failed:
-        raise CommandError(
-            "the program was created but its generated artifacts could not be "
-            "written. Run 'kilagen build artifacts' to see why."
-        )
-
     print(f"Initialised '{args.name}' in {target}")
     print(f"  deployment: {args.deployment}    agent: {args.agent}")
     print(f"  {len(copied)} files copied, tracked in {MANIFEST_NAME}")
-    print("\nYour program starts as a map of what does not exist yet: every")
-    print("capability at L0-none, two frameworks in scope, one draft policy and")
-    print("standard to replace or delete.\n")
+    scope = getattr(args, "frameworks", None) or DEFAULT_FRAMEWORKS
+    print("\nYour program starts as a map of what it could hold: the capability")
+    print(f"menu as a checklist, {len(scope)} framework(s) in scope "
+          f"({', '.join(scope)}), and five draft")
+    print("documents that run the chain from policy to requirement to gap and exception.\n")
     print("  kilagen build && kilagen serve    see it at http://localhost:8000")
     return 0
 
@@ -297,89 +441,31 @@ def _check_refs() -> int:
     return validate_semantic_refs.main()
 
 
-def _check_reviews() -> int:
+def _check_reviews(strict: bool = False) -> int:
+    """Returns 1 when something needs attention — a warning, not a failure."""
     from .libs import check_reviews
 
-    return check_reviews.main()
+    return check_reviews.main(strict=strict)
 
 
-def _check_artifacts() -> int:
-    """Committed artifacts must match what this release would generate.
+def _check_evidence(strict: bool = False) -> int:
+    """Returns 1 when something needs attention — a warning, not a failure."""
+    from .libs import check_evidence
 
-    Compares rather than regenerates: a check that writes is not a check, and
-    this one runs in CI against a checkout that must stay untouched.
-    """
-    from .libs import generate_coverage, generate_registry
-
-    stale = []
-
-    expected = generate_coverage.render_coverage_yaml(generate_coverage.compute())
-    path = generate_coverage.output_path()
-    if not path.is_file() or path.read_text(encoding="utf-8") != expected:
-        stale.append("program/01-grc/compliance/coverage.yml")
-
-    expected, warnings = generate_registry.compute()
-    if warnings:
-        return 1
-    path = generate_registry.output_path()
-    if not path.is_file():
-        stale.append("program/registry.md")
-    elif generate_registry.strip_date(path.read_text(encoding="utf-8")) != \
-            generate_registry.strip_date(expected):
-        stale.append("program/registry.md")
-
-    if stale:
-        print("Generated artifacts are out of date:", file=sys.stderr)
-        for name in stale:
-            print(f"  {name}", file=sys.stderr)
-        print("\nRun: kilagen build artifacts", file=sys.stderr)
-        return 1
-    print("Generated artifacts are up to date.")
-    return 0
-
-
-def _check_registry() -> int:
-    """Refuse a commit that changes program/ content but leaves registry.md behind."""
-    staged = subprocess.run(
-        ["git", "diff", "--cached", "--name-only"],
-        capture_output=True, text=True, check=True,
-    ).stdout.split()
-    content = [f for f in staged
-               if f.startswith("program/") and f.endswith((".md", ".yml"))
-               and f != "program/registry.md"]
-    if not content:
-        return 0
-
-    if "program/registry.md" in staged:
-        return 0
-
-    # A repository with no commits has no HEAD to diff against, and git says
-    # so on stderr — noise on the very first commit of a new instance, where
-    # everything is staged anyway. Nothing to compare means nothing to warn
-    # about.
-    if subprocess.run(["git", "rev-parse", "--verify", "-q", "HEAD"],
-                      capture_output=True).returncode != 0:
-        return 0
-
-    # Nothing to stage if the registry itself has not been regenerated.
-    dirty = subprocess.run(
-        ["git", "diff", "--quiet", "HEAD", "--", "program/registry.md"]
-    ).returncode
-    if dirty == 0:
-        return 0
-
-    print("\n  WARNING: program/registry.md has been updated but is not staged.")
-    print("  Run: git add program/registry.md\n")
-    return 1
+    return check_evidence.main(strict=strict)
 
 
 CHECKS = {
     "frontmatter": _check_frontmatter,
     "refs": _check_refs,
     "reviews": _check_reviews,
-    "artifacts": _check_artifacts,
-    "registry": _check_registry,
+    "evidence": _check_evidence,
 }
+
+# The checks that report rather than fail: work to schedule, not a broken
+# contract. A check a healthy program can never pass is one everybody learns
+# to ignore, so --strict is how a CI asks for the opposite.
+INFORMS = ("reviews", "evidence")
 
 
 def cmd_check(args: argparse.Namespace) -> int:
@@ -391,30 +477,62 @@ def cmd_check(args: argparse.Namespace) -> int:
         raise CommandError(
             f"unknown check {', '.join(unknown)} — available: {', '.join(sorted(CHECKS))}"
         )
-    targets = args.target or [t for t in CHECKS if t != "registry"]
-    status = 0
+    targets = args.target or list(CHECKS)
+    strict = getattr(args, "strict", False)
+    errors, attention = [], False
     for name in targets:
-        status |= CHECKS[name]()
-    return 1 if status else 0
+        # Reviews are the one check that reports rather than fails: a document
+        # falling due is work to schedule, not a broken contract. --strict is
+        # for a CI that wants the opposite.
+        if name in INFORMS:
+            found = CHECKS[name](strict=strict)
+            attention = attention or bool(found)
+            if strict and found:
+                errors.append(name)
+            continue
+        if CHECKS[name]():
+            errors.append(name)
+
+    print(f"\n{'=' * 60}")
+    if errors:
+        print(f"FAILED — errors in: {', '.join(errors)}")
+    else:
+        print("PASSED — no errors.")
+    if attention and not strict:
+        print("Some items need attention above. These checks inform; they do not fail.")
+    return 1 if errors else 0
+
+
+def cmd_collect_evidence(args: argparse.Namespace) -> int:
+    """Run the collectors and record the pointers they come back with.
+
+    A target of `update`, not a verb of its own: the shape is the same as
+    `update content` — the framework edits your files and the diff is the
+    review — and the CLI stays a closed set of verbs with open targets.
+    """
+    _require_schema_version()
+    from .libs import collect_evidence
+
+    return collect_evidence.main(apply=getattr(args, "apply", False))
+
+
+_UPDATE_TARGETS = {
+    "config": lambda args: cmd_upgrade(args),
+    "content": lambda args: cmd_migrate(args),
+    "evidence": lambda args: cmd_collect_evidence(args),
+}
 
 
 def cmd_build(args: argparse.Namespace) -> int:
     _require_schema_version()
-    from .libs import build_site, generate_coverage, generate_registry
+    from .libs import build_site
 
-    target = args.target or "all"
-
-    # Validate before generating: artifacts derived from invalid content are
-    # worse than no artifacts, because they look authoritative.
-    if target == "all":
+    # Validate before building: a site derived from invalid content is worse
+    # than no site, because it looks authoritative.
+    if args.target != "site":
         if _check_frontmatter() or _check_refs():
             return 1
-    if target in ("all", "artifacts"):
-        if generate_coverage.main() or generate_registry.main():
-            return 1
-    if target in ("all", "site"):
-        return build_site.main()
-    return 0
+    return build_site.main()
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
@@ -516,6 +634,54 @@ def cmd_upgrade(args: argparse.Namespace) -> int:
     return 0
 
 
+SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+
+
+def cmd_new(args: argparse.Namespace) -> int:
+    """Write one document from its template, in the right place.
+
+    The seventeen templates used to sit in site-packages with no way to reach
+    them from a terminal, so a new document started as a copy of whichever
+    existing one was nearest — and inherited its fields.
+    """
+    _require_schema_version()
+    doc_type = keel_lib.BY_NAME.get(args.type)
+    if doc_type is None:
+        raise CommandError(
+            f"unknown type '{args.type}' — one of: "
+            + ", ".join(t.name for t in keel_lib.TYPES)
+        )
+    if not SLUG_RE.match(args.slug):
+        raise CommandError(
+            f"'{args.slug}' is not a slug — lowercase letters, digits and hyphens, "
+            f"starting with a letter or digit"
+        )
+
+    template = keel_lib.KEEL / "content" / "templates" / f"{doc_type.name}.md"
+    if not template.is_file():
+        raise CommandError(f"no template ships for '{doc_type.name}'")
+
+    today = date.today()
+    doc_id = f"{doc_type.prefix}-{args.slug}"
+    folder = keel_lib.PROGRAM / doc_type.folder
+    if doc_type.dated:
+        folder = folder / str(today.year)
+    target = folder / f"{doc_id}.md"
+    if target.exists():
+        raise CommandError(f"{target.relative_to(keel_lib.REPO)} already exists")
+
+    # The template's dates are anchored to the same day the starter's are, so
+    # the same shift keeps "reviewed today, due in a year" true.
+    text = _reanchor_dates(template.read_text(encoding="utf-8"), today)
+    text = re.sub(r"^id:.*$", f"id: {doc_id}", text, count=1, flags=re.M)
+
+    folder.mkdir(parents=True, exist_ok=True)
+    target.write_text(text, encoding="utf-8")
+    print(f"Wrote {target.relative_to(keel_lib.REPO)}")
+    print("Replace every REPLACE ME, then run: kilagen check")
+    return 0
+
+
 def cmd_migrate(args: argparse.Namespace) -> int:
     """Bring program/ content up to the contract this release expects."""
     from . import migrations
@@ -546,9 +712,14 @@ def cmd_migrate(args: argparse.Namespace) -> int:
         )
 
     # The diff is the review, so it must not be mixed with unrelated work.
+    # A repository with no commits has nothing to diff against, so the rule
+    # has nothing to protect there — which is the case for an instance being
+    # brought forward before its first commit.
+    has_head = subprocess.run(["git", "rev-parse", "--verify", "-q", "HEAD"],
+                              capture_output=True).returncode == 0
     dirty = subprocess.run(["git", "status", "--porcelain"],
                            capture_output=True, text=True).stdout.strip()
-    if dirty and args.apply:
+    if dirty and has_head and args.apply:
         raise CommandError(
             "the working tree has uncommitted changes; commit or stash them so "
             "the migration's diff stands on its own"
@@ -567,9 +738,11 @@ def cmd_migrate(args: argparse.Namespace) -> int:
         print("\nNothing written. Re-run with --apply to migrate.")
         return 0
 
+    # Re-read: a migration may have rewritten config.yml itself, and stamping
+    # the version onto the text read before it ran would silently undo that.
     config.write_text(
         re.sub(r"^schema_version:.*$", f"schema_version: {SCHEMA_VERSION}",
-               text, count=1, flags=re.M),
+               config.read_text(encoding="utf-8"), count=1, flags=re.M),
         encoding="utf-8",
     )
     print("\nMigrated. Review with: git diff, then run: kilagen check")
@@ -578,10 +751,11 @@ def cmd_migrate(args: argparse.Namespace) -> int:
 
 COMMANDS = {
     "init": cmd_init,
+    "new": cmd_new,
     "check": cmd_check,
     "build": cmd_build,
     "serve": cmd_serve,
-    "update": lambda args: (cmd_upgrade if args.target == "config" else cmd_migrate)(args),
+    "update": lambda args: _UPDATE_TARGETS[args.target](args),
 }
 
 
@@ -594,7 +768,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True, metavar="<command>")
 
     p = sub.add_parser("init", help="scaffold a program in the current repository")
-    p.add_argument("--name", required=True, help="the organisation or program name")
+    p.add_argument("--name", help="the organisation or program name")
+    p.add_argument("--guided", action="store_true",
+                   help="ask for the name, the frameworks and the default owner "
+                        "instead of taking the defaults")
     p.add_argument("--deployment", default="github",
                    help="CI platform to wire up (default: github)")
     p.add_argument("--agent", default="claude",
@@ -602,26 +779,35 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--force", action="store_true",
                    help="proceed even if program/ already exists")
 
+    p = sub.add_parser("new", help="write a document from its template")
+    p.add_argument("type", metavar="TYPE",
+                   help="the document type: " + ", ".join(t.name for t in keel_lib.TYPES))
+    p.add_argument("slug", metavar="SLUG",
+                   help="what it is about, in kebab-case: the id becomes <prefix>-<slug>")
+
     p = sub.add_parser("check", help="run the program's checks")
     # Validated in cmd_check rather than with choices=, which renders the
     # empty default as a bogus option in the error message.
     p.add_argument("target", nargs="*", metavar="TARGET",
                    help="one or more of: " + ", ".join(sorted(CHECKS))
-                        + ". Defaults to every check except registry, which is "
-                          "a pre-commit guard and needs staged changes")
+                        + ". Defaults to all of them")
+    p.add_argument("--strict", action="store_true",
+                   help="fail on overdue reviews, expired exceptions and stale "
+                        "gaps, which otherwise only report")
 
-    p = sub.add_parser("build", help="regenerate artifacts and build the site")
-    p.add_argument("target", nargs="?", choices=["artifacts", "site"], metavar="TARGET",
-                   help="artifacts: the committed coverage and registry files; "
-                        "site: _site/ only. Defaults to validating and doing both")
+    p = sub.add_parser("build", help="build the site")
+    p.add_argument("target", nargs="?", choices=["site"], metavar="TARGET",
+                   help="site: skip validation and build _site/ only. "
+                        "Defaults to validating first")
 
     p = sub.add_parser("serve", help="serve the built site")
     p.add_argument("--port", type=int, default=8000, help="port to listen on (default: 8000)")
 
     p = sub.add_parser("update", help="update what a previous release wrote")
-    p.add_argument("target", choices=["config", "content"], metavar="TARGET",
+    p.add_argument("target", choices=["config", "content", "evidence"], metavar="TARGET",
                    help="config: the files init copied into this repository; "
-                        "content: program/ itself, when a release changes the schema")
+                        "content: program/ itself, when a release changes the schema; "
+                        "evidence: run the collectors and record where the proof now lives")
     p.add_argument("--apply", action="store_true",
                    help="write the changes instead of only listing them")
 

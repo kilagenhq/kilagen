@@ -1,143 +1,89 @@
+import { mk, mkEmpty, th } from '../dom.js';
+import { setActiveView, mainEl, rightEl, showRightPanel } from '../nav.js';
 import { safeFetch } from '../security.js';
-import { mk, matDot, ghTreeUrl } from '../dom.js';
-import { setActiveView, setBread, mainEl, rightEl } from '../nav.js';
+
+/* The machine-readable law, rendered. Everything here is read from the shipped
+   schema files, so the page cannot describe a rule the validators do not
+   enforce. */
+
+const SCHEMAS = [
+  ['frontmatter.schema.json', 'Every document in program/'],
+  ['model-domains.schema.json', 'program/model/domains.yml'],
+  ['model-capabilities.schema.json', 'program/model/capabilities.yml'],
+  ['model-systems.schema.json', 'program/model/systems.yml'],
+  ['framework-vocab.schema.json', 'program/model/frameworks/<id>.yml'],
+  ['publish.schema.json', 'program/publish.yml'],
+];
+
+function renderProperties(container, properties, required) {
+  const table = mk('table', 'schema-table');
+  const head = mk('tr');
+  ['Field', 'Type', 'Required', 'Notes'].forEach(function(h) { head.appendChild(th(h)); });
+  table.appendChild(head);
+  Object.keys(properties).forEach(function(name) {
+    const spec = properties[name] || {};
+    const row = mk('tr');
+    row.appendChild(mk('td', 'schema-field', name));
+    let type = spec.type || (spec.$ref ? spec.$ref.split('/').pop() : '');
+    if (spec.const !== undefined) type = 'const ' + JSON.stringify(spec.const);
+    if (spec.enum) type = spec.enum.join(' | ');
+    row.appendChild(mk('td', 'schema-type', Array.isArray(type) ? type.join(' | ') : String(type)));
+    row.appendChild(mk('td', '', (required || []).indexOf(name) !== -1 ? 'yes' : ''));
+    row.appendChild(mk('td', 'schema-note', spec.description || ''));
+    table.appendChild(row);
+  });
+  container.appendChild(table);
+}
 
 export function renderSchemas() {
   setActiveView('schemas');
-  mainEl.textContent = '';
-  rightEl.textContent = '';
-  setBread([{ label: 'Reference' }, { label: 'Schemas' }]);
-  mainEl.appendChild(mk('h1', '', 'Schema Reference'));
-  mainEl.appendChild(mk('p', '', 'Live reference from keel/schemas/. Content is fetched from the actual JSON schema files.'));
+  mainEl.textContent = ''; rightEl.textContent = ''; showRightPanel();
+  mainEl.appendChild(mk('h1', '', 'Schemas'));
+  mainEl.appendChild(mk('p', 'section-note',
+    'What `kilagen check` enforces. A field that is not declared here is refused, '
+    + 'which is what keeps deleted concepts from creeping back one convenient '
+    + 'field at a time.'));
 
-  Promise.all([
-    safeFetch('schemas/frontmatter.schema.json'),
-    safeFetch('schemas/capabilities.schema.json'),
-  ]).then(function(results) {
-    let fmSchema, capSchema;
-    try { fmSchema = JSON.parse(results[0]); } catch(e) { throw new Error('frontmatter.schema.json is not valid JSON: ' + e.message); }
-    try { capSchema = JSON.parse(results[1]); } catch(e) { throw new Error('capabilities.schema.json is not valid JSON: ' + e.message); }
-    renderSchemaCard(fmSchema);
-    renderSchemaCard(capSchema);
-    // Right panel — source only
-    rightEl.appendChild(mk('h3', '', 'Source'));
-    ['keel/schemas/frontmatter.schema.json', 'keel/schemas/capabilities.schema.json'].forEach(function(f) {
-      var pathRow = mk('div', 'meta-row'); pathRow.appendChild(mk('span', 'meta-key', 'File')); var pathVal = mk('span', 'meta-val', f); pathVal.style.fontFamily = "'SF Mono',SFMono-Regular,Consolas,monospace"; pathVal.style.fontSize = '11px'; pathRow.appendChild(pathVal); rightEl.appendChild(pathRow);
+  Promise.all(SCHEMAS.map(function(s) {
+    return safeFetch('keel/schemas/' + s[0]).then(function(t) { return JSON.parse(t); })
+      .catch(function() { return null; });
+  })).then(function(loaded) {
+    loaded.forEach(function(schema, i) {
+      if (!schema) return;
+      const name = SCHEMAS[i][0], applies = SCHEMAS[i][1];
+      mainEl.appendChild(mk('h2', '', schema.title || name));
+      mainEl.appendChild(mk('p', 'section-note', applies + ' · ' + name));
+      if (schema.description) mainEl.appendChild(mk('p', 'schema-desc', schema.description));
+
+      const common = (schema.$defs && schema.$defs.common) || null;
+      if (common) {
+        mainEl.appendChild(mk('h3', '', 'Every document'));
+        renderProperties(mainEl, common.properties || {}, common.required || []);
+      }
+      if (schema.oneOf) {
+        mainEl.appendChild(mk('h3', '', 'Per type'));
+        schema.oneOf.forEach(function(branch) {
+          const props = Object.assign({}, branch.properties || {});
+          delete props.type; delete props.id;
+          if (!Object.keys(props).length) return;
+          mainEl.appendChild(mk('h4', '', branch.title || ''));
+          renderProperties(mainEl, props, branch.required || []);
+        });
+      }
+      if (schema.properties && !common) {
+        renderProperties(mainEl, schema.properties, schema.required || []);
+      }
     });
-    var ghHref = ghTreeUrl('keel/schemas'); if (ghHref) { var ghLink = mk('a', 'source-link', 'View in GitHub'); ghLink.href = ghHref; ghLink.target = '_blank'; ghLink.rel = 'noopener noreferrer'; rightEl.appendChild(ghLink); }
-  }).catch(function(err) {
-    console.warn('Schema load error:', err);
-    mainEl.appendChild(mk('div', 'error-msg', 'Unable to load schemas: ' + (err.message || err)));
-  });
-}
-
-function renderSchemaCard(schema) {
-  const card = mk('div', 'ref-card');
-  card.appendChild(mk('h3', '', schema.title || 'Schema'));
-  if (schema.description) card.appendChild(mk('p', '', schema.description));
-
-  const defs = schema.$defs || {};
-
-  // Render enum definitions as visual grids
-  Object.keys(defs).forEach(function(defName) {
-    const def = defs[defName];
-    if (def.enum) {
-      card.appendChild(mk('h4', '', defName.replace(/_/g, ' ')));
-      const grid = mk('div', 'ref-enum-grid');
-      def.enum.forEach(function(val) {
-        const item = mk('div', 'ref-enum-item');
-        // Add colored dots for maturity enum
-        if (defName === 'maturity_enum') {
-          item.appendChild(matDot(val));
-        }
-        item.appendChild(mk('span', 'enum-label', val));
-        if (def.description) item.appendChild(mk('span', 'enum-desc', def.description));
-        grid.appendChild(item);
-      });
-      card.appendChild(grid);
+    if (!loaded.filter(Boolean).length) {
+      mainEl.appendChild(mkEmpty('file', 'Schemas unavailable', 'Run kilagen build.'));
     }
   });
 
-  // Render object definitions with properties
-  Object.keys(defs).forEach(function(defName) {
-    const def = defs[defName];
-    if (!def.properties) return;
-    card.appendChild(mk('h4', '', defName.replace(/_/g, ' ')));
-    const required = def.required || [];
-    Object.keys(def.properties).forEach(function(fieldName) {
-      const fieldDef = def.properties[fieldName];
-      const row = mk('div', 'ref-field');
-      row.appendChild(mk('span', 'rf-name', fieldName));
-      row.appendChild(mk('span', 'rf-type', resolveType(fieldDef, defs)));
-      row.appendChild(mk('span', 'rf-desc', fieldDef.description || ''));
-      if (required.includes(fieldName)) row.appendChild(mk('span', 'rf-req', 'required'));
-      card.appendChild(row);
-    });
+  rightEl.appendChild(mk('h3', '', 'Files'));
+  SCHEMAS.forEach(function(s) {
+    const row = mk('div', 'right-item');
+    row.appendChild(mk('div', 'right-item-title', s[0]));
+    row.appendChild(mk('div', 'right-item-note', s[1]));
+    rightEl.appendChild(row);
   });
-
-  // Render top-level properties
-  if (schema.properties) {
-    card.appendChild(mk('h4', '', 'Root fields'));
-    const topRequired = schema.required || [];
-    Object.keys(schema.properties).forEach(function(fieldName) {
-      const fieldDef = schema.properties[fieldName];
-      const row = mk('div', 'ref-field');
-      row.appendChild(mk('span', 'rf-name', fieldName));
-      row.appendChild(mk('span', 'rf-type', resolveType(fieldDef, defs)));
-      row.appendChild(mk('span', 'rf-desc', fieldDef.description || ''));
-      if (topRequired.includes(fieldName)) row.appendChild(mk('span', 'rf-req', 'required'));
-      card.appendChild(row);
-    });
-  }
-
-  // Render oneOf variants (frontmatter schema has these for document types)
-  if (schema.oneOf) {
-    card.appendChild(mk('h4', '', 'Document types'));
-    const tbl = mk('table', 'ref-table');
-    const thead = mk('thead');
-    const hrow = mk('tr');
-    ['Type', 'ID pattern', 'Extra fields'].forEach(function(h) { hrow.appendChild(mk('th', '', h)); });
-    thead.appendChild(hrow);
-    tbl.appendChild(thead);
-    const tbody = mk('tbody');
-    schema.oneOf.forEach(function(variant) {
-      const row = mk('tr');
-      row.appendChild(mk('td', '', variant.title || ''));
-      const idProp = variant.properties && variant.properties.id;
-      const pattern = idProp && idProp.pattern ? idProp.pattern : '';
-      const patternTd = mk('td');
-      patternTd.appendChild(mk('code', '', pattern));
-      row.appendChild(patternTd);
-      // Extra required fields beyond common
-      const extras = [];
-      if (variant.required && variant.required.includes('frameworks')) extras.push('frameworks object');
-      if (variant.properties && variant.properties.immutable) extras.push('immutable');
-      if (variant.properties && variant.properties.severity) extras.push('severity');
-      if (variant.properties && variant.properties.vendor_name) extras.push('vendor_name, tier');
-      const extraReq = (variant.required || []).filter(function(r) { return r !== 'frameworks'; }).join(', ');
-      if (extraReq) extras.push(extraReq);
-      row.appendChild(mk('td', '', extras.join(', ') || variant.description || ''));
-      tbody.appendChild(row);
-    });
-    tbl.appendChild(tbody);
-    card.appendChild(tbl);
-  }
-
-  mainEl.appendChild(card);
-}
-
-function resolveType(fieldDef, defs) {
-  if (!fieldDef || fieldDef === true) return '';
-  if (fieldDef.$ref) {
-    const refName = fieldDef.$ref.replace('#/$defs/', '');
-    const refDef = defs[refName];
-    if (refDef && refDef.enum) return refDef.enum.join(' | ');
-    if (refDef && refDef.type) return refDef.type;
-    return refName;
-  }
-  if (fieldDef.const) return JSON.stringify(fieldDef.const);
-  if (fieldDef.type === 'array' && fieldDef.items) return resolveType(fieldDef.items, defs) + '[]';
-  if (fieldDef.enum) return fieldDef.enum.join(' | ');
-  if (fieldDef.oneOf) return fieldDef.oneOf.map(function(o) { return resolveType(o, defs); }).join(' | ');
-  return fieldDef.type || '';
 }

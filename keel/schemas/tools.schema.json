@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kilagen.com/schemas/tools.schema.json",
+  "title": "Kilagen tool inventory",
+  "description": "One file per capability, listing tools that exist in that space. Reference material, never a recommendation and never an inventory of what you run — what you run is the estate's truth. Maintained in kilagenhq/tools and vendored into a release.",
+  "type": "object",
+  "properties": {
+    "capability": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*\\.[a-z][a-z0-9-]*$",
+      "description": "The capability id this file covers, as in program/model/capabilities.yml."
+    },
+    "updated": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "When this list was last reviewed. A list with no date is a list nobody has checked."
+    },
+    "tools": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "url": { "type": "string", "pattern": "^https://" },
+          "license": {
+            "enum": ["proprietary", "open-source"],
+            "description": "Deliberately two values. Which open-source licence, and which edition is free, changes too often to assert here."
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "One line, in our words, saying what it is. Never how good it is."
+          }
+        },
+        "required": ["name", "url", "license", "note"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["capability", "updated", "tools"],
+  "additionalProperties": false
+}

@@ -22,7 +22,15 @@ echo "=== Copying vendor libs ==="
 mkdir -p "$VENDOR"
 cp "$DASHBOARD/node_modules/marked/lib/marked.umd.js"      "$VENDOR/marked.umd.min.js"
 cp "$DASHBOARD/node_modules/dompurify/dist/purify.min.js"  "$VENDOR/purify.min.js"
-cp "$DASHBOARD/node_modules/js-yaml/dist/js-yaml.min.js"   "$VENDOR/js-yaml.min.js"
+# js-yaml's minified build carries no version banner, and a file that cannot
+# say what it is cannot be checked against what was pinned. That gap is how a
+# stale copy sat in the tree twice. One line, written from package.json, and
+# the artefact becomes self-describing.
+JS_YAML_VERSION=$(cd "$DASHBOARD" && node -p "require('./node_modules/js-yaml/package.json').version")
+{
+  echo "/*! js-yaml $JS_YAML_VERSION | (c) Vitaly Puzrin and Dervus Grim | MIT | github.com/nodeca/js-yaml */"
+  cat "$DASHBOARD/node_modules/js-yaml/dist/js-yaml.min.js"
+} > "$VENDOR/js-yaml.min.js"
 
 echo ""
 ls -1 "$VENDOR"

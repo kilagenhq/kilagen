@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kilagen.com/schemas/model-risk-taxonomy.schema.json",
+  "title": "Kilagen Risk Taxonomy",
+  "description": "Validates program/model/risk-taxonomy.yml — the controlled vocabulary risks are classified against, plus the scoring scales and the severity bands derived from them.",
+
+  "$comment": "WHY THE BANDS LIVE HERE. Severity used to be parsed out of a markdown table inside a standard, which is fragile in the obvious way and silently stopped being checked. Likelihood, impact and the bands are vocabulary, exactly like the category tree — one place, validated, and the same source for the heatmap and for any severity badge. The prose in the standard stays as the human explanation of what the numbers mean.",
+
+  "type": "object",
+  "properties": {
+    "categories": {
+      "type": "object",
+      "description": "What kind of risk it is, as a tree. A risk's risk_category names a full path through it; the path is resolved by the reference checks, not here.",
+      "minProperties": 1
+    },
+    "causes": {
+      "type": "object",
+      "description": "Why it happened, grouped. A risk's root_causes name leaf slugs from any group.",
+      "minProperties": 1
+    },
+    "severity": { "$ref": "#/$defs/severity" }
+  },
+  "additionalProperties": false,
+
+  "$defs": {
+    "severity": {
+      "type": "object",
+      "description": "The scoring model. Severity is likelihood multiplied by impact, banded.",
+      "properties": {
+        "likelihood": { "$ref": "#/$defs/scale" },
+        "impact": { "$ref": "#/$defs/scale" },
+        "bands": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "enum": ["negligible", "low", "medium", "high", "critical"],
+                "description": "Must be a severity value the frontmatter schema accepts, or a risk could be banded into a severity no document may declare."
+              },
+              "min": { "type": "integer", "minimum": 1 },
+              "max": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["id", "min", "max"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["likelihood", "impact", "bands"],
+      "additionalProperties": false
+    },
+    "scale": {
+      "type": "array",
+      "description": "The ordered points of one axis, lowest first. Both axes must have the same length — the matrix is square.",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "properties": {
+          "value": { "type": "integer", "minimum": 1 },
+          "label": { "type": "string", "minLength": 1 },
+          "note": { "type": "string", "minLength": 1, "description": "The plain-language reading, e.g. 'Rare' or 'Highly likely'." }
+        },
+        "required": ["value", "label"],
+        "additionalProperties": false
+      }
+    }
+  }
+}

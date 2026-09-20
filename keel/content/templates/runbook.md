@@ -1,50 +1,40 @@
 ---
-id: RB-REPLACE-ME
+id: rb-replace-me
+type: runbook
 title: "REPLACE ME"
 description: >
-  REPLACE ME — one or two sentences an LLM can use to decide relevance.
-type: runbook
+  REPLACE ME — one or two sentences an agent can use to decide relevance. This
+  is the field retrieval leans on hardest.
 status: draft
-domain: REPLACE-ME
-owner: role-REPLACE-ME
+owner: role-replace-me
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
-related:                     # optional — remove section if unused
-  standards: []
+domains: []                  # ids from program/model/domains.yml — a document may declare several
+capabilities: []             # ids from program/model/capabilities.yml
+systems: []                  # ids from program/model/systems.yml
+related: []                  # flat list of ids; the prefix says what each one is
+# publish: [confluence]      # overrides the per-type default in program/publish.yml
+# source_of_truth: https://example.com/replace-me   # the original lives there; this is the record
 ---
 
 # REPLACE ME — Runbook Title
 
-> Runbooks should be executable by an agent with minimal human judgement.
-> Write steps as explicit, copy-pastable commands or actions.
+## Preconditions
 
-## Purpose
+Access, tooling and state required before starting.
 
-What this runbook accomplishes.
+## Procedure
 
-## When to trigger
+Numbered, executable steps with the exact commands. Written so an agent can
+follow it without judgement calls.
 
-Conditions, alerts, or schedules that initiate this runbook.
+1. REPLACE ME
+2. REPLACE ME
 
-## Prerequisites
+## Verification
 
-Access, credentials, tools, and approvals needed.
-
-## Steps
-
-1. Step description
-
-   ```bash
-   # copy-pastable command
-   ```
-
-2. ...
-3. ...
+How to confirm it worked.
 
 ## Rollback
 
-How to revert changes if something goes wrong.
-
-## References
-
-- Links to related controls, processes, or systems.
+How to undo it.

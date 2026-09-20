@@ -1,6 +1,6 @@
 import { mk, mkEmpty } from '../dom.js';
 import { state } from '../state.js';
-import { go, setActiveView, mainEl, rightEl } from '../nav.js';
+import { go, setActiveView, mainEl, hideRightPanel } from '../nav.js';
 
 function highlightText(text, query) {
   const el = document.createElement('span');
@@ -16,7 +16,7 @@ function highlightText(text, query) {
 }
 
 export function renderSearchResults(q) {
-  setActiveView(''); mainEl.textContent = ''; rightEl.textContent = '';
+  setActiveView(''); mainEl.textContent = ''; hideRightPanel();
   mainEl.appendChild(mk('h1', '', 'Search: "' + q + '"'));
   const results = []; Object.keys(state.fmCache).forEach(function(p) { const fm = state.fmCache[p]; const body = state.bodyCache[p] || ''; const haystack = (p + ' ' + (fm.id || '') + ' ' + (fm.title || '') + ' ' + (fm.description || '') + ' ' + body).toLowerCase(); if (haystack.indexOf(q) !== -1) results.push({ path: p, fm: fm, bodyMatch: body.toLowerCase().indexOf(q) !== -1 }); });
   if (!results.length) { mainEl.appendChild(mkEmpty('search', 'No results found', 'Try a different search term or check spelling.')); return; }

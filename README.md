@@ -14,19 +14,20 @@ You install the package and scaffold a program in a repository you own. You neve
 mkdir acme-security && cd acme-security
 git init
 pip install kilagen
-kilagen init --name "Acme Corp"
+kilagen init --name "Acme Corp"      # or --guided, to be asked
 ```
 
-`init` also takes `--deployment` (which CI to wire up, default `github`) and `--ai` (which agent integration to render, default `claude`). Both accept `none`. It records everything it copied, with a checksum per file, in `.kilagen-manifest.yml`.
+`init` also takes `--deployment` (which CI to wire up, default `github`) and `--agent` (which agent integration to render, default `claude`). Both accept `none`. It records everything it copied, with a checksum per file, in `.kilagen-manifest.yml`.
 
 Day to day:
 
 | Command | What it does |
 |---|---|
-| `kilagen check` | Frontmatter, schemas and cross-references across `program/` |
-| `kilagen build` | Validate, regenerate the committed artifacts, build the dashboard |
+| `kilagen new <type> <slug>` | Writes a document from its template, in the folder of its type |
+| `kilagen check` | Frontmatter, layout, vocabularies and every cross-reference |
+| `kilagen build` | Validate and build the dashboard |
 | `kilagen build && kilagen serve` | The same, then serve it at `localhost:8000` |
-| `kilagen check reviews` | Documents past their `next_review` date |
+| `kilagen check reviews` | What expires: reviews, exceptions, gaps left open |
 
 Keeping up with new releases:
 
@@ -87,5 +88,6 @@ git tag v0.2.0 && git push --tags
 
 ---
 
-- Framework design and rationale → [`keel/content/design.md`](keel/content/design.md)
-- Compliance model and framework mappings → [`keel/content/compliance.md`](keel/content/compliance.md)
+- What Kilagen is and why it is shaped this way → [`keel/content/design.md`](keel/content/design.md)
+- The decisions behind it → [`keel/content/adrs/`](keel/content/adrs/)
+- Standards, requirements and framework coverage → [`keel/content/compliance.md`](keel/content/compliance.md)

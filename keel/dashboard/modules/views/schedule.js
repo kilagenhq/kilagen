@@ -1,301 +1,252 @@
-import { mk, mkMetaRow, mkIcon } from '../dom.js';
-import { state } from '../state.js';
-import { go, setActiveView, setBread, mainEl, rightEl } from '../nav.js';
-import { DOMAINS } from '../constants.js';
+import { mk, mkEmpty, formatRoles, th, makeSortable } from '../dom.js';
+import { safeUrl } from '../security.js';
+import { state, isOpenGap } from '../state.js';
+import { go, setActiveView, setParams, splitHash, getHash, mainEl, hideRightPanel } from '../nav.js';
+import { mountFilters } from '../filters.js';
+import { daysUntil } from '../constants.js';
 
-var FREQ_LABELS = { 'annually': 'Annual', 'every-2-years': 'Biennial', 'semi-annually': 'Semi-annual', 'quarterly': 'Quarterly' };
-var FREQ_MONTHS = { 'annually': 12, 'every-2-years': 24, 'semi-annually': 6, 'quarterly': 3 };
-var QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4'];
-var Q_MONTHS = ['Jan\u2013Mar', 'Apr\u2013Jun', 'Jul\u2013Sep', 'Oct\u2013Dec'];
+/* The owner's lens: what is coming, and what has slipped.
+ *
+ * Two tabs, because they answer different questions with different clocks.
+ * **Activities** is the year's recurring work — pentests, DR tests, audits —
+ * which recurs on a calendar and belongs to no document. **Reviews** is what
+ * expires: a document past its review date, an exception about to become an
+ * unapproved deviation again, a gap nobody has closed.
+ *
+ * It informs. Nothing here is a failure — that distinction is the same one
+ * `kilagen check` draws between an error and a deadline.
+ */
 
-function parseDate(val) {
-  if (!val) return null;
-  var m = String(val).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (m) return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
-  return null;
+/* How long a gap may stay open before it is stale. The instance may say so in
+   config.yml; the default is the framework's. Read through a function so the
+   dashboard and `kilagen check` cannot drift apart on what "stale" means. */
+const DEFAULT_STALE_GAP_DAYS = 90;
+
+function staleGapDays() {
+  const value = (state.config || {}).stale_gap_days;
+  return (typeof value === 'number' && value > 0) ? value : DEFAULT_STALE_GAP_DAYS;
 }
 
-function dateToQuarter(d) {
-  if (!d) return null;
-  return { year: d.getFullYear(), q: Math.ceil((d.getMonth() + 1) / 3) };
+/* How far apart the recurrences are. The schema keeps this set closed, which
+   is what lets the next date be computed instead of typed. */
+const FREQUENCY_MONTHS = {
+  monthly: 1, quarterly: 3, 'semi-annually': 6, annually: 12,
+  'every-2-years': 24, 'every-3-years': 36,
+};
+
+/* The horizon: how far ahead to look. `overdue` is the past only. */
+const WINDOWS = [
+  ['overdue', 'Overdue', -1],
+  ['30', '30 days', 30],
+  ['60', '60 days', 60],
+  ['90', '90 days', 90],
+  ['180', '6 months', 180],
+];
+
+/* last_completed + frequency, in calendar months. Returns '' when either
+   half is missing — an activity nobody has done yet has no due date to
+   compute, and saying so is better than inventing one. */
+function nextDue(lastCompleted, frequency) {
+  const months = FREQUENCY_MONTHS[frequency];
+  if (!lastCompleted || !months) return '';
+  const parts = String(lastCompleted).split('-');
+  if (parts.length !== 3) return '';
+  const d = new Date(Date.UTC(Number(parts[0]), Number(parts[1]) - 1 + months, Number(parts[2])));
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
 }
 
-function formatDate(d) {
-  if (!d) return '';
-  var mm = String(d.getMonth() + 1).padStart(2, '0');
-  var dd = String(d.getDate()).padStart(2, '0');
-  return d.getFullYear() + '-' + mm + '-' + dd;
-}
-
-function computeNextPlanned(activity) {
-  var lastDate = parseDate(activity.last_completed);
-  if (!lastDate) return null;
-  var months = FREQ_MONTHS[activity.frequency];
-  if (!months) {
-    if (typeof console !== 'undefined') console.warn('[schedule] Unrecognized frequency "' + activity.frequency + '" for "' + activity.name + '". Valid: ' + Object.keys(FREQ_MONTHS).join(', '));
-    return null;
+export function dueCell(iso) {
+  const days = daysUntil(iso);
+  const el = mk('span', 'pill', iso || '');
+  if (days === null) return el;
+  if (days < 0) {
+    el.style.borderColor = 'var(--sev-high)'; el.style.color = 'var(--sev-high)';
+    el.textContent = iso + ' · ' + (-days) + 'd ago';
+  } else if (days <= 30) {
+    el.style.borderColor = 'var(--sev-medium)'; el.style.color = 'var(--sev-medium)';
+    el.textContent = iso + ' · in ' + days + 'd';
   }
-  var next = new Date(lastDate.getFullYear(), lastDate.getMonth() + months, 1);
-  var lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
-  next.setDate(Math.min(lastDate.getDate(), lastDay));
-  return next;
+  return el;
 }
 
-function getStatus(activity) {
-  var now = new Date();
-  var next = computeNextPlanned(activity);
-  if (!next) {
-    if (typeof console !== 'undefined') {
-      if (!activity.last_completed) console.warn('[schedule] No last_completed for "' + activity.name + '" — cannot compute next date. Add last_completed to schedule.yml.');
-      else console.warn('[schedule] Cannot compute next_planned for "' + activity.name + '": last_completed=' + activity.last_completed + ', frequency=' + activity.frequency);
-    }
-    return 'unknown';
+export function whenLabel(iso) {
+  const days = daysUntil(iso);
+  if (days === null) return '';
+  if (days < 0) return (-days) + 'd ago';
+  return 'in ' + days + 'd';
+}
+
+/* What each kind of row is waiting on, as one date.
+ *
+ * A gap has no deadline of its own, so it gets the one the check already
+ * applies: it is due attention staleGapDays() after it was found. Computed,
+ * never typed — there is no field to plan in, because a plan nobody updates
+ * becomes a lie. */
+export function dueDate(fm) {
+  if (fm.type === 'gap') {
+    if (!fm.found) return '';
+    const parts = String(fm.found).split('-');
+    if (parts.length !== 3) return '';
+    const d = new Date(Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]) + staleGapDays()));
+    return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
   }
-  var currentQ = dateToQuarter(now);
-  var nextQ = dateToQuarter(next);
-  if (next < now) return 'overdue';
-  if (nextQ.year === currentQ.year && nextQ.q === currentQ.q) return 'due-now';
-  return 'planned';
+  if (fm.type === 'exception') return fm.expires || '';
+  return fm.next_review || '';
 }
 
-function findDomain(dir) {
-  return DOMAINS.find(function(dd) { return dd.dir === dir || dd.dir.replace(/^\d+-/, '') === dir; });
+function inWindow(iso, horizon) {
+  const days = daysUntil(iso);
+  if (days === null) return false;
+  if (horizon < 0) return days < 0;
+  return days <= horizon;
 }
 
-function domainLabel(dir) {
-  var d = findDomain(dir);
-  return d ? d.label : dir;
-}
+/* The three things that expire, each with the rule that puts a document in it. */
+export const KINDS = [
+  {
+    key: 'reviews',
+    label: 'Document reviews',
+    holds: function(fm) { return !!fm.next_review; },
+  },
+  {
+    key: 'exceptions',
+    label: 'Exceptions expiring',
+    holds: function(fm) { return fm.type === 'exception' && !!fm.expires && !fm.revoked; },
+  },
+  {
+    key: 'gaps',
+    label: 'Open gaps',
+    holds: function(fm) { return isOpenGap(fm) && !!fm.found; },
+  },
+];
 
-function domainIconType(dir) {
-  var d = findDomain(dir);
-  return d ? d.iconType : 'dom-grc';
-}
-
-export function renderSchedule() {
-  setActiveView('schedule'); mainEl.textContent = ''; rightEl.textContent = '';
-  setBread([{ label: 'Schedule' }]);
-
-  var activities = (state.schedule || []).filter(function(a) {
-    if (!a || typeof a !== 'object' || !a.name) {
-      if (typeof console !== 'undefined') console.warn('[schedule] Skipping malformed activity entry:', a);
-      return false;
-    }
-    return true;
-  });
-  if (!activities.length) {
-    var empty = mk('div', 'empty-state');
-    empty.appendChild(mk('h2', '', 'No scheduled activities'));
-    empty.appendChild(mk('p', '', 'Add activities to program/schedule.yml to see them here.'));
-    mainEl.appendChild(empty);
+function renderActivities(container) {
+  if (!state.schedule.length) {
+    container.appendChild(mkEmpty('schedule', 'No recurring activities',
+      'program/schedule.yml holds the work that recurs on a calendar rather than '
+      + 'against a document: pentests, DR tests, audits.'));
     return;
   }
 
-  var now = new Date();
-  var displayYear = now.getFullYear();
-  var currentQ = Math.ceil((now.getMonth() + 1) / 3);
+  const table = mk('table', 'schedule-table');
+  const head = mk('tr');
+  ['Activity', 'Frequency', 'Owner', 'Last completed', 'Next due', 'Tracker']
+    .forEach(function(h) { head.appendChild(th(h)); });
+  table.appendChild(head);
 
-  mainEl.appendChild(mk('h1', 'sched-title', 'Activity Schedule'));
+  state.schedule.forEach(function(a) {
+    const tr = mk('tr');
+    tr.appendChild(mk('td', '', String(a.name || a.id)));
+    tr.appendChild(mk('td', '', String(a.frequency || '')));
+    tr.appendChild(mk('td', '', formatRoles(a.owner)));
+    tr.appendChild(mk('td', '', String(a.last_completed || '—')));
 
-  // ── Compute status once per activity ──
-  var statusMap = {};
-  activities.forEach(function(a) { statusMap[a.id] = getStatus(a); });
+    const due = mk('td');
+    const when = nextDue(a.last_completed, a.frequency);
+    if (when) due.appendChild(dueCell(when));
+    else due.textContent = 'never done';
+    tr.appendChild(due);
 
-  // ── Status cards ──
-  var cardsRow = mk('div', 'sched-cards');
-  function countByStatus(s) { return activities.filter(function(a) { return statusMap[a.id] === s; }).length; }
-  var unknownCount = countByStatus('unknown');
-  var cardData = [
-    { label: 'Overdue', count: countByStatus('overdue'), cls: 'sched-card-overdue' },
-    { label: 'Due now', count: countByStatus('due-now'), cls: 'sched-card-due' },
-    { label: 'Planned', count: countByStatus('planned'), cls: 'sched-card-planned' },
-    { label: 'Total', count: activities.length, cls: 'sched-card-total' }
-  ];
-  if (unknownCount) cardData.splice(3, 0, { label: 'No date', count: unknownCount, cls: 'sched-card-unknown' });
-  cardData.forEach(function(cd) {
-    var card = mk('div', 'sched-card ' + cd.cls);
-    card.appendChild(mk('div', 'sched-card-count', String(cd.count)));
-    card.appendChild(mk('div', 'sched-card-label', cd.label));
-    cardsRow.appendChild(card);
+    /* A link out, never a mirror of the ticket's state. */
+    const tracker = mk('td');
+    if (safeUrl(a.tracker)) {
+      const link = mk('a', 'source-link', 'open');
+      link.href = a.tracker;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.title = a.tracker;
+      tracker.appendChild(link);
+    }
+    tr.appendChild(tracker);
+    table.appendChild(tr);
   });
-  mainEl.appendChild(cardsRow);
 
-  // ── Controls: domain filter ──
-  var controls = mk('div', 'sched-controls');
-  var activeDomains = {};
-  var domChips = mk('div', 'sched-dom-chips');
-  var seenDomains = {};
-  activities.forEach(function(a) { if (a.domain) seenDomains[a.domain] = true; });
-  Object.keys(seenDomains).sort().forEach(function(d) {
-    var btn = mk('button', 'sched-dom-chip', domainLabel(d));
+  makeSortable(table);
+  const scroller = mk('div', 'table-scroll');
+  scroller.appendChild(table);
+  container.appendChild(scroller);
+}
+
+function renderReviews(container) {
+  const params = splitHash(getHash()).params;
+  const chosen = WINDOWS.find(function(w) { return w[0] === params.window; }) || WINDOWS[3];
+
+  const picker = mk('div', 'window-picker');
+  WINDOWS.forEach(function(w) {
+    const btn = mk('button', 'window-btn' + (w[0] === chosen[0] ? ' active' : ''), w[1]);
     btn.addEventListener('click', function() {
-      if (activeDomains[d]) { delete activeDomains[d]; btn.classList.remove('active'); }
-      else { activeDomains[d] = true; btn.classList.add('active'); }
-      renderGrid();
+      if (w[0] === chosen[0]) return;
+      const next = splitHash(getHash()).params;
+      if (w[0] === '90') delete next.window; else next.window = w[0];
+      setParams('schedule', next);
+      renderSchedule();
     });
-    domChips.appendChild(btn);
+    picker.appendChild(btn);
   });
-  controls.appendChild(domChips);
-  mainEl.appendChild(controls);
+  container.appendChild(picker);
 
-  // ── Grid ──
-  var gridContainer = mk('div', 'sched-grid-wrap');
-  mainEl.appendChild(gridContainer);
+  /* One set, filtered once: a document may be due for review *and* be an
+     exception about to expire, and it belongs in both counts. */
+  const docs = Object.values(state.fmCache).filter(function(fm) {
+    return KINDS.some(function(kind) { return kind.holds(fm) && inWindow(dueDate(fm), chosen[2]); });
+  });
 
-  function renderGrid() {
-    gridContainer.textContent = '';
-    var hasDomFilter = Object.keys(activeDomains).length > 0;
-    var filtered = activities.filter(function(a) {
-      return !hasDomFilter || activeDomains[a.domain];
-    });
-
-    var table = document.createElement('table');
-    table.className = 'sched-table';
-
-    // Header
-    var thead = document.createElement('thead');
-    var headerRow = mk('tr', 'sched-thead-row');
-    headerRow.appendChild(mk('th', 'sched-th sched-th-name', 'Activity'));
-    headerRow.appendChild(mk('th', 'sched-th sched-th-freq', 'Freq'));
-    QUARTERS.forEach(function(q, qi) {
-      var th = mk('th', 'sched-th sched-th-q');
-      th.appendChild(mk('div', 'sched-q-label', q));
-      th.appendChild(mk('div', 'sched-q-months', Q_MONTHS[qi]));
-      if (qi + 1 === currentQ) th.classList.add('sched-current-q');
-      headerRow.appendChild(th);
-    });
-    headerRow.appendChild(mk('th', 'sched-th sched-th-owner', 'Owner'));
-    headerRow.appendChild(mk('th', 'sched-th sched-th-tracker', 'Ticket'));
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    // Body
-    var tbody = document.createElement('tbody');
-    filtered.forEach(function(a, idx) {
-      var status = statusMap[a.id];
-      var nextDate = computeNextPlanned(a);
-      var nextQ = nextDate ? dateToQuarter(nextDate) : null;
-      var lastDate = parseDate(a.last_completed);
-      var lastQ = lastDate ? dateToQuarter(lastDate) : null;
-      var row = mk('tr', 'sched-row sched-st-' + status);
-      row.style.animationDelay = (idx * 30) + 'ms';
-
-      // Name + domain icon
-      var nameCell = mk('td', 'sched-td sched-td-name');
-      var nameWrap = mk('div', 'sched-name-wrap');
-      var domBadge = mk('span', 'sched-domain-badge');
-      domBadge.appendChild(mkIcon(domainIconType(a.domain), 'sched-domain-icon'));
-      domBadge.title = domainLabel(a.domain);
-      nameWrap.appendChild(domBadge);
-      var relDoc = a.related && a.related.length ? a.related[0] : null;
-      var nameEl = mk('span', 'sched-name', a.name);
-      if (relDoc && state.idToPath[relDoc]) {
-        nameEl.style.cursor = 'pointer';
-        nameEl.title = relDoc;
-        nameEl.addEventListener('click', function() { go('doc/' + state.idToPath[relDoc]); });
-        nameEl.classList.add('sched-name-link');
-      }
-      nameWrap.appendChild(nameEl);
-      // Runbook chip — the executable procedure for this activity, if any
-      if (a.runbook && state.idToPath[a.runbook]) {
-        var rbId = a.runbook;
-        var rbChip = mk('span', 'sched-runbook-chip');
-        rbChip.appendChild(mkIcon('runbook', 'sched-runbook-icon'));
-        rbChip.appendChild(document.createTextNode(rbId));
-        rbChip.title = 'Runbook: ' + rbId;
-        rbChip.addEventListener('click', function() { go('doc/' + state.idToPath[rbId]); });
-        nameWrap.appendChild(rbChip);
-      }
-      nameCell.appendChild(nameWrap);
-      row.appendChild(nameCell);
-
-      // Freq
-      var freqCell = mk('td', 'sched-td sched-td-freq');
-      freqCell.appendChild(mk('span', 'sched-freq-tag', FREQ_LABELS[a.frequency] || a.frequency));
-      row.appendChild(freqCell);
-
-      // Quarter cells
-      QUARTERS.forEach(function(q, qi) {
-        var td = mk('td', 'sched-td sched-td-q');
-        var qNum = qi + 1;
-        if (qNum === currentQ) td.classList.add('sched-current-q');
-
-        // Completed
-        if (lastQ && lastQ.year === displayYear && lastQ.q === qNum) {
-          var doneLabel = mk('span', 'sched-q-date sched-date-done', a.last_completed);
-          doneLabel.title = 'Completed: ' + a.last_completed;
-          td.appendChild(doneLabel);
-        }
-
-        // Unknown — show "?" in current quarter
-        if (status === 'unknown' && qNum === currentQ) {
-          var unkLabel = mk('span', 'sched-q-date sched-date-unknown', '?');
-          unkLabel.title = 'No date set — check last_completed and frequency in schedule.yml';
-          td.appendChild(unkLabel);
-        }
-
-        // Next planned
-        if (nextQ && nextQ.year === displayYear && nextQ.q === qNum) {
-          var dateStr = nextDate ? formatDate(nextDate) : '';
-          var planLabel = mk('span', 'sched-q-date sched-date-' + status, dateStr);
-          if (status === 'overdue') planLabel.title = 'Overdue: ' + dateStr;
-          else if (status === 'due-now') planLabel.title = 'Due: ' + dateStr;
-          else planLabel.title = 'Planned: ' + dateStr;
-          td.appendChild(planLabel);
-        }
-
-        row.appendChild(td);
-      });
-
-      // Owner
-      row.appendChild(mk('td', 'sched-td sched-td-owner', a.owner || ''));
-
-      // Tracker
-      var trackerCell = mk('td', 'sched-td sched-td-tracker');
-      if (a.tracker) {
-        var ticketId = a.tracker.split('/').filter(Boolean).pop() || a.tracker;
-        var link = mk('a', 'sched-ticket-link', ticketId);
-        link.href = a.tracker;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        trackerCell.appendChild(link);
-      }
-      row.appendChild(trackerCell);
-
-      tbody.appendChild(row);
-    });
-    table.appendChild(tbody);
-    gridContainer.appendChild(table);
-
-    // ── Right panel ──
-    rightEl.textContent = '';
-    rightEl.appendChild(mk('h3', '', 'Legend'));
-    var legend = mk('div', 'sched-legend');
-    var legendItems = [
-      { cls: 'sched-date-done', label: 'Completed', sample: '2025-10-01' },
-      { cls: 'sched-date-due-now', label: 'Due this quarter', sample: '2026-06-16' },
-      { cls: 'sched-date-planned', label: 'Planned', sample: '2026-10-01' },
-      { cls: 'sched-date-overdue', label: 'Overdue', sample: '2026-04-30' },
-      { cls: 'sched-date-unknown', label: 'No date set', sample: '?' }
-    ];
-    legendItems.forEach(function(item) {
-      var r = mk('div', 'sched-legend-row');
-      r.appendChild(mk('span', 'sched-q-date ' + item.cls, item.sample));
-      r.appendChild(mk('span', 'sched-legend-label', item.label));
-      legend.appendChild(r);
-    });
-    rightEl.appendChild(legend);
-
-    rightEl.appendChild(mk('h3', '', 'Summary'));
-    var overdue = filtered.filter(function(a) { return statusMap[a.id] === 'overdue'; }).length;
-    var dueNow = filtered.filter(function(a) { return statusMap[a.id] === 'due-now'; }).length;
-    var planned = filtered.filter(function(a) { return statusMap[a.id] === 'planned'; }).length;
-    rightEl.appendChild(mkMetaRow('Showing', String(filtered.length) + ' of ' + activities.length));
-    rightEl.appendChild(mkMetaRow('Overdue', String(overdue)));
-    rightEl.appendChild(mkMetaRow('Due now', String(dueNow)));
-    rightEl.appendChild(mkMetaRow('Planned', String(planned)));
-    rightEl.appendChild(mkMetaRow('Current quarter', now.getFullYear() + '-Q' + currentQ));
+  if (!docs.length) {
+    container.appendChild(mkEmpty('calendar', 'Nothing falls due in this window',
+      'Widen the window, or take the quiet week.'));
+    return;
   }
 
-  renderGrid();
+  mountFilters(container, docs, {
+    route: 'schedule',
+    facets: ['type', 'domain'],
+    noun: 'documents',
+    render: function(filtered, el) {
+      KINDS.forEach(function(kind) {
+        const rows = filtered
+          .filter(function(fm) { return kind.holds(fm) && inWindow(dueDate(fm), chosen[2]); })
+          .sort(function(a, b) { return dueDate(a).localeCompare(dueDate(b)); });
+        if (!rows.length) return;
+
+        const block = mk('div', 'review-group');
+        const head = mk('div', 'review-group-head');
+        head.appendChild(mk('span', 'review-group-label', kind.label));
+        head.appendChild(mk('span', 'review-group-count', String(rows.length)));
+        block.appendChild(head);
+
+        rows.forEach(function(fm) {
+          const row = mk('div', 'review-row');
+          row.appendChild(mk('span', 'review-row-id', fm.id || ''));
+          row.appendChild(mk('span', 'review-row-title', fm.title || ''));
+          row.appendChild(mk('span', 'review-row-owner', formatRoles(fm.owner)));
+          const when = mk('span', 'review-row-when');
+          when.appendChild(dueCell(dueDate(fm)));
+          row.appendChild(when);
+          row.addEventListener('click', function(e) { go('doc/' + fm.path, e); });
+          block.appendChild(row);
+        });
+        el.appendChild(block);
+      });
+    },
+  });
+}
+
+export function renderSchedule() {
+  setActiveView('schedule');
+  mainEl.textContent = ''; hideRightPanel();
+
+  const tab = splitHash(getHash()).params.tab === 'reviews' ? 'reviews' : 'activities';
+
+  /* The two clocks are entries in the tree, so the page does not repeat them
+     as tabs: one navigation, not two. */
+  mainEl.appendChild(mk('h1', '', tab === 'reviews' ? 'Reviews' : 'Activities'));
+  mainEl.appendChild(mk('p', 'section-note', tab === 'reviews'
+    ? 'What expires: a document past its review date, an exception about to become an '
+      + 'unapproved deviation again, a gap nobody has closed.'
+    : 'The year\u2019s recurring work — pentests, DR tests, audits — which recurs on a '
+      + 'calendar and belongs to no document.'));
+
+  if (tab === 'reviews') renderReviews(mainEl);
+  else renderActivities(mainEl);
 }

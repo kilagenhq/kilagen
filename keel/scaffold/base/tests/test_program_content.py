@@ -4,8 +4,8 @@ These assert things about `program/` — what this organization has written —
 rather than about the Kilagen framework, which ships with its own tests.
 
 Each check skips when the content it covers does not exist yet. A program
-starts empty and fills up over time; "you have not written any standards yet"
-is not a failure. Once the content exists, these run for real.
+starts small and fills up over time; "you have not written any standards yet"
+is not a failure.
 
 Run from the repository root:
 
@@ -14,42 +14,36 @@ Run from the repository root:
 
 from __future__ import annotations
 
-import re
 import unittest
 
 import yaml
 from jsonschema import Draft202012Validator
 
 from kilagen.libs import keel_lib
-from kilagen.libs import validate_semantic_refs as vsr
+from kilagen.libs.generate_coverage import build_coverage
 from kilagen.libs.validate_frontmatter import load_schema
 
-PROGRAM = keel_lib.PROGRAM
-COVERAGE_YML = PROGRAM / "01-grc" / "compliance" / "coverage.yml"
-FRAMEWORK_DOC = PROGRAM / "01-grc" / "standards" / "STD-risk-framework.md"
-FRAMEWORKS_DIR = PROGRAM / "frameworks"
+FRAMEWORKS_DIR = keel_lib.MODEL / "frameworks"
 
-FORBIDDEN_POSTURE = {"met", "gap", "exception"}
+# Coverage says whether a clause has a requirement mapped to it. Whether that
+# requirement is *met* is a human judgement and may never be generated.
+FORBIDDEN_POSTURE = {"met", "gap", "exception", "compliant", "non-compliant"}
 
 
-class CoverageYmlPostureTests(unittest.TestCase):
-    """coverage.yml records what is mapped, never whether it is compliant.
-
-    The generator cannot emit a compliance judgment, but a committed file can
-    be hand-edited. This is the guard on the file itself.
-    """
-
-    def test_coverage_yml_has_no_compliance_judgment(self):
-        if not COVERAGE_YML.is_file():
-            self.skipTest("no coverage.yml yet — run 'kilagen build'")
-        data = yaml.safe_load(COVERAGE_YML.read_text(encoding="utf-8")) or {}
-        for edition, clauses in data.items():
+class CoveragePostureTests(unittest.TestCase):
+    def test_coverage_asserts_no_compliance_judgment(self):
+        documents = keel_lib.scan_documents()
+        coverage = build_coverage(keel_lib.load_config(), documents,
+                                  keel_lib.load_framework_vocab())
+        if not coverage:
+            self.skipTest("no framework in scope has a clause vocabulary yet")
+        for framework, clauses in coverage.items():
             for ref, entry in clauses.items():
-                self.assertIn(entry.get("coverage"), {"mapped", "unmapped"},
-                              msg=f"{edition}/{ref}: bad coverage {entry.get('coverage')!r}")
+                self.assertIn(entry["coverage"], {"mapped", "unmapped"},
+                              msg=f"{framework}/{ref}: bad coverage {entry['coverage']!r}")
                 posture = entry.get("posture")
                 self.assertNotIn(posture, FORBIDDEN_POSTURE,
-                                 msg=f"{edition}/{ref}: forbidden posture {posture!r}")
+                                 msg=f"{framework}/{ref}: forbidden posture {posture!r}")
                 if posture is not None:
                     self.assertEqual(posture, "not-assessed")
 
@@ -66,38 +60,24 @@ class CommittedVocabTests(unittest.TestCase):
             self.assertEqual(errors, [], f"{f.name} violates the framework-vocab schema")
 
 
-class CritBandMatrixTests(unittest.TestCase):
-    def test_crit_band_matches_framework_doc_matrix(self):
-        """The matrix documented here must agree with the framework's code.
+class TruthBoundaryTests(unittest.TestCase):
+    """No document may mirror a truth this repository does not own.
 
-        The criticality bands are framework constants mirrored as literals in
-        Python and JavaScript. This parses the matrix in this program's risk
-        framework standard and asserts every cell agrees, so editing the doc
-        without the code fails CI instead of diverging silently.
-        """
-        if not FRAMEWORK_DOC.is_file():
-            self.skipTest("no STD-risk-framework.md yet")
-        text = FRAMEWORK_DOC.read_text(encoding="utf-8")
-        # Data rows are likelihood rows: "| **5 Critical (Highly Likely)** | 5 Medium | ...".
-        # The leading cell is the likelihood label, whose number is a level and
-        # not a score, so it is dropped before parsing the five score cells.
-        cell = re.compile(r"^\s*(\d+)\s+(Negligible|Low|Medium|High|Critical)\s*$")
-        seen = {}
-        for line in text.splitlines():
-            if not re.match(r"^\|\s*\*\*\d+\s+\w+.*\(.*\)\*\*", line):
-                continue
-            cells = [c.strip() for c in line.strip().strip("|").split("|")]
-            for c in cells[1:]:
-                m = cell.match(c)
-                if m:
-                    seen[int(m.group(1))] = m.group(2).lower()
-        # Guard against a restructure silently emptying the check: a 5x5
-        # likelihood x impact grid yields 14 distinct products.
-        self.assertEqual(len(seen), 14,
-                         msg=f"expected 14 distinct matrix scores, parsed {sorted(seen)}")
-        for score, band in seen.items():
-            self.assertEqual(vsr._crit_band(score), band,
-                             msg=f"the matrix says score {score} -> {band}")
+    The schema already refuses the fields that existed when it was written.
+    This is the guard against inventing a new one: a gap or a risk that grows
+    a second state field alongside `tracker:` has started mirroring the
+    tracker, whatever the field is called.
+    """
+
+    MIRRORS = {"tracker_status", "jira_status", "ticket_status", "maturity",
+               "remediation_status", "progress"}
+
+    def test_no_document_mirrors_a_tracker(self):
+        offenders = []
+        for doc in keel_lib.scan_documents():
+            for field in self.MIRRORS & set(doc):
+                offenders.append(f"{doc['path']}: {field}")
+        self.assertEqual(offenders, [], "these fields mirror a truth the tracker owns")
 
 
 if __name__ == "__main__":

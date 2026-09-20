@@ -1,39 +1,33 @@
 ---
-id: GL-REPLACE-ME
+id: gl-replace-me
+type: guideline
 title: "REPLACE ME"
 description: >
-  REPLACE ME — one or two sentences an LLM can use to decide relevance.
-type: guideline
+  REPLACE ME — one or two sentences an agent can use to decide relevance. This
+  is the field retrieval leans on hardest.
 status: draft
-domain: REPLACE-ME
-owner: role-REPLACE-ME
+owner: role-replace-me
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
-related:                     # optional — remove section if unused
-  policies: []
-  standards: []
+domains: []                  # ids from program/model/domains.yml — a document may declare several
+capabilities: []             # ids from program/model/capabilities.yml
+systems: []                  # ids from program/model/systems.yml
+related: []                  # flat list of ids; the prefix says what each one is
+# publish: [confluence]      # overrides the per-type default in program/publish.yml
+# source_of_truth: https://example.com/replace-me   # the original lives there; this is the record
 ---
 
 # REPLACE ME — Guideline Title
 
-## Purpose
+## Recommendation
 
-What this guideline helps achieve and who benefits from it.
-
-## Recommendations
-
-1. ...
-2. ...
-3. ...
+What to do, and why it is better than the alternatives.
 
 ## Examples
 
-Concrete examples showing the recommendations applied correctly.
+Concrete, copyable examples.
 
-## Anti-patterns
+## When not to apply this
 
-Common mistakes or approaches to avoid, with explanation of why.
-
-## References
-
-- Links to related policies, standards, or external resources.
+The cases where the recommendation does not hold. A guideline is advisory — if
+it needs to be enforceable, it belongs in a standard.

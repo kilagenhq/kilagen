@@ -1,38 +1,34 @@
 ---
-id: THR-REPLACE-ME
+id: thr-replace-me
+type: threat
 title: "REPLACE ME"
 description: >
-  REPLACE ME — one or two sentences an LLM can use to decide relevance.
-type: threat
+  REPLACE ME — one or two sentences an agent can use to decide relevance. This
+  is the field retrieval leans on hardest.
 status: draft
-domain: grc                  # threats live in 01-grc
-owner: role-REPLACE-ME
-severity: medium             # critical | high | medium | low
+owner: role-replace-me
+severity: medium            # negligible | low | medium | high | critical
+# priority: 1               # rank within the threat profile
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
-related:                     # optional — remove section if unused
-  risks: []                  # RSK-* IDs derived from this threat
-  standards: []              # STD-* IDs that address this threat
+domains: []                  # ids from program/model/domains.yml — a document may declare several
+capabilities: []             # ids from program/model/capabilities.yml
+systems: []                  # ids from program/model/systems.yml
+related: []                  # flat list of ids; the prefix says what each one is
+# publish: [confluence]      # overrides the per-type default in program/publish.yml
+# source_of_truth: https://example.com/replace-me   # the original lives there; this is the record
 ---
 
 # REPLACE ME — Threat Title
 
-## Threat description
+## Scenario
 
-What this threat is and how it manifests.
+Who would do this, how, and what they would be after.
 
-## Attack vectors
+## Why it applies to us
 
-How this threat could be realized (phishing, exploitation, insider, supply chain, etc.).
+What about this organization makes the scenario credible.
 
-## Affected assets
+## What reduces it
 
-Systems, data, or processes at risk from this threat.
-
-## Mitigating controls
-
-Controls already in place that reduce the likelihood or impact of this threat.
-
-## Relevance to the organization
-
-Why this threat is particularly relevant given the company's business model, regulatory environment, or technology stack.
+The requirements, processes and systems that make it harder.

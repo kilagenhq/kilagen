@@ -1,46 +1,43 @@
 ---
-id: TM-REPLACE-ME
+# The model lives outside this repository — the data flow, the STRIDE table,
+# the workshop notes, the board it was drawn on. Link to it with
+# source_of_truth. What belongs here is the record: what it covers, who owns
+# it, what it found (as gaps, with source: threat-model), and when it was last
+# looked at — which is the only thing that can tell you it has gone stale.
+id: tm-replace-me
+type: threat-model
 title: "REPLACE ME"
 description: >
-  REPLACE ME — one or two sentences an LLM can use to decide relevance.
-type: threat-model
+  REPLACE ME — one or two sentences an agent can use to decide relevance. This
+  is the field retrieval leans on hardest.
 status: draft
-domain: REPLACE-ME
-owner: role-REPLACE-ME
+owner: role-replace-me
+methodology: stride         # stride | pasta | linddun | attack-tree | other
+scope: "REPLACE ME"         # what this model covers, in one line
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
-related:                     # optional — remove section if unused
-  standards: []
+domains: []                  # ids from program/model/domains.yml — a document may declare several
+capabilities: []             # ids from program/model/capabilities.yml
+systems: []                  # ids from program/model/systems.yml
+related: []                  # flat list of ids; the prefix says what each one is
+# publish: [confluence]      # overrides the per-type default in program/publish.yml
+# source_of_truth: https://example.com/replace-me   # the original lives there; this is the record
 ---
 
 # REPLACE ME — Threat Model Title
 
-## System overview
+## System under analysis
 
-Brief description of the system or feature being modelled.
+What is in scope, with its trust boundaries.
 
-## Data flow diagram
+## Findings
 
-```mermaid
-flowchart LR
-    A[Component A] --> B[Component B]
-    B --> C[Component C]
-```
+| Threat | Category | Mitigation | Status |
+|---|---|---|---|
+| REPLACE ME | REPLACE ME | REPLACE ME | REPLACE ME |
 
-## Trust boundaries
+## Residual risk
 
-Describe where trust boundaries exist in the architecture.
+What remains after the mitigations, and who accepted it.
 
-## STRIDE analysis
-
-| Component | Spoofing | Tampering | Repudiation | Info Disclosure | Denial of Service | Elevation of Privilege | Mitigations |
-|---|---|---|---|---|---|---|---|
-| ... | ... | ... | ... | ... | ... | ... | ... |
-
-## Residual risks
-
-Threats that remain after mitigations, with accepted risk rationale.
-
-## References
-
-- Links to related controls, standards, or systems.
+Diagrams belong in external storage, linked from `evidence:`.

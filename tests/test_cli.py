@@ -153,3 +153,102 @@ class UpgradeTests(_ScaffoldFixture):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class SeedContainmentTests(unittest.TestCase):
+    """Nothing the seed plan names may be written outside the destination."""
+
+    def test_a_traversing_entry_is_refused(self):
+        from kilagen.cli import CommandError, _write_plan
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "instance"
+            dest.mkdir()
+            source = Path(tmp) / "payload.txt"
+            source.write_text("x", encoding="utf-8")
+            with self.assertRaises(CommandError):
+                _write_plan({Path("../escaped.txt"): source}, dest)
+            self.assertFalse((Path(tmp) / "escaped.txt").exists())
+
+    def test_an_absolute_entry_is_refused(self):
+        from kilagen.cli import CommandError, _write_plan
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "instance"
+            dest.mkdir()
+            source = Path(tmp) / "payload.txt"
+            source.write_text("x", encoding="utf-8")
+            outside = Path(tmp) / "absolute.txt"
+            with self.assertRaises(CommandError):
+                _write_plan({Path(outside): source}, dest)
+            self.assertFalse(outside.exists())
+
+    def test_an_ordinary_entry_still_lands(self):
+        from kilagen.cli import _write_plan
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "instance"
+            dest.mkdir()
+            source = Path(tmp) / "payload.txt"
+            source.write_text("x", encoding="utf-8")
+            _write_plan({Path("nested/file.txt"): source}, dest)
+            self.assertEqual((dest / "nested" / "file.txt").read_text(), "x")
+
+
+class NewDocumentTests(unittest.TestCase):
+    """`kilagen new` against a real instance: the template, in the right place."""
+
+    def setUp(self):
+        from kilagen.libs import keel_lib
+
+        self._tmp = tempfile.TemporaryDirectory()
+        self.instance = Path(self._tmp.name).resolve()
+        self._cwd = os.getcwd()
+        self._paths = (keel_lib.REPO, keel_lib.PROGRAM)
+        self.addCleanup(lambda: (os.chdir(self._cwd),
+                                 setattr(keel_lib, "REPO", self._paths[0]),
+                                 setattr(keel_lib, "PROGRAM", self._paths[1]),
+                                 self._tmp.cleanup()))
+        os.chdir(self.instance)
+        keel_lib.REPO, keel_lib.PROGRAM = self.instance, self.instance / "program"
+        _quiet(cli.cmd_init, _args(name="Acme", deployment="none", agent="none", force=False))
+        keel_lib.REPO, keel_lib.PROGRAM = self.instance, self.instance / "program"
+
+    def _new(self, doc_type, slug):
+        return _quiet(cli.cmd_new, _args(type=doc_type, slug=slug))
+
+    def test_it_lands_in_the_type_folder_with_a_coherent_id(self):
+        self._new("standard", "encryption-at-rest")
+        written = self.instance / "program" / "standards" / "std-encryption-at-rest.md"
+        self.assertTrue(written.is_file())
+        self.assertIn("id: std-encryption-at-rest", written.read_text(encoding="utf-8"))
+
+    def test_a_dated_type_gets_this_year(self):
+        from datetime import date
+
+        self._new("gap", "tls-legacy")
+        expected = (self.instance / "program" / "gaps" / str(date.today().year)
+                    / "gap-tls-legacy.md")
+        self.assertTrue(expected.is_file())
+
+    def test_the_dates_are_anchored_to_today(self):
+        from datetime import date
+
+        self._new("policy", "acceptable-use")
+        text = (self.instance / "program" / "policies" / "pol-acceptable-use.md").read_text()
+        self.assertIn(f"last_reviewed: {date.today().isoformat()}", text)
+
+    def test_an_unknown_type_lists_the_ones_that_exist(self):
+        with self.assertRaises(cli.CommandError) as caught:
+            self._new("memo", "x")
+        self.assertIn("standard", str(caught.exception))
+
+    def test_a_slug_that_is_not_a_slug_is_refused(self):
+        with self.assertRaises(cli.CommandError):
+            self._new("policy", "Acceptable Use")
+
+    def test_it_refuses_to_overwrite(self):
+        self._new("policy", "acceptable-use")
+        with self.assertRaises(cli.CommandError) as caught:
+            self._new("policy", "acceptable-use")
+        self.assertIn("already exists", str(caught.exception))

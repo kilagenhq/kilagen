@@ -1,36 +1,36 @@
 ---
-id: BP-REPLACE-ME
+id: bp-replace-me
+type: business-process
 title: "REPLACE ME"
 description: >
-  REPLACE ME — one or two sentences an LLM can use to decide relevance.
-type: business-process
+  REPLACE ME — one or two sentences an agent can use to decide relevance. This
+  is the field retrieval leans on hardest.
 status: draft
-domain: grc
+owner: role-replace-me
+business_function: "REPLACE ME"
+criticality: medium         # negligible | low | medium | high | critical
+rto: null                   # recovery time objective
+rpo: null                   # recovery point objective
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
-managed_externally: null
-business_function: REPLACE-ME
-owner: role-REPLACE-ME
-customer_facing: false
-criticality: medium
-rto: null
-related:
-  systems: []
-  data_assets: []
+domains: []                  # ids from program/model/domains.yml — a document may declare several
+capabilities: []             # ids from program/model/capabilities.yml
+systems: []                  # ids from program/model/systems.yml
+related: []                  # flat list of ids; the prefix says what each one is
+# publish: [confluence]      # overrides the per-type default in program/publish.yml
+# source_of_truth: https://example.com/replace-me   # the original lives there; this is the record
 ---
 
 # REPLACE ME — Business Process Title
 
-## Overview
+## What the process does
 
-What this business process accomplishes and its importance to the organization.
+Its purpose and the teams that run it.
 
-## Activities
+## Dependencies
 
-| Activity | Criticality | Customer-Facing | Financial | Operational | Time Sensitivity | RTO | Regulatory | Reputational | Information Dependency | Systems Dependency |
-|---|---|---|---|---|---|---|---|---|---|---|
-| ... | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |
+The systems and third parties it cannot run without.
 
-## Business impact
+## Impact if unavailable
 
-What happens if this process is disrupted or unavailable.
+What breaks, how fast, and for whom.

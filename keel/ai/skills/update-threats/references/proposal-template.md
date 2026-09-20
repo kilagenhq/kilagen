@@ -33,11 +33,11 @@ Open this file (`evidence/threat-updates/REPLACE-DATE/proposal.md`) in any text 
 When you're done ticking / editing, run apply:
 
 ```
-Follow program/01-grc/runbooks/RB-update-threat-catalog.md in apply mode
+Follow program/runbooks/rb-update-threat-catalog.md in apply mode
 using evidence/threat-updates/REPLACE-DATE/proposal.md.
 ```
 
-The apply phase reads this file in its current state, applies only the ticked items, validates everything, and regenerates the registry. **Items left unticked are not applied** — no further action needed for those.
+The apply phase reads this file in its current state, applies only the ticked items, and validates everything. **Items left unticked are not applied** — no further action needed for those.
 
 ### Why Claude Code Desktop can't edit the preview
 
@@ -75,30 +75,30 @@ The `Result` column has exactly three possible states: **fetched** (succeeded vi
 
 The table below shows the proposed priority ranking for the 10 threats this cycle, compared to the previous cycle's ranking. **Position 1 is highest priority.**
 
-The ranking is a single source of truth inside this proposal — the reviewer can re-order rows by editing the table. On apply, each row's position is written to the `priority:` field of the corresponding `THR-*.md` frontmatter (1 = highest, 10 = lowest).
+The ranking is a single source of truth inside this proposal — the reviewer can re-order rows by editing the table. On apply, each row's position is written to the `priority:` field of the corresponding `thr-*.md` frontmatter (1 = highest, 10 = lowest).
 
 | # | Threat | Was | Δ | Rationale for change |
 |---|---|---|---|---|
-| 1 | THR-platform-compromise | 1 | — | Stable; no new signal |
-| 2 | THR-ransomware | 4 | ▲ 2 | Mandiant + Chainalysis flagged RaaS targeting financial-services firms |
-| 3 | THR-customer-account-compromise | 2 | ▼ 1 | Displaced by ransomware; otherwise unchanged |
-| 4 | THR-infrastructure-exploitation | 3 | ▼ 1 | Stable; one CISA KEV item but already covered |
-| 5 | THR-data-breach | 5 | — | Regulatory relevance unchanged |
-| 6 | THR-supply-chain | 6 | — | Stable |
-| 7 | THR-insider-threat | 7 | — | Stable |
-| 8 | THR-social-engineering | 8 | — | Stable |
-| 9 | THR-identity-theft | 9 | — | Stable |
-| 10 | THR-platform-downtime | 10 | — | Stable; mandated DR continues to mitigate |
+| 1 | thr-platform-compromise | 1 | — | Stable; no new signal |
+| 2 | thr-ransomware | 4 | ▲ 2 | Mandiant + Chainalysis flagged RaaS targeting financial-services firms |
+| 3 | thr-customer-account-compromise | 2 | ▼ 1 | Displaced by ransomware; otherwise unchanged |
+| 4 | thr-infrastructure-exploitation | 3 | ▼ 1 | Stable; one CISA KEV item but already covered |
+| 5 | thr-data-breach | 5 | — | Regulatory relevance unchanged |
+| 6 | thr-supply-chain | 6 | — | Stable |
+| 7 | thr-insider-threat | 7 | — | Stable |
+| 8 | thr-social-engineering | 8 | — | Stable |
+| 9 | thr-identity-theft | 9 | — | Stable |
+| 10 | thr-platform-downtime | 10 | — | Stable; mandated DR continues to mitigate |
 
 ### How to use this section
 
 - The order of rows = the proposed new ranking. The `#` column is informational (it tracks the row position).
-- `Was` is the priority in the previous cycle (read from the `priority:` frontmatter field of each `THR-*.md` at HEAD).
+- `Was` is the priority in the previous cycle (read from the `priority:` frontmatter field of each `thr-*.md` at HEAD).
 - `Δ` shows the change: `▲ N` (up N positions), `▼ N` (down N), `—` (unchanged). Used to be N means the threat moved from position N to its current row.
 - If you disagree with the proposed ranking, **just swap the rows around** — drag whole table rows up/down in your editor. The apply phase reads the order as-is.
-- This section has no `[ ]` checkbox — it's always applied (the ranking always updates on apply). If you don't want any priority change, ensure the table rows are in the same order as the current `priority:` values in each `THR-*.md`.
+- This section has no `[ ]` checkbox — it's always applied (the ranking always updates on apply). If you don't want any priority change, ensure the table rows are in the same order as the current `priority:` values in each `thr-*.md`.
 
-> **First cycle only:** if no `THR-*.md` has a `priority:` field yet (this is the baseline cycle), the `Was` column shows `—` and the `Δ` column shows `(baseline)`. The first apply writes `priority:` into every `THR-*.md` from this section.
+> **First cycle only:** if no `thr-*.md` has a `priority:` field yet (this is the baseline cycle), the `Was` column shows `—` and the `Δ` column shows `(baseline)`. The first apply writes `priority:` into every `thr-*.md` from this section.
 
 ---
 
@@ -109,13 +109,13 @@ The ranking is a single source of truth inside this proposal — the reviewer ca
 > - The catalog is fixed at **exactly 10** threats. Adding a new one requires
 >   retiring an existing one in the same proposal (a *swap*). One approval
 >   checkbox covers both halves — accept the swap or reject it.
-> - Every new `THR-*` draft must list **exactly 5** attack vectors under
+> - Every new `thr-*` draft must list **exactly 5** attack vectors under
 >   `## Attack vectors`. See runbook for merge/consolidation rules.
-> - The retired `THR-*` is deleted on apply; inbound `related.threats:`
->   references in `RSK-*`, `POL-risk-appetite`, and any `STD-*`/`TM-*` (if any) must be
+> - The retired `thr-*` is deleted on apply; inbound `related.threats:`
+>   references in `rsk-*`, `pol-risk-appetite`, and any `std-*`/`tm-*` (if any) must be
 >   updated in the same commit (the agent handles this).
 
-### Proposal S1 — swap: retire `THR-old-id`, add `THR-new-slug`
+### Proposal S1 — swap: retire `thr-old-id`, add `thr-new-slug`
 
 - [ ] **Approve swap** — both halves
 
@@ -124,19 +124,19 @@ The ranking is a single source of truth inside this proposal — the reviewer ca
 One paragraph anchored in `program/config.yml` — business model, regulatory scope,
 tech stack, asset list. Cite the source(s).
 
-#### Why retiring `THR-old-id`
+#### Why retiring `thr-old-id`
 
 One paragraph. Either the old threat has decayed out of relevance per the
-removal policy in Phase 2 of `RB-update-threat-catalog.md`, or the new threat
+removal policy in Phase 2 of `rb-update-threat-catalog.md`, or the new threat
 strictly subsumes it. Quote the policy clause matched, or explain the subsumption.
 
 #### Inbound references that must be updated on apply
 
-- `RSK-old-paired-id` — current `related.threats: [THR-old-id]` → will become
-  `[THR-new-slug]` (or be retired, if the paired RSK no longer applies — note
+- `RSK-old-paired-id` — current `related.threats: [thr-old-id]` → will become
+  `[thr-new-slug]` (or be retired, if the paired RSK no longer applies — note
   the choice).
-- `POL-risk-appetite.related.threats:` — drop `THR-old-id`, add `THR-new-slug`.
-- Any `STD-*` / `TM-*` (if any) referencing `THR-old-id` — agent lists them here.
+- `pol-risk-appetite`'s `related:` — drop `thr-old-id`, add `thr-new-slug`.
+- Any `std-*` / `tm-*` (if any) referencing `thr-old-id` — agent lists them here.
 
 #### Source citation(s)
 
@@ -148,14 +148,14 @@ strictly subsumes it. Quote the policy clause matched, or explain the subsumptio
 
 #### Suggested `related:` IDs for the new threat
 
-- standards: STD-...
+- related: [std-...]
 - risks: RSK-... (typically the same RSK as the retired threat, repointed)
 
-#### Draft new `THR-*.md`
+#### Draft new `thr-*.md`
 
 ```markdown
 ---
-id: THR-replace-me-slug
+id: thr-replace-me-slug
 title: "Replace Me"
 description: >
   One- or two-sentence description suitable for AI retrieval.
@@ -207,7 +207,7 @@ related:
 
 ### Proposal U1
 
-- [ ] **Approve** — `THR-existing-id`
+- [ ] **Approve** — `thr-existing-id`
 
 #### What changes and why
 
@@ -251,18 +251,18 @@ One paragraph. Cite which source surfaced the change.
 ## 3. Flagged for removal
 
 > Removals are never auto-applied. The runbook only flags candidates per the
-> removal policy in Phase 2 of `program/01-grc/runbooks/RB-update-threat-catalog.md`.
+> removal policy in Phase 2 of `program/runbooks/rb-update-threat-catalog.md`.
 
 ### Proposal R1
 
-- [ ] **Confirm flag** — `THR-id-to-flag`
+- [ ] **Confirm flag** — `thr-id-to-flag`
 
 #### Reason
 
 - Last appeared in source pulls: REPLACE-DATE (`<source-id>`)
 - Quarterly pulls without coverage: N
-- Active references: list `RSK-*`, `STD-*`, `TM-*` (if any) that still cite this threat (or "none")
-- Removal-policy clause matched: quote the relevant clause from Phase 2 of `RB-update-threat-catalog.md`
+- Active references: list `rsk-*`, `std-*`, `tm-*` (if any) that still cite this threat (or "none")
+- Removal-policy clause matched: quote the relevant clause from Phase 2 of `rb-update-threat-catalog.md`
 
 #### Recommended next step
 
@@ -293,7 +293,7 @@ After ticking the boxes you approve:
 
 ```text
 Run the runbook in apply mode:
-  Follow program/01-grc/runbooks/RB-update-threat-catalog.md, Phase 4,
+  Follow program/runbooks/rb-update-threat-catalog.md, Phase 4,
   using this proposal: evidence/threat-updates/REPLACE-DATE/proposal.md
 ```
 
@@ -301,7 +301,7 @@ Apply will:
 
 1. Apply only `[x]`-checked items.
 2. Run `kilagen check`.
-3. Regenerate `program/registry.md`.
+3. Rebuild the site with `kilagen build`.
 4. Stage changes on a feature branch and report back.
 
 It will NOT push or open a PR — that step is yours.

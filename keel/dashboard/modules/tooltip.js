@@ -24,14 +24,3 @@ export function moveTip(e) {
 }
 
 export function hideTip() { tipEl.classList.remove('show'); }
-
-export function addCapTip(el, cap) {
-  el.addEventListener('mouseenter', function(e) {
-    let h = '<div class="tip-title">' + DOMPurify.sanitize(cap.name || cap.id, { ALLOWED_TAGS: [] }) + '</div>';
-    h += '<div class="tip-row"><span class="tip-key">Maturity</span>' + DOMPurify.sanitize(cap.maturity || 'L0-none', { ALLOWED_TAGS: [] }) + '</div>';
-    if (cap.systems && cap.systems.length) h += '<div class="tip-row"><span class="tip-key">Systems</span>' + DOMPurify.sanitize(cap.systems.join(', '), { ALLOWED_TAGS: [] }) + '</div>';
-    showTip(e, h);
-  });
-  el.addEventListener('mousemove', moveTip);
-  el.addEventListener('mouseleave', hideTip);
-}

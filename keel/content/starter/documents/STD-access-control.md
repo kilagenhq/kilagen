@@ -1,42 +1,42 @@
 ---
-id: STD-access-control
+id: std-access-control
+type: standard
 title: "Access Control Standard"
 description: >
-  Requirements for granting, reviewing and revoking access to production
-  systems and corporate applications.
-type: standard
+  Requirements for granting, reviewing and revoking access to production systems
+  and corporate applications.
 status: draft
-domain: grc
 owner: role-security-owner
 version: "0.1"
-approved_by: [role-security-owner]
-reviewed_by: [role-security-owner]
+domains: [iam, grc]
+capabilities: [iam.idp, iam.iga]
+related: [pol-information-security]
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
-applies_to: [iam]
 requirements:
   - ref: "1.1"
-    domains: [iam]
+    text: >
+      Access to production systems is granted only through an approved request
+      that records the business justification.
+    how_demonstrated: Approved access requests for the period under review.
     frameworks:
       nist_csf: ["PR.AA"]
   - ref: "1.2"
-    domains: [iam]
+    text: >
+      Every user is identified by a unique account; shared credentials are not
+      used for administrative access.
+    how_demonstrated: An account inventory showing no shared administrative accounts.
     frameworks:
       pci_dss: ["8"]
-related:
-  policies: [POL-information-security]
 ---
 
 # Access Control Standard
 
-Starter document. The two requirements below exist to show the traceability
-chain end to end — a requirement mapped to a framework clause, which the
-coverage view then counts. Replace them with your own, or delete the file.
+Starter document. The requirements live in the frontmatter, not in this body —
+that is what makes them addressable: a framework clause maps to `1.2`, and a gap
+or an exception is filed against `std-access-control#1.2` rather than against
+"the document".
 
-## Requirements
-
-1.1 Access to production systems is granted only through an approved request
-that records the business justification.
-
-1.2 Every user is identified by a unique account, and shared credentials are
-not used for administrative access.
+Use this body for scope, context and how the requirements are evidenced.
+Replace the two requirements with your own, or delete the file — but note that
+the seeded gap and exception reference `1.2`, so delete those too.

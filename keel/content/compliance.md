@@ -1,67 +1,113 @@
-# Compliance Strategy — The Two-Level GRC Model
+# Compliance — standards, requirements, and the only coverage this program claims
 
-This document describes how the framework handles regulatory compliance. For overall framework design, see `design.md`.
+For the structural design, see [`design.md`](design.md).
 
 ## The two levels
 
-1. **Policy** establishes objectives (what we want).
-2. **Standard** implements those objectives with numbered requirements (what must be done and how we prove it).
+A **policy** (`pol-*`) states what the organization intends and who has the
+authority to issue standards. A **standard** (`std-*`) turns that into numbered
+**requirements**, and the requirements are where the work is.
 
-Each standard contains requirements in the body text (e.g. 5.1, 5.2). Each requirement can carry framework mappings (`frameworks: {<id>: [clauses]}`) in the frontmatter `requirements:` array — the requirements are the single source of these mappings. The coverage map (`01-grc/compliance/coverage.yml`) is a **derived view**: generated from those mappings plus each framework's clause vocabulary, it classifies every clause of each in-scope framework that has a vocabulary file as mapped or unmapped but stores no mapping of its own (an in-scope framework with no vocabulary file is skipped with a warning, not classified). It records coverage, not whether a clause is met.
+A requirement lives in the standard's frontmatter, not in its body:
 
-## Traceability chain
+```yaml
+requirements:
+  - ref: "1.2"
+    text: Every user is identified by a unique account.
+    evidence: An account inventory showing no shared administrative accounts.
+    frameworks:
+      pci_dss: ["8"]
+      nist_csf: ["PR.AA"]
+```
+
+That is what makes it addressable. A framework clause maps to `1.2`, and a gap
+or an exception is filed against `std-access-control#1.2` — never against "the
+document".
+
+## The traceability chain
 
 ```
-Regulatory clause NIST CSF PR.PS-01  (defined in program/frameworks/nist_csf.yml)
-  ← mapped by STD-vulnerability-management req 5.1 (frameworks.nist_csf: ["PR.PS-01"])
-    → requirement text + evidence in the standard body
-      → applies_to: [appsec, infra] → capabilities: sast, sca, vuln-management
-        → systems: SYS-github-advanced-security, SYS-trivy
+PCI DSS clause 8            (from the shipped vocabulary, in scope via program/config.yml)
+  ← mapped by std-access-control requirement 1.2
+    → contested by gap-shared-admin-accounts   (nobody approved this)
+    → and by exc-legacy-batch-account          (somebody did, until 2026-12-31)
 ```
 
-## Standards and requirements
+Every arrow in that chain is checked. A clause that is not in the vocabulary, a
+framework that is not in `config.yml`, a requirement reference that resolves to
+nothing — each fails `kilagen check`.
 
-- A **Standard** (`STD-*`) lives in `01-grc/standards/`. Its body has a "Requirements" section with numbered entries and an "Evidence" section.
-- A **Requirement** is a numbered item inside a standard. Requirements are not separate files. Each can optionally map to regulatory framework clauses. Requirements without mappings are internal.
+## Requirement, gap, exception
 
-Standards declare `applies_to:` listing which operational domains their requirements affect. The domains contain the runbooks, processes, and configurations that **implement** the requirements.
+| | Requirement | Gap | Exception |
+|---|---|---|---|
+| What it is | The norm | A deviation nobody approved | A deviation somebody approved |
+| Where it lives | Inside a standard | `gaps/<year>/gap-*.md` | `exceptions/<year>/exc-*.md` |
+| How it ends | Superseded | `remediated:` or `superseded_by:` | `expires:` or `revoked:` |
+| Who owns the work | — | The tracker, via `tracker:` | The approver, until the expiry |
 
-## Gaps and exceptions
+A shortfall with no written requirement behind it cannot be filed as a gap.
+That is deliberate: either the standard is missing and should be written, or
+the thing was a risk, not a gap. See
+[`adrs/adr-gaps-are-documents-not-a-register.md`](adrs/adr-gaps-are-documents-not-a-register.md).
 
-A requirement that is not met is either a **gap** or an **exception**:
+An exception's expiry is the point of it. On that date it stops authorizing
+anything and the deviation is unapproved again — which the Schedule lens says
+before it happens, not after.
 
-| | Gap | Exception |
+## Coverage
+
+`build` computes, for every clause of every in-scope framework: which
+requirements map to it, which gaps against those requirements are open, and
+which exceptions are live. That is the whole of it.
+
+**Coverage is not compliance.** It records whether a clause is addressed by a
+written requirement, never whether it is met — sufficiency is a human
+judgement, and the generator asserts a single posture, `not-assessed`, and only
+where nothing maps at all. A validator fails the build if anything ever writes
+`met`, `gap` or `exception` into a computed posture.
+
+This is the only coverage the program computes, because it is the only one with
+an external, finite denominator: the framework publishes its clause list. See
+[`adrs/adr-no-capability-assessment.md`](adrs/adr-no-capability-assessment.md).
+
+## Putting a framework in scope
+
+Kilagen ships the clause vocabularies, so there is nothing to write down:
+
+1. Add it to `frameworks:` in `program/config.yml`, with its `binding` level.
+2. Add `frameworks:` mappings to the requirements it bears on.
+
+Coverage regenerates on the next `kilagen build`. An id that resolves to no
+vocabulary is an error, and `kilagen check` lists the ids it does know.
+
+### What ships, and at what granularity
+
+| id | Edition | Clauses |
 |---|---|---|
-| **What** | Not met — must be remediated | Approved deviation with compensating controls |
-| **Lifecycle** | Open → remediate → close | Approve → review → renew, revoke, or expire |
-| **Where** | External ticket system via `gap_link:` on the standard | `01-grc/exceptions/EXC-*.md` in the repository |
-| **Status** | Ticket system states | `active`, `expired`, `revoked` |
-| **Link** | `gap_link` on standard → ticket filter | `standard` + `requirement_ref` on exception → standard; `related.exceptions` on standard → exception |
+| `nist_csf` | NIST Cybersecurity Framework 2.0 | 22 categories |
+| `pci_dss` | PCI DSS v4.0 | 12 top-level requirements |
+| `iso_27001` | ISO/IEC 27001:2022 | 93 Annex A controls |
+| `soc2` | SOC 2 Trust Services Criteria | 33 Common Criteria + A1 + C1 |
+| `iso_27017` | ISO/IEC 27017:2015 | the 7 cloud-specific CLD controls |
+| `iso_27018` | ISO/IEC 27018:2019 | 25 Annex A controls |
 
-When all gaps on a standard are resolved, `gap_link` is removed.
+Each file records its own granularity, because the denominator is half of any
+coverage figure. **The id is the edition**: when a publisher issues a new one it
+becomes a new id, never an edit of an existing list — a coverage figure someone
+published must not move underneath them.
 
-## Threats and risks
+### Overriding one, or adding your own
 
-- **Threats** (`THR-*`) catalog generic threat scenarios relevant to the organization.
-- **Risks** (`RSK-*`) evaluate impact if a threat materializes. When a risk reveals no standard covers a required area, that is a gap — tracked via `gap_link`.
+Drop a file at `program/model/frameworks/<id>.yml` and it wins over the shipped
+edition of the same id. Same schema, and the same two shapes: a flat `clauses:`
+list, or `groups:` when the framework publishes a structure. That is also how
+you declare a framework Kilagen does not ship, including an internal one.
 
-## Framework mappings and coverage
+### Binding levels
 
-Frameworks are declared in `config.yml`, not hard-coded.
+The line between them is **who checks**.
 
-- **Mappings** live on standard requirements: `frameworks: {<id>: [clause refs]}`, keyed by the framework's `config.yml` id.
-- **Vocabulary** — each framework has a clause list at `program/frameworks/<id>.yml`. It holds clause references only; the regulatory text stays at the framework's `url`.
-- **Scope** — the `config.yml` `frameworks:` list, with each entry's binding level, is what coverage is measured against.
-- **Coverage** — `generate_coverage.py` writes `01-grc/compliance/coverage.yml`, keyed by framework id: each in-scope clause is `coverage: mapped` (one or more requirements map to it) or `coverage: unmapped` with `posture: not-assessed`. Always auto-generated; never edit by hand.
-- **Adding a framework** — add it to `config.yml`, create `program/frameworks/<id>.yml`, and add `frameworks:` clauses to the relevant requirements; coverage regenerates.
-
-### Coverage is not compliance
-
-Coverage records only whether a clause has a mapping — never whether it is *met*. A requirement that maps to a clause may address it partially; sufficiency is a human assessment, not a generated fact. The generator therefore asserts a single posture, `not-assessed`, and only on unmapped clauses; `met`, `gap`, and `exception` are human judgments that live elsewhere (gaps via `gap_link`, exceptions as `EXC-*`).
-
-### Framework binding levels
-
-Each framework in `config.yml` declares a `binding` level:
-
-- **`mandatory`** — a legal or regulatory requirement. Non-compliance is a violation.
-- **`comply-or-explain`** — the regulator expects compliance but accepts justified deviations.
+- **`mandatory`** — a law, a regulator or a contract requires it. Somebody else audits you against it.
+- **`voluntary`** — you audit yourself against it by choice, and assert conformity.
+- **`reference`** — you use it as guidance and assert nothing.

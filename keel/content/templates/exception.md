@@ -1,49 +1,42 @@
 ---
-id: EXC-REPLACE-ME
+id: exc-replace-me
+type: exception
 title: "REPLACE ME"
 description: >
-  REPLACE ME — one or two sentences an LLM can use to decide relevance.
-type: exception
-status: active               # active | expired | revoked
-domain: grc                  # exceptions live in 01-grc
-owner: role-REPLACE-ME
-requested_by: REPLACE-ME     # team or role that requested the deviation
-approved_by: [role-REPLACE-ME]   # role slugs that approved this exception
-decision_date: 2026-01-01   # when approved
-expires: 2027-01-01          # mandatory re-evaluation date (max 12 months, per organizational policy)
-risk_severity: medium        # residual risk after compensating controls: critical | high | medium | low
-standard: STD-REPLACE-ME    # the standard being deviated from
-requirement_ref: "X.X"      # the specific requirement number (e.g. 4.16)
-last_reviewed: 2026-01-01
-next_review: 2027-01-01     # should align with expires
-related:
-  standards: []              # at minimum the standard field value
+  REPLACE ME — one or two sentences an agent can use to decide relevance. This
+  is the field retrieval leans on hardest.
+owner: role-replace-me
+requirement: std-replace-me#1.1   # the requirement being deviated from — must resolve
+approved_by: [role-replace-me]
+expires: 2027-01-01               # mandatory re-evaluation date
+risk_severity: medium             # residual risk after the compensating controls
+compensating_controls:
+  - "REPLACE ME"
+# revoked: 2026-06-01             # write-once: the day approval was withdrawn
+domains: []                  # ids from program/model/domains.yml — a document may declare several
+capabilities: []             # ids from program/model/capabilities.yml
+systems: []                  # ids from program/model/systems.yml
+related: []                  # flat list of ids; the prefix says what each one is
+# publish: [confluence]      # overrides the per-type default in program/publish.yml
+# source_of_truth: https://example.com/replace-me   # the original lives there; this is the record
 ---
 
 # REPLACE ME — Exception Title
 
 ## Context
 
-Why the deviation was requested — business justification, user impact, operational constraints.
+Why the deviation was needed — the constraint that made compliance
+impractical.
 
-## Decision
+## What deviates
 
-What exactly deviates from the standard requirement and how. Reference the original requirement text.
+Exactly what differs from the requirement, and for which systems.
 
-## Risk considerations
+## Residual risk
 
-What risks this deviation introduces — be specific about attack surface changes.
+What remains after the compensating controls, and who accepted it.
 
-## Compensating controls
+## On expiry
 
-What mitigations are in place to reduce the residual risk. Link to tickets or systems where relevant.
-
-## Scope
-
-Which systems, users, or environments are affected by this exception — and which are explicitly NOT affected.
-
-## Review history
-
-| Date | Reviewer | Decision |
-|---|---|---|
-| 2026-01-01 | REPLACE | Approved — initial exception |
+An exception that expires is an unapproved deviation again. Renew it, revoke
+it, or file the gap.

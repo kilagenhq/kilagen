@@ -1,63 +1,51 @@
 ---
-id: STD-REPLACE-ME
+id: std-replace-me
+type: standard
 title: "REPLACE ME"
 description: >
-  REPLACE ME — one or two sentences an LLM can use to decide relevance.
-type: standard
+  REPLACE ME — one or two sentences an agent can use to decide relevance. This
+  is the field retrieval leans on hardest.
 status: draft
-domain: grc                  # standards live centralized in 01-grc
-owner: role-REPLACE-ME
+owner: role-replace-me
 version: "1.0"
-approved_by: [role-REPLACE-ME]   # array of role slugs that approved this standard
-reviewed_by: [role-REPLACE-ME]   # role(s) that reviewed this standard (same shape as approved_by)
+approved_by: [role-replace-me]
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
-applies_to: []               # domains where this standard's requirements apply (e.g. [appsec, infra])
-requirements:                # requirement-level mappings
-  - ref: "X.1"               # requirement number as used in the body
-    domains: []               # which domains this requirement applies to (e.g. [appsec, infra])
-    # capabilities:           # optional — which capabilities this requirement covers
-    #   appsec: [sast, sca]
-    frameworks:               # omit frameworks for internal requirements
-      nist_csf: []
-  - ref: "X.2"               # no frameworks = internal requirement
-    domains: []
-# gap_link:                  # optional — URL to ticket filter for open gaps
-related:
-  policies: [POL-REPLACE-ME]   # the policy this standard implements
-  standards: []              # cross-references to other standards
+requirements:                # the requirements themselves — text and mappings live here
+  - ref: "1.1"
+    text: >
+      REPLACE ME — one enforceable sentence. This is what a gap or an exception
+      is filed against, as <this-id>#1.1.
+    how_demonstrated: REPLACE ME — the method, in one sentence.
+    evidence:                # the proof itself: named links, never a committed file
+      - name: "REPLACE ME"
+        url: "https://example.com/replace-me"
+        collected: 2026-01-01      # evidence has an implicit expiry; this is what dates it
+        freshness: quarterly       # monthly | quarterly | semi-annually | annually | every-2-years | every-3-years
+        # collector: replace-me    # collectors/<name>.py refreshes the url and the date
+    frameworks:              # optional; omit for an internal requirement
+      replace_me: ["REPLACE-ME"]
+domains: []                  # ids from program/model/domains.yml — a document may declare several
+capabilities: []             # ids from program/model/capabilities.yml
+systems: []                  # ids from program/model/systems.yml
+related: []                  # flat list of ids; the prefix says what each one is
+# publish: [confluence]      # overrides the per-type default in program/publish.yml
+# source_of_truth: https://example.com/replace-me   # the original lives there; this is the record
 ---
 
 # REPLACE ME — Standard Title
 
-## Purpose
-
-What this standard achieves and why it exists.
-
 ## Scope
 
-Systems, teams, and environments subject to this standard.
+Which systems, environments and teams the requirements below bind.
 
 ## Requirements
 
-### Section Name
-
-X.1 Requirement text...
-
-X.2 Requirement text...
-
-### Another Section
-
-X.3 Requirement text...
+The requirements live in the frontmatter, not here — that is what makes them
+addressable. Use this section for context a requirement cannot carry: why the
+line is drawn where it is, what is deliberately out of scope.
 
 ## Evidence
 
-| Requirement | Evidence | Source |
-|---|---|---|
-| X.1 | Description of evidence artifact | SYS-* or source |
-
-## Revision History
-
-| Version | Date | Approved by | Change |
-|---|---|---|---|
-| 1.0 | YYYY-MM-DD | Role | Initial version |
+Where the proof lives for an audit. Link it with `evidence:` rather than
+committing it.

@@ -25,7 +25,7 @@ config:
     siblings_only: true
   # Allow multiple H1 headings — frontmatter title: is counted as first H1.
   MD025: false
-  # Allow consecutive blank lines — auto-generated files (e.g. registry.md) have them.
+  # Allow consecutive blank lines — auto-generated files (e.g. the indexes) have them.
   MD012: false
   # Allow fenced code blocks without language — directory trees and mixed snippets.
   MD040: false

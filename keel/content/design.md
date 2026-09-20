@@ -1,278 +1,131 @@
 # Kilagen — Framework Design
 
-> **No PII.** This repository must never contain personal data beyond role-based attributions. Ownership fields (`owner`, `second_owner`, `approved_by`, `reviewed_by`) reference role slugs (e.g. `role-cto`) defined in `program/roles/`, not personal names. Never commit personal email addresses, phone numbers, government IDs, or other personal contact data.
+Kilagen runs the **normative layer** of a security program as Markdown and YAML in a Git repository: what the organization requires, what it decided, who approved it, when it was last reviewed, and which regulatory clauses it answers. The repository is the record; the dashboard and the framework-coverage view are projections of it.
+
+It is deliberately not the other two things a GRC tool is usually asked to be — a posture self-assessment and a risk tracker. Those answer questions about the world and about ticket lifecycles, and a document repository answers neither honestly.
+
+> **No PII.** This repository must never contain personal data beyond role-based attributions. Ownership fields (`owner`, `approved_by`, `reviewed_by`) reference role ids (e.g. `role-cto`) defined in `program/roles/`, not personal names. Never commit personal email addresses, phone numbers, government IDs, or other personal contact data.
 >
-> **Scope of this repository.** This repo contains the framework (`keel/`) only.
-> The `program/` layer referenced throughout this document is the *instance* you
-> build in your own repository (see `instantiation.md`) — it is not included here.
-> The layout below shows an instance's combined view (framework + program), not
-> this repo's contents.
+> **Scope.** This repository contains the framework (`keel/`) only. The `program/` layer described throughout is the *instance* you build in your own repository — see `instantiation.md`.
 
-## Purpose
+## The admission test
 
-A single source of truth for a company's security program, serving (in priority order): AI agents, the security team, and auditors.
+A document enters `program/` only if the security program **owns** it: someone is accountable for it, it expires, it gets reviewed, and an auditor could ask for it. Owner, review date and enforceability are the machinery Kilagen provides; a document that does not need that machinery does not belong here.
 
-## Related files
+General operational knowledge — how to create a group in the IdP, team onboarding, tips — belongs in the team wiki. Every document in `program/` feeds the lenses, the review schedule and the auditor's view, so unowned documentation does not add coverage, it dilutes it.
 
-This file covers the structural design. Detailed topics live in dedicated files to keep each one focused:
+→ [adr-the-admission-test](adrs/adr-the-admission-test.md)
 
-| File | What it covers |
-|---|---|
-| `compliance.md` | Two-level GRC model, standards and requirements, gaps vs exceptions, framework mappings, coverage |
-| `lenses.md` | Alternative projections over program data (e.g. NIST CSF), the `lenses` field, coverage calculation |
-| `instantiation.md` | How to instantiate, what lives where, root-level files, first steps |
-| `maturity.md` | L0–L5 graduation criteria with examples |
-| `glossary.md` | Controlled vocabulary — document types, framework concepts, acronyms |
-| `schemas/` | JSON Schema for frontmatter, `capabilities.yml`, `gaps.yml`, and the framework clause vocabularies (`program/frameworks/*.yml`) — the machine-readable source of truth for all fields |
-| `templates/` | Starter files for every document type — the human-readable source of truth for field usage |
+## Truth boundaries
 
-## Design principles
+Three systems hold three different truths. Kilagen owns one of them and refuses to mirror the others.
 
-1. **Functional domains over org chart.** Structure mirrors how security teams actually work. Consistent subfolders inside each domain mean agents learn the pattern once and apply it everywhere.
-2. **Standards are centralised in `01-grc/standards/`.** They are governance documents, not operational ones. The full compliance model (policies → standards → requirements → framework mappings) is described in `compliance.md`.
-3. **Systems live at the repo root.** All `SYS-*.md` live in `/systems/` regardless of domain. This handles multi-domain systems cleanly.
-4. **Single home, many links.** Each doc lives in one owning domain. Relevance elsewhere is expressed via links and `related:` frontmatter, never duplication.
-5. **On-demand subfolders.** A subfolder only exists when its first real file is committed. No `.gitkeep` placeholders.
-6. **No empty stubs.** Missing file > empty file.
-7. **Capabilities are first-class.** Each domain has `capabilities.yml` with maturity levels — the program-management layer. See section "Capability model" below.
-8. **Humans write content; robots do bookkeeping.** Link-checking, registry regeneration, coverage generation, and schema validation are automated in CI.
+| Truth | Owner | In the repository |
+|---|---|---|
+| What we require, decided, approved, reviewed | **This repository** | The documents themselves |
+| Whether a piece of work is open, assigned, in progress | The tracker | A `tracker:` URL, never a mirrored state |
+| What is actually deployed, on which hosts, with which coverage | The estate (CMDB, scanners) | A `systems:` facet of ids, never a posture |
 
-## Repository layout
+Corollaries, all enforced by `kilagen check`: no `maturity:` field, no status field that mirrors a tracker, and the only computed coverage is against frameworks — because there the denominator is external and finite, and the consumer is the auditor.
 
-`keel/` is the reusable framework. `program/` is the instance content.
+→ [adr-truth-boundaries](adrs/adr-truth-boundaries.md) · [adr-no-capability-assessment](adrs/adr-no-capability-assessment.md) · [adr-record-not-evidence](adrs/adr-record-not-evidence.md)
+
+## Layout
+
+A folder means **document type**, and nothing else. Every other classification — domain, capability, system, framework — is multivalued frontmatter validated against a closed vocabulary in `model/`. A subfolder may only ever mean *partition* (a year), never classification.
 
 ```
-kilagen/
-├── CLAUDE.md                   # AI entry point
-├── README.md                   # Repo map
-├── keel/                    # Reusable framework (design, schemas, templates, dashboard, scripts)
-├── program/                    # Instance content
-│   ├── config.yml
-│   ├── 01-grc/                 # Policies, standards, risk, compliance
-│   ├── 02-iam/                 # Identity, access, MFA
-│   ├── 03-infra/               # Cloud, network, endpoint, patching
-│   ├── 04-appsec/              # SDLC, threat models, secrets
-│   ├── 05-secops/              # SOC, logging, detections, SIEM
-│   ├── 06-ir/                  # IR plan, playbooks, runbooks
-│   ├── 07-offensive/           # Pentest, bug bounty, red team
-│   ├── 08-digital-assets/      # Custody, keys, smart contracts
-│   ├── 09-awareness/           # Training, phishing, education
-│   ├── 10-data-security/       # Classification, DLP, DSPM, KMS, backup
-│   ├── schedule.yml            # Recurring security activities (annual calendar)
-│   ├── gaps.yml                # Open/remediated gaps against STD-* requirements
-│   ├── risk-taxonomy.yml       # Enterprise risk classification vocabulary (cited by RSK-*)
-│   ├── frameworks/             # <id>.yml clause vocabularies (coverage denominator)
-│   ├── systems/                # SYS-* — ALL systems live here
-│   └── adr/                    # Architecture Decision Records
-└── .github/workflows/          # CI
+program/
+├── config.yml
+├── publish.yml           # publishing contract: destinations + defaults per type
+├── model/                # closed vocabularies, referenced and never prose
+│   ├── domains.yml
+│   ├── capabilities.yml
+│   ├── systems.yml
+│   ├── risk-taxonomy.yml   # categories, causes, and the severity matrix
+│   └── frameworks/         # empty by default — overrides for the shipped vocabularies
+├── schedule.yml          # recurring activities that no single document owns
+├── policies/ standards/ processes/ runbooks/ playbooks/ guidelines/
+├── decisions/ roles/ vendors/ threats/ threat-models/ risks/
+└── exceptions/2026/ gaps/2026/ incidents/2026/     # dated types, always partitioned
 ```
 
-## Domain structure
+Rules `check` enforces: the year partition is a property of the type, not a choice; the filename is the id; the id prefix matches the folder; no binaries anywhere in `program/`.
 
-Every domain folder follows the same convention:
-
-```
-XX-domain/
-├── README.md         # Scope, cross-domain notes
-├── capabilities.yml  # Source of truth for capabilities and maturity
-├── standards/        # STD-*
-├── processes/        # PRO-*
-├── runbooks/         # RB-*
-├── guidelines/       # GL-*
-└── threat-models/    # TM-*
-```
-
-`README.md` and `capabilities.yml` always exist. Other subfolders appear on demand — create the subfolder together with its first file, never empty.
-
-### Domain exceptions
-
-**`01-grc/`** adds: `policies/` (POL-\*), `threats/` (THR-\*), `risks/` (RSK-\*), `compliance/` (auto-generated `coverage.yml`), and `exceptions/` (EXC-\*).
-
-**`06-ir/`** adds `playbooks/` (PB-\*) and retains `runbooks/` (RB-\*) for non-incident operational procedures.
-
-**`01-grc/`** also contains `vendors/` (VEN-\*) for third-party risk profiles.
-
-**`08-digital-assets/`** adds `ceremonies/`, `wallet-operations/`, and `smart-contracts/`.
+→ [adr-folders-are-storage-not-ontology](adrs/adr-folders-are-storage-not-ontology.md) · [adr-lowercase-prefixed-ids](adrs/adr-lowercase-prefixed-ids.md)
 
 ## Document types
 
-Every document is one of these types, forming an abstract-to-concrete hierarchy:
-
-| Type | Prefix | Purpose |
+| Type | Prefix | What it is |
 |---|---|---|
-| Policy | `POL-` | The *what* and *why*. Board-approved. |
-| Standard | `STD-` | Numbered requirements with framework mappings. In `01-grc/standards/`. |
-| Process | `PRO-` | Human step-by-step process. |
-| Runbook | `RB-` | Executable process (agent-friendly). |
-| Playbook | `PB-` | Incident response runbook. In `06-ir/playbooks/`. |
-| Threat | `THR-` | Generic threat scenario. In `01-grc/threats/`. |
-| Threat Model | `TM-` | STRIDE/PASTA analysis of a feature or system. |
-| Guideline | `GL-` | Recommended practice with examples. |
-| System | `SYS-` | Operational view of a system. In `systems/`. |
-| Vendor | `VEN-` | Third-party risk profile. In `01-grc/vendors/`. |
-| Risk | `RSK-` | Risk register entry. In `01-grc/risks/`. |
-| Exception | `EXC-` | Approved deviation from a requirement. In `01-grc/exceptions/`. |
-| Data Asset | `DA-` | Information asset inventory entry. In `data-assets/`. |
-| Business Process | `BP-` | Business process inventory with BIA data. In `business-processes/`. |
-| Role | `role-` | Organizational role that owns artifacts (data, systems, processes, risks, documents). In `roles/`. Ownership fields (`owner`, `second_owner`, `approved_by`, `reviewed_by`) reference these via their `role-*` ids. |
-| ADR | `ADR-NNNN-` | Architecture decision (immutable). |
-| Incident | `INC-YYYY-` | Postmortem (immutable). |
+| Policy | `pol-` | The what and why. Approved, rarely changed. |
+| Standard | `std-` | Numbered requirements, each carrying its framework mappings. |
+| Process | `pro-` | Human step-by-step procedure. |
+| Runbook | `rb-` | Executable procedure, agent-friendly. |
+| Playbook | `pb-` | Incident-response procedure. |
+| Guideline | `gl-` | Recommended practice. Advisory. |
+| Decision | `dec-` | A decision and the reasoning behind it. Immutable. |
+| Role | `role-` | The accountable role every owner field points at. |
+| Vendor | `vnd-` | Third-party assessment, reassessed on its `next_review`. |
+| Threat | `thr-` | Generic threat scenario. |
+| Threat model | `tm-` | STRIDE/PASTA analysis of a system or feature. |
+| Exception | `exc-` | An approved deviation from a requirement, with an expiry. |
+| Gap | `gap-` | An unapproved shortfall against a requirement. |
+| Incident | `inc-` | Post-incident record. Immutable. |
+| Risk | `rsk-` | Optional. Content here, lifecycle in the tracker. |
 
-**Where does this go?** Ask in order: stable principle → Policy; auditable requirement → Standard; approved deviation → Exception; human process → Process; executable → Runbook; recommended practice → Guideline; system state → System; third-party profile → Vendor; organizational role → Role; decision rationale → ADR.
+**Requirement, exception, gap** are one triangle. A requirement inside a standard is the norm. An exception is a deviation someone with authority approved, with an expiry. A gap is a deviation nobody approved, pending remediation or conversion into an exception. A shortfall with no written requirement behind it is not a gap — either the standard is missing, or it was a risk.
 
-### Version control and revision history
-
-Not all document types carry the same audit burden. The table below defines which types require formal version tracking:
-
-| Type | `version:` in frontmatter | Revision History section | Rationale |
-|---|---|---|---|
-| POL-\*, STD-\* | Yes | Yes | Formally approved documents; auditors require version traceability |
-| PRO-\* | No | Yes | Operational procedures; revision history provides annual review evidence |
-| GL-\* | No | No | Advisory content; `last_reviewed` in frontmatter is sufficient |
-| Role | No | No | Role profiles; no `last_reviewed` — incumbent state lives in HR system via `managed_externally` |
-| All others | No | No | Registry/inventory data tracked by `last_reviewed` only |
-
-### Scheduled activities (`schedule.yml`)
-
-`program/schedule.yml` tracks recurring security activities that are **not** document reviews — pentests, DR tests, audits, training, architecture reviews, etc. Document reviews are tracked separately via `last_reviewed` / `next_review` in each document's frontmatter.
-
-Each activity has:
-
-| Field | Description |
-|---|---|
-| `id` | Unique identifier (kebab-case) |
-| `name` | Human-readable activity name |
-| `frequency` | `annually`, `every-2-years`, `semi-annually`, `quarterly` |
-| `owner` | Role responsible (e.g. `security-eng`, `cto`) |
-| `domain` | Which security domain this activity belongs to |
-| `last_completed` | Date when last executed (YYYY-MM-DD) |
-| `tracker` | URL to the Jira task tracking this activity (optional) |
-| `related` | List of document IDs that this activity relates to (optional) |
-
-The next due date is computed automatically by the dashboard as `last_completed` + `frequency`. Only update `last_completed` when the activity is done.
-
-The dashboard renders this as a quarterly grid in the **Schedule** view, showing completed, due, and overdue activities at a glance. Each quarter cell shows a color-coded date label indicating the activity status.
-
-### Gaps register (`gaps.yml`)
-
-`program/gaps.yml` records open and remediated gaps — unapproved shortfalls against a specific requirement. A gap is distinct from an exception (an approved deviation, `EXC-*`) and from a finding (a point-in-time observation that stays in the tracker until it is triaged into a requirement-level gap).
-
-Each gap has:
-
-| Field | Description |
-|---|---|
-| `id` | Unique identifier (kebab-case, `gap-` prefix) |
-| `title` | Human-readable summary of the shortfall |
-| `requirement` | The `STD-*` requirement the gap falls short of (`STD-<slug>#<number>`) |
-| `domain` | Which security domain the gap belongs to |
-| `owner` | Role responsible for remediation (e.g. `role-security-eng`) |
-| `source` | How it was identified: `risk-assessment`, `audit`, `pentest`, `bug-bounty`, `threat-model`, `internal` |
-| `severity` | Five-tier scale (`negligible`–`critical`), inherited from the risk framework |
-| `tracker_id` | Immutable Jira issue key (e.g. `TS-123`) — the stable correlation key between the gap and the tracker (unique per gap) |
-| `tracker` | URL to the Jira task tracking remediation |
-| `opened` | Date the gap was recorded (YYYY-MM-DD) |
-| `status` | `open` or `closed` — mirrors the tracker, nothing richer |
-| `status_updated` | Date `status` was last set |
-| `closed_at` | Date the gap was closed (optional) |
-| `closure_note` | One-line note on what resolved it (optional) |
-| `related` | Document IDs the gap relates to, keyed by type — `risks` (`RSK-*`), `threats` (`THR-*`), `systems` (`SYS-*`), `processes` (`PRO-*`), `exceptions` (`EXC-*`) (optional) |
-
-The repository owns which gaps exist and what they relate to; the tracker owns their operational state. `tracker_id` is the immutable key the future sync correlates on — the `tracker` URL is human convenience and may change, but `tracker_id` does not. `status` mirrors open/closed only. Closed gaps are retained — never deleted — so the remediation record and recurrence against a requirement stay visible.
-
-The dashboard derives compliance status from gaps, exceptions (`EXC-*`), and `capabilities.yml`, and projects it onto frameworks through lenses; no standard, framework, or maturity level is set by hand. Severity and treatment vocabulary are inherited from `STD-risk-framework`.
-
-Schema: `schemas/gaps.schema.json`. Template: `templates/gaps.yml`.
-
-### Systems vs. vendors
-
-Both may exist for the same product — that is intentional. They serve different audiences:
-
-- **`SYS-*`** = operator's view (config, integrations, capabilities). Lives at `/systems/` because one system often spans multiple domains.
-- **`VEN-*`** = risk evaluator's view (tier, certs, data scope, contract). Lives at `01-grc/vendors/`.
-
-They link to each other: `SYS-*` carries `vendor:` in frontmatter, `VEN-*` carries `system:`.
-
-| Scenario | SYS-*? | VEN-*? |
-|---|---|---|
-| Third-party SaaS security tool | Yes | Yes |
-| Free/OSS or bundled security tool | Yes | No |
-| Self-hosted internal tool | Yes | No |
-| Business app where security configures controls | Yes (`category: business-app`) | Yes |
-| Business app with no security touchpoint | No | Yes |
-
-## Capability model
-
-A **capability** is a named, bounded security function within a domain (e.g. SAST in `04-appsec`, IdP in `02-iam`). Every domain declares its capabilities in `capabilities.yml` — the source of truth for what the domain covers and how mature it is.
-
-Maturity = how well does it work?
-
-| Value | Meaning |
-|---|---|
-| `L0-none` | Nothing exists. |
-| `L1-ad-hoc` | Exists but depends on human memory. |
-| `L2-defined` | Documented, tool chosen, unreliable execution. |
-| `L3-integrated` | Wired into CI/pipelines, automatic. |
-| `L4-measured` | Continuous metrics, alerts on degradation. |
-| `L5-optimizing` | Feedback loop from incidents and threat models. |
-
-Full graduation criteria: `maturity.md`. Schema: `schemas/capabilities.schema.json`. Template: `templates/capabilities.yml`.
-
-**Connections:** `SYS-*` frontmatter carries a `capabilities:` map keyed by domain — CI validates against each domain's `capabilities.yml`. Domain READMEs contain only narrative; `capabilities.yml` is the single source of truth. Deep-dive content (vendor evals → ADR; migration plans → runbook; metrics → external dashboards).
-
-## Risk taxonomy
-
-`risk-taxonomy.yml` is the **enterprise** risk taxonomy — the controlled vocabulary for classifying *all* risks the business runs (financial, strategic, operational, compliance, legal, reputational, and information-security among them), calibrated to the instance, in two branches: **Categories** (the *kind* of risk, nested broad to specific) and **Causes** (the *root causes* that let an event develop).
-
-Kilagen covers a **subset** of the enterprise picture:
-
-- **`RSK-*` are information-security risks** — a subset of the operational-risk → information-security category branch in the taxonomy. Non-security enterprise risks (e.g. market, liquidity, strategic) sit in the taxonomy but have no `RSK-*` documents here.
-- **`THR-*` are information-security threats** — the threat-actor / threat-event side of the same domain. A `THR-*` is what drives an `RSK-*`; the same underlying factor can appear both as a `root_cause` slug and a `THR-*` doc (they overlap by role, not membership).
-
-`RSK-*` cite the taxonomy via `risk_category` and `root_causes`, and link the threats that drive them via `related.threats`. CI validates that cited entries resolve and that `THR-*`↔`RSK-*` links are reciprocal.
-
-The dashboard renders the taxonomy in the **Risk Framework** view.
-
-## ID scheme
-
-IDs are **stable forever**. Slugs may change; IDs never do. Cross-references use IDs.
-
-- **Slug-based** for most types: `POL-information-security`, `STD-vulnerability-management`, `SYS-github-advanced-security`.
-- **Numbered** only for immutable time-series: `ADR-0026-adopt-mpc-custody`, `INC-2026-phishing-campaign`.
-- Unique across the entire repo (CI enforces). Once created, never deleted or renamed — supersede instead.
+→ [adr-gaps-are-documents-not-a-register](adrs/adr-gaps-are-documents-not-a-register.md)
 
 ## Frontmatter
 
-Every document has YAML frontmatter validated in CI against `schemas/frontmatter.schema.json`. See `templates/` for full examples per type.
+Every document declares its identity (`id`, `type`, `title`, `description`), its lifecycle (`status`, `owner`, `version`, `last_reviewed`, `next_review` — immutable types carry a single date instead, and `gap` and `exception` carry no `status` at all because theirs is computed from write-once facts), its facets (`domains`, `capabilities`, `systems`, all multivalued, all validated against `model/`), and its relations (`related`, a flat list of ids whose types are derived from their prefixes).
 
-Key design decisions:
+Bulky material is never committed: `evidence:` carries named links to wherever it actually lives.
 
-- **`description`** is the most important field for AI retrieval. Keep it action-oriented, 1-2 sentences.
-- **`SYS-*` uses `domains:` (plural list)** instead of `domain:` (singular).
-- **`EXC-*` uses its own status enum** (`active`, `expired`, `revoked`).
-- **`INC-*` and `ADR-*` carry `immutable: true`.** CI blocks edits except via supersede.
-- **Cross-referencing:** use relative markdown links in body text; use the `related:` frontmatter object for semantic refs by ID. CI validates both.
+`schemas/frontmatter.schema.json` is the machine-readable source of truth; `templates/` is the readable one.
 
-## CI and automation
+## Lenses
 
-- **Source of truth: this repo.** Not a wiki, not a shared drive.
-- **Reviews** enforced by `next_review` frontmatter — weekly CI opens issues for overdue docs.
-- **Coverage is classification only** — CI fails if `coverage.yml` carries a `met`/`gap`/`exception` posture, if the coverage generator reads or writes a gaps register, or if a requirement's framework clause resolves to no vocabulary entry.
+The repository is neutral and nobody navigates folders. Each lens is a computed projection of the same documents for one audience.
 
-| Workflow | Trigger | What it validates |
-|---|---|---|
-| lint | PR | markdownlint, codespell, frontmatter / capabilities / gaps / framework-vocab schemas, framework coverage references, generated-artifact freshness |
-| link-check | PR + weekly | lycheeverse/lychee on all links |
-| semantic-refs | PR | runs the script unit-test suite (incl. coverage/posture firewall guards), then: capability refs in SYS-* exist in capabilities.yml; systems refs resolve; related IDs resolve; gap `id`/`tracker_id` unique, `requirement`/`owner`/`related` resolve, enums valid, dates ordered (`opened` ≤ `status_updated` ≤ `closed_at`) |
-| review-watch | weekly | reports overdue `next_review` documents (fails if any found) |
+| Lens | Answers |
+|---|---|
+| Browse | What documents exist? |
+| Domains | What have we written about IAM? |
+| Compliance | Clause → requirement → open gap or live exception. |
+| Schedule | What expires: reviews due, exceptions running out, gaps left unremediated. |
+| Doc | One document, what it relates to, and the verb on each link. |
 
-## How to add a new document
+## Publishing
 
-1. Pick the type and domain. Systems → `/systems/`. Vendors → `01-grc/vendors/`.
-2. Copy the matching template from `keel/templates/`.
-3. Choose a slug; CI validates uniqueness.
-4. Fill frontmatter — especially `description`.
-5. Link to related docs by ID.
-6. For `SYS-*`: ensure every capability in its `capabilities:` map exists in the domain's `capabilities.yml`; update that file's `systems:` list.
-7. Open PR. CI validates everything.
+One direction, always: git → destination. A published page is a render carrying a "generated from `pol-x` — edit in git" banner. What comes back from a destination is human comment, collected as input, never merged as content. `publish.yml` declares the destinations and the default per type; a document overrides with `publish: none | all | [confluence]`. The framework ships the contract and its validation; the sync tool is a separate product.
 
-**Prefer writing nothing to writing a stub.**
+→ [adr-one-way-publishing](adrs/adr-one-way-publishing.md)
+
+## Decisions
+
+The narrative above never grows. Every new decision about the framework is born as an ADR in `adrs/` and gets one line here. A program's own decisions are `decision` documents in its repository, not these.
+
+| ADR | Decision |
+|---|---|
+| [adr-folders-are-storage-not-ontology](adrs/adr-folders-are-storage-not-ontology.md) | Folders name the document type; every classification is a facet. |
+| [adr-truth-boundaries](adrs/adr-truth-boundaries.md) | The repository owns the norm; the tracker owns lifecycle; the estate owns reality. |
+| [adr-no-capability-assessment](adrs/adr-no-capability-assessment.md) | No maturity, no capability coverage — capabilities are a checklist and a vocabulary. |
+| [adr-gaps-are-documents-not-a-register](adrs/adr-gaps-are-documents-not-a-register.md) | A gap is a document against a requirement, closed by write-once facts. |
+| [adr-the-admission-test](adrs/adr-the-admission-test.md) | Only owned, expiring, auditable documents enter `program/`. |
+| [adr-one-way-publishing](adrs/adr-one-way-publishing.md) | Publishing flows out of git only; bidirectional sync is rejected. |
+| [adr-lowercase-prefixed-ids](adrs/adr-lowercase-prefixed-ids.md) | Ids are lowercase, prefixed, equal to the filename; `related` is flat. |
+| [adr-record-not-evidence](adrs/adr-record-not-evidence.md) | The repository holds the record; evidence is linked, never committed. |
+
+## Related files
+
+| File | What it covers |
+|---|---|
+| `instantiation.md` | Creating and updating your own program |
+| `compliance.md` | Standards, requirements, framework coverage |
+| `glossary.md` | Controlled vocabulary |
+| `adrs/` | Every decision above, in full |
+| `schemas/` | Frontmatter, vocabularies, publishing contract |
+| `templates/` | A starting point for every document type |

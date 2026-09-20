@@ -55,13 +55,10 @@ jobs:
       - name: Run codespell
         run: codespell --config .codespellrc .
 
-      - name: Validate frontmatter, capabilities and gaps schemas, and ID uniqueness
+      - name: Validate frontmatter, layout, vocabularies and framework references
         run: kilagen check frontmatter
 
       # Checks on this program's own content, in tests/. They skip the areas
       # that have no content yet, so they are useful from day one.
       - name: Run program content tests
         run: python -m unittest discover -s tests
-
-      - name: Check generated artifacts are up to date
-        run: kilagen check artifacts

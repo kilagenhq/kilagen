@@ -1,7 +1,12 @@
 // SVG icons based on Lucide (https://lucide.dev) — MIT License.
 export function mk(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt) e.textContent = txt; return e; }
-export function matLvl(m) { if (!m) return 0; var n = parseInt(m.charAt(1)); return isNaN(n) ? 0 : n; }
-export function matDot(m) { const l = matLvl(m); const s = mk('span', 'mat-dot mat-L' + l); s.title = m || 'L0-none'; return s; }
+/* A header cell that says what it heads. Without scope a screen reader has to
+   guess which cells a header belongs to, and it guesses wrong on wide tables. */
+export function th(label, scope) {
+  const cell = mk('th', '', label);
+  cell.setAttribute('scope', scope || 'col');
+  return cell;
+}
 export function mkEmpty(iconType, title, desc) {
   const el = mk('div', 'empty-state');
   el.appendChild(mkIcon(iconType, 'empty-state-icon'));
@@ -22,9 +27,11 @@ const TYPE_SVG_BUILDERS = {
   'threat-model': function(s) { s.appendChild(svgEl('circle', { cx: '12', cy: '12', r: '10' })); s.appendChild(svgEl('circle', { cx: '12', cy: '12', r: '6' })); s.appendChild(svgEl('circle', { cx: '12', cy: '12', r: '2' })); s.appendChild(svgEl('path', { d: 'M12 2v4M12 18v4M2 12h4M18 12h4' })); },
   vendor: function(s) { s.appendChild(svgEl('rect', { x: '2', y: '7', width: '20', height: '14', rx: '2' })); s.appendChild(svgEl('path', { d: 'M16 7V3a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v4' })); s.appendChild(svgEl('path', { d: 'M12 12h.01' })); },
   risk: function(s) { s.appendChild(svgEl('path', { d: 'm21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3' })); s.appendChild(svgEl('path', { d: 'M12 9v4M12 17h.01' })); },
-  adr: function(s) { s.appendChild(svgEl('path', { d: 'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z' })); s.appendChild(svgEl('path', { d: 'M14 2v4a2 2 0 0 0 2 2h4' })); s.appendChild(svgEl('path', { d: 'm9 15 2 2 4-4' })); },
+  decision: function(s) { s.appendChild(svgEl('path', { d: 'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z' })); s.appendChild(svgEl('path', { d: 'M14 2v4a2 2 0 0 0 2 2h4' })); s.appendChild(svgEl('path', { d: 'm9 15 2 2 4-4' })); },
   incident: function(s) { s.appendChild(svgEl('polygon', { points: '13 2 3 14 12 14 11 22 21 10 12 10 13 2' })); },
   system: function(s) { s.appendChild(svgEl('rect', { x: '2', y: '2', width: '20', height: '8', rx: '2' })); s.appendChild(svgEl('rect', { x: '2', y: '14', width: '20', height: '8', rx: '2' })); s.appendChild(svgEl('path', { d: 'M6 6h.01M6 18h.01' })); },
+  gap: function(s) { s.appendChild(svgEl('path', { d: 'M12 2v6M12 16v6' })); s.appendChild(svgEl('path', { d: 'M4.9 4.9l4.2 4.2M14.9 14.9l4.2 4.2' })); s.appendChild(svgEl('circle', { cx: '12', cy: '12', r: '3' })); },
+  role: function(s) { s.appendChild(svgEl('path', { d: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2' })); s.appendChild(svgEl('circle', { cx: '12', cy: '7', r: '4' })); },
   exception: function(s) { s.appendChild(svgEl('line', { x1: '6', y1: '3', x2: '6', y2: '15' })); s.appendChild(svgEl('circle', { cx: '18', cy: '6', r: '3' })); s.appendChild(svgEl('circle', { cx: '6', cy: '18', r: '3' })); s.appendChild(svgEl('path', { d: 'M18 9a9 9 0 0 1-9 9' })); },
   'dom-grc': function(s) { s.appendChild(svgEl('path', { d: 'M9 2h6v4H9z' })); s.appendChild(svgEl('rect', { x: '4', y: '4', width: '16', height: '18', rx: '1' })); s.appendChild(svgEl('path', { d: 'M9 12h6M9 16h4' })); },
   'dom-iam': function(s) { s.appendChild(svgEl('circle', { cx: '7.5', cy: '15.5', r: '5.5' })); s.appendChild(svgEl('path', { d: 'M21 2l-9.6 9.6' })); s.appendChild(svgEl('path', { d: 'M15.5 7.5l3 3L22 7l-3-3' })); },
@@ -45,6 +52,11 @@ const TYPE_SVG_BUILDERS = {
   link: function(s) { s.appendChild(svgEl('path', { d: 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71' })); s.appendChild(svgEl('path', { d: 'M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71' })); },
   book: function(s) { s.appendChild(svgEl('path', { d: 'M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20' })); },
   file: function(s) { s.appendChild(svgEl('path', { d: 'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z' })); s.appendChild(svgEl('path', { d: 'M14 2v4a2 2 0 0 0 2 2h4' })); },
+  /* Two chevrons pointing apart, and two pointing together. They need real
+     space between them: at 15px a pair that meets in the middle reads as a
+     diamond and an X rather than as a direction. */
+  expand: function(s) { s.appendChild(svgEl('polyline', { points: '6 9 12 3 18 9' })); s.appendChild(svgEl('polyline', { points: '6 15 12 21 18 15' })); },
+  collapse: function(s) { s.appendChild(svgEl('polyline', { points: '6 3 12 9 18 3' })); s.appendChild(svgEl('polyline', { points: '6 21 12 15 18 21' })); },
   domain: function(s) { s.appendChild(svgEl('rect', { x: '3', y: '3', width: '7', height: '7', rx: '1' })); s.appendChild(svgEl('rect', { x: '14', y: '3', width: '7', height: '7', rx: '1' })); s.appendChild(svgEl('rect', { x: '3', y: '14', width: '7', height: '7', rx: '1' })); s.appendChild(svgEl('rect', { x: '14', y: '14', width: '7', height: '7', rx: '1' })); },
   'data-asset': function(s) { s.appendChild(svgEl('ellipse', { cx: '12', cy: '5', rx: '9', ry: '3' })); s.appendChild(svgEl('path', { d: 'M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5' })); s.appendChild(svgEl('path', { d: 'M3 12c0 1.7 4 3 9 3s9-1.3 9-3' })); s.appendChild(svgEl('path', { d: 'M12 8v4M12 16h.01' })); },
   'business-process': function(s) { s.appendChild(svgEl('rect', { x: '3', y: '3', width: '7', height: '7', rx: '1' })); s.appendChild(svgEl('rect', { x: '14', y: '3', width: '7', height: '7', rx: '1' })); s.appendChild(svgEl('rect', { x: '3', y: '14', width: '7', height: '7', rx: '1' })); s.appendChild(svgEl('rect', { x: '14', y: '14', width: '7', height: '7', rx: '1' })); s.appendChild(svgEl('path', { d: 'M10 6.5h4M10 17.5h4M6.5 10v4M17.5 10v4' })); }
@@ -55,12 +67,10 @@ export function mkIcon(type, cls) {
   if (build) build(svg); else { svg.appendChild(svgEl('rect', { x: '3', y: '3', width: '18', height: '18', rx: '2' })); if (typeof console !== 'undefined') console.warn('[mkIcon] No icon for type: ' + type); }
   return svg;
 }
-const GH_KEEL_FILES = ['design.md', 'README.md', 'glossary.md', 'maturity.md', 'compliance.md', 'lenses.md', 'instantiation.md'];
-const GH_KEEL_DIRS = ['lenses/', 'schemas/', 'templates/'];
+/* A site path already says which tree it came from: framework material is
+   prefixed keel/, program content is not. */
 function ghRepoPath(path) {
-  if (path.indexOf('keel/') === 0 || path.indexOf('program/') === 0) return path;
-  if (GH_KEEL_FILES.indexOf(path) !== -1) return 'keel/' + path;
-  if (GH_KEEL_DIRS.some(function(d) { return path.indexOf(d) === 0; })) return 'keel/' + path;
+  if (path.indexOf('keel/') === 0) return 'keel/content/' + path.substring(5);
   return 'program/' + path;
 }
 export function ghUrl(path) {
@@ -69,74 +79,7 @@ export function ghUrl(path) {
   if (!repo) return '';
   return 'https://github.com/' + repo + '/blob/main/' + ghRepoPath(path);
 }
-export function ghTreeUrl(path) {
-  const state = window.__keelState;
-  const repo = (state && state.config && state.config.repo) ? state.config.repo : '';
-  if (!repo) return '';
-  return 'https://github.com/' + repo + '/tree/main/' + ghRepoPath(path);
-}
-export function mkFlipIcon(type) {
-  const ns = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(ns, 'svg');
-  svg.setAttribute('width', '16'); svg.setAttribute('height', '16'); svg.setAttribute('viewBox', '0 0 16 16'); svg.setAttribute('fill', 'currentColor');
-  if (type === 'grid') {
-    [[1,1,6,6],[9,1,6,6],[1,9,6,6],[9,9,6,6]].forEach(function(r) {
-      const rect = document.createElementNS(ns, 'rect');
-      rect.setAttribute('x', r[0]); rect.setAttribute('y', r[1]); rect.setAttribute('width', r[2]); rect.setAttribute('height', r[3]); rect.setAttribute('rx', '1');
-      svg.appendChild(rect);
-    });
-  } else {
-    [[1,2,14,2.5],[1,6.75,14,2.5],[1,11.5,14,2.5]].forEach(function(r) {
-      const rect = document.createElementNS(ns, 'rect');
-      rect.setAttribute('x', r[0]); rect.setAttribute('y', r[1]); rect.setAttribute('width', r[2]); rect.setAttribute('height', r[3]); rect.setAttribute('rx', '1');
-      svg.appendChild(rect);
-    });
-  }
-  return svg;
-}
 export function mkMetaRow(label, value) { const row = mk('div', 'meta-row'); row.appendChild(mk('span', 'meta-key', label)); row.appendChild(mk('span', 'meta-val', value)); return row; }
-export function mkCollapsible(title, summaryText, startOpen) {
-  const wrap = mk('div', 'std-collapse');
-  const header = mk('div', 'std-collapse-header');
-  header.appendChild(mk('span', 'std-collapse-arrow', startOpen ? '\u25BE' : '\u25B8'));
-  header.appendChild(mk('span', '', title));
-  header.appendChild(mk('span', 'std-collapse-summary', summaryText));
-  const body = mk('div', 'std-collapse-body');
-  body.style.display = startOpen ? 'block' : 'none';
-  if (startOpen) wrap.classList.add('open');
-  header.addEventListener('click', function() {
-    const isOpen = body.style.display !== 'none';
-    body.style.display = isOpen ? 'none' : 'block';
-    wrap.classList.toggle('open', !isOpen);
-    header.querySelector('.std-collapse-arrow').textContent = isOpen ? '\u25B8' : '\u25BE';
-  });
-  wrap.appendChild(header);
-  wrap.appendChild(body);
-  return { wrap: wrap, header: header, body: body };
-}
-export function mkExpandAllBtn(bodyCard) {
-  var expanded = false;
-  var btn = mk('button', 'app-sys-expand-btn');
-  btn.title = 'Expand all';
-  var svg = svgEl('svg', { viewBox: '0 0 24 24', width: '16', height: '16', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
-  svg.appendChild(svgEl('polyline', { points: '7 13 12 18 17 13' }));
-  svg.appendChild(svgEl('polyline', { points: '7 6 12 11 17 6' }));
-  btn.appendChild(svg);
-  btn.addEventListener('click', function() {
-    expanded = !expanded;
-    bodyCard.querySelectorAll(':scope > .std-collapse').forEach(function(col) {
-      var hdr = col.querySelector('.std-collapse-header');
-      var bdy = col.querySelector('.std-collapse-body');
-      if (!hdr || !bdy) return;
-      bdy.style.display = expanded ? 'block' : 'none';
-      col.classList.toggle('open', expanded);
-      hdr.querySelector('.std-collapse-arrow').textContent = expanded ? '\u25BE' : '\u25B8';
-    });
-    btn.title = expanded ? 'Collapse all' : 'Expand all';
-    svg.style.transform = expanded ? 'rotate(180deg)' : '';
-  });
-  return btn;
-}
 export function mkSourcePanel(container, filePath) {
   container.appendChild(mk('h3', '', 'Source'));
   var pathRow = mk('div', 'meta-row');
@@ -149,22 +92,6 @@ export function mkSourcePanel(container, filePath) {
   var href = ghUrl(filePath);
   if (href) { var link = mk('a', 'source-link', 'View in GitHub'); link.href = href; link.target = '_blank'; link.rel = 'noopener noreferrer'; container.appendChild(link); }
 }
-export function mkTocFromCollapsibles(container, sourceEl) {
-  sourceEl.querySelectorAll(':scope > .std-collapse > .std-collapse-header').forEach(function(header) {
-    var spans = header.querySelectorAll('span:not(.std-collapse-arrow):not(.std-collapse-summary)');
-    var label = spans.length ? spans[0].textContent.trim() : '';
-    if (!label) return;
-    var tocItem = mk('div', 'toc-item');
-    tocItem.textContent = label;
-    tocItem.addEventListener('click', function() { header.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
-    container.appendChild(tocItem);
-  });
-}
-// Resolve a role slug (e.g. "role-cto") to its human-readable title from the
-// registry. When no matching role doc is loaded (e.g. typo, stale registry,
-// or referent removed), the slug is returned with a " (unknown role)" suffix
-// so users can distinguish unresolved slugs from intentional titles.
-// Returns '' for empty input.
 export function roleTitle(slug) {
   if (!slug || typeof slug !== 'string') return '';
   const state = window.__keelState;
@@ -206,4 +133,155 @@ export function mkCopyBtn() {
     }).catch(function() { btn.textContent = '!'; btn.title = 'Copy failed — clipboard requires HTTPS or page focus'; setTimeout(function() { btn.textContent = ''; btn.appendChild(mkIcon('link', 'copy-link-icon')); btn.title = 'Copy link'; }, 1500); });
   });
   return btn;
+}
+
+/* Fold a rendered markdown body into collapsible sections.
+ *
+ * A policy is not read top to bottom: somebody arrives looking for one clause
+ * and scrolls past four screens of preamble to find it. Folding every heading
+ * but the first turns the body into its own table of contents, and the first
+ * section stays open because in this model it is almost always the description
+ * of what the document is for.
+ *
+ * Only h2 and h3 fold. An h1 is the document, and folding it would hide
+ * everything; anything deeper is inside a section that already folds.
+ */
+export function makeCollapsible(body, container) {
+  const headings = Array.from(body.querySelectorAll('h2, h3'));
+  if (headings.length < 2) return null;
+
+  const sections = [];
+  headings.forEach(function(heading, index) {
+    const section = document.createElement('div');
+    section.className = 'doc-section-body';
+    let node = heading.nextSibling;
+    while (node && !(node.nodeType === 1 && /^H[123]$/.test(node.tagName))) {
+      const next = node.nextSibling;
+      section.appendChild(node);
+      node = next;
+    }
+    heading.after(section);
+    heading.classList.add('doc-section-head');
+    heading.setAttribute('role', 'button');
+    heading.setAttribute('tabindex', '0');
+
+    const open = index === 0;
+    heading.setAttribute('aria-expanded', open ? 'true' : 'false');
+    section.hidden = !open;
+
+    function toggle() {
+      const expanded = heading.getAttribute('aria-expanded') === 'true';
+      heading.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+      section.hidden = expanded;
+    }
+    heading.addEventListener('click', toggle);
+    heading.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+    sections.push({ heading: heading, section: section });
+  });
+
+  function setAll(open) {
+    sections.forEach(function(pair) {
+      pair.heading.setAttribute('aria-expanded', open ? 'true' : 'false');
+      pair.section.hidden = !open;
+    });
+  }
+
+  /* Two icons beside the copy-link button, not two words above the text: the
+     controls are chrome and the document is the page. */
+  const controls = mk('div', 'doc-section-controls');
+  [['expand', 'Expand all', true], ['collapse', 'Collapse all', false]].forEach(function(spec) {
+    const btn = mk('button', 'icon-btn');
+    btn.type = 'button';
+    btn.title = spec[1];
+    btn.setAttribute('aria-label', spec[1]);
+    btn.appendChild(mkIcon(spec[0], 'icon-btn-glyph'));
+    btn.addEventListener('click', function() { setAll(spec[2]); });
+    controls.appendChild(btn);
+  });
+  const home = document.querySelector('.doc-header-actions');
+  if (home) home.insertBefore(controls, home.firstChild);
+  else if (container) container.insertBefore(controls, body);
+  return { setAll: setAll, count: sections.length };
+}
+
+/* The body repeats the title as its own h1 more often than not, because the
+   file is readable on its own in a Git forge. On the page the title is already
+   above it, so the same sentence twice is the document introducing itself
+   twice. */
+export function dropRepeatedTitle(body, title) {
+  const first = body.querySelector('h1');
+  if (!first || !title) return;
+  const a = first.textContent.trim().toLowerCase();
+  if (a === String(title).trim().toLowerCase()) first.remove();
+}
+
+/* Make an already-built table sortable by clicking its headers.
+ *
+ * It sorts on what the cell *says*, not on a parallel copy of the data, which
+ * is the only way one helper can serve every table in the program without each
+ * of them declaring its columns twice. Dates are ISO, so lexical order is
+ * chronological; numbers are detected and compared as numbers; everything else
+ * is compared with the locale collator.
+ *
+ * Sorting is a view of the same rows, so it deliberately does not go in the
+ * URL: the filters are the thing worth linking to, and a link that also pinned
+ * a sort order would be a link about how somebody was reading rather than
+ * about what they were reading.
+ */
+const NUMERIC = /^-?\d+(\.\d+)?$/;
+
+function sortKey(row, index) {
+  const cell = row.children[index];
+  return cell ? cell.textContent.trim() : '';
+}
+
+export function makeSortable(table) {
+  if (!table) return;
+  const header = table.querySelector('tr');
+  if (!header) return;
+  const headers = Array.from(header.children);
+  if (headers.length < 2) return;
+
+  let sortedBy = -1;
+  let ascending = true;
+
+  headers.forEach(function(cell, index) {
+    if (cell.tagName !== 'TH') return;
+    /* The control goes *inside* the header, not on it. A `th` is already a
+       columnheader, which is the only role `aria-sort` is allowed on; giving
+       it role="button" would take that away and make the attribute invalid. */
+    cell.classList.add('sortable');
+    cell.setAttribute('aria-sort', 'none');
+    const label = cell.textContent;
+    cell.textContent = '';
+    const button = mk('button', 'sort-btn', label);
+    button.type = 'button';
+    cell.appendChild(button);
+
+    function sort() {
+      ascending = sortedBy === index ? !ascending : true;
+      sortedBy = index;
+      const rows = Array.from(table.querySelectorAll('tr')).slice(1);
+      rows.sort(function(a, b) {
+        const x = sortKey(a, index);
+        const y = sortKey(b, index);
+        /* An empty cell is not a small value, it is an absent one, so it sorts
+           to the bottom whichever way the column is pointing. */
+        if (x === '' && y !== '') return 1;
+        if (y === '' && x !== '') return -1;
+        let result;
+        if (NUMERIC.test(x) && NUMERIC.test(y)) result = Number(x) - Number(y);
+        else result = x.localeCompare(y, undefined, { numeric: true });
+        return ascending ? result : -result;
+      });
+      rows.forEach(function(row) { table.appendChild(row); });
+      headers.forEach(function(other, i) {
+        other.setAttribute('aria-sort', i === index ? (ascending ? 'ascending' : 'descending') : 'none');
+      });
+    }
+
+    button.addEventListener('click', sort);
+  });
 }

@@ -1,0 +1,30 @@
+# The publishing contract — where documents are published, and which types go
+# there by default.
+#
+# One direction only: git to destination. A published page is a render of what
+# lives here, and edits belong in git. Comments coming back from a destination
+# are input for the owner, never merged as content.
+# See keel/adrs/adr-one-way-publishing.md.
+#
+# This file governs EXTERNAL destinations only. 'publish: none' keeps a
+# document out of the wiki; it does not keep it out of the dashboard, which
+# publishes the whole program and is as public as the repository itself.
+# It is not a confidentiality control — see keel/adrs/adr-one-way-publishing.md.
+#
+# Nothing is published until a destination is declared below and a sync tool
+# consumes this file — 'kilagen check' validates the contract either way, so a
+# typo fails in CI rather than publishing nowhere in silence.
+
+destinations: {}
+  # confluence:
+  #   space: SEC
+
+# Per type, where it goes unless the document overrides with
+# publish: none | all | [confluence]. The defaults are the safety net against
+# the document nobody remembered to publish.
+defaults:
+  policy: []
+  standard: []
+  guideline: []
+  process: []
+  decision: []

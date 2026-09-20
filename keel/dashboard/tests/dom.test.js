@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { state } from '../modules/state.js';
-import { mk, matLvl, matDot, ghUrl, ghTreeUrl, roleTitle, formatRoles } from '../modules/dom.js';
+import { mk, ghUrl, roleTitle, formatRoles } from '../modules/dom.js';
 
 beforeEach(() => {
   state.config.repo = '';
@@ -39,36 +39,6 @@ describe('mk', () => {
   });
 });
 
-describe('matLvl', () => {
-  it('extracts numeric level from maturity string', () => {
-    expect(matLvl('L0-none')).toBe(0);
-    expect(matLvl('L1-ad-hoc')).toBe(1);
-    expect(matLvl('L3-integrated')).toBe(3);
-    expect(matLvl('L5-optimizing')).toBe(5);
-  });
-
-  it('returns 0 for null/undefined', () => {
-    expect(matLvl(null)).toBe(0);
-    expect(matLvl(undefined)).toBe(0);
-    expect(matLvl('')).toBe(0);
-  });
-});
-
-describe('matDot', () => {
-  it('creates a span with correct maturity class', () => {
-    const dot = matDot('L3-integrated');
-    expect(dot.tagName).toBe('SPAN');
-    expect(dot.className).toBe('mat-dot mat-L3');
-    expect(dot.title).toBe('L3-integrated');
-  });
-
-  it('handles null maturity', () => {
-    const dot = matDot(null);
-    expect(dot.className).toBe('mat-dot mat-L0');
-    expect(dot.title).toBe('L0-none');
-  });
-});
-
 describe('ghUrl', () => {
   it('returns empty string when no repo configured', () => {
     state.config.repo = '';
@@ -82,19 +52,7 @@ describe('ghUrl', () => {
 
   it('constructs GitHub blob URL for keel content', () => {
     state.config.repo = 'org/kilagen';
-    expect(ghUrl('design.md')).toBe('https://github.com/org/kilagen/blob/main/keel/design.md');
-  });
-});
-
-describe('ghTreeUrl', () => {
-  it('returns empty string when no repo configured', () => {
-    state.config.repo = '';
-    expect(ghTreeUrl('01-grc')).toBe('');
-  });
-
-  it('constructs GitHub tree URL', () => {
-    state.config.repo = 'org/kilagen';
-    expect(ghTreeUrl('01-grc')).toBe('https://github.com/org/kilagen/tree/main/program/01-grc');
+    expect(ghUrl('keel/design.md')).toBe('https://github.com/org/kilagen/blob/main/keel/content/design.md');
   });
 });
 

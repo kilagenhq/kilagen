@@ -1,0 +1,71 @@
+# The domain vocabulary — the closed list the domains: facet is validated against.
+#
+# A domain is a label on a document, never a folder: a document may declare more
+# than one, because real work does. See keel/adrs/adr-folders-are-storage-not-ontology.md.
+
+domains:
+  - id: grc
+    name: Governance, Risk and Compliance
+    description: >
+      Policies, standards, risk management, audits and the evidence an auditor
+      asks for.
+    order: 1
+
+  - id: iam
+    name: Identity and Access Management
+    description: >
+      Who exists, what they can reach, and how access is granted, reviewed and
+      removed.
+    order: 2
+
+  - id: infra
+    name: Infrastructure Security
+    description: >
+      Cloud, network, endpoint and platform hardening, patching and
+      configuration.
+    order: 3
+
+  - id: appsec
+    name: Application Security
+    description: >
+      Secure development, code and dependency analysis, secrets and the release
+      pipeline.
+    order: 4
+
+  - id: secops
+    name: Security Operations
+    description: >
+      Logging, detection, monitoring and the day-to-day running of the security
+      stack.
+    order: 5
+
+  - id: ir
+    name: Incident Response
+    description: >
+      Preparing for, handling and learning from security incidents.
+    order: 6
+
+  - id: offensive
+    name: Offensive Security
+    description: >
+      Penetration testing, red teaming and bug bounty — finding it before
+      someone else does.
+    order: 7
+
+  - id: digital-assets
+    name: Digital Assets
+    description: >
+      Custody, key management, wallet operations and smart-contract security.
+    order: 8
+
+  - id: awareness
+    name: Security Awareness
+    description: >
+      Training, phishing simulation and the human side of the program.
+    order: 9
+
+  - id: data-security
+    name: Data Security
+    description: >
+      Classification, loss prevention, encryption, key management and backup.
+    order: 10

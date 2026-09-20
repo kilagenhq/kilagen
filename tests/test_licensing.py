@@ -22,6 +22,7 @@ import contextlib
 import io
 import os
 import tempfile
+import re
 import unittest
 from pathlib import Path
 
@@ -32,6 +33,8 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # Every directory a file may be copied from into an instance. Each holds its
 # own MIT-0 LICENSE; anything outside them is Apache-2.0.
+DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
 MIT0_DIRS = (
     keel_lib.KEEL / "scaffold",
     keel_lib.KEEL / "ai",
@@ -103,21 +106,26 @@ class LicenceBoundaryTests(unittest.TestCase):
             cli.cmd_init(argparse.Namespace(
                 name="Acme", deployment="github", agent="claude", force=False))
 
-        # Generated files (config.yml, registry.md, coverage.yml) are the
-        # user's own output and carry no upstream licence; copied ones do.
-        # Matched on content, not on name: init renames as it copies —
-        # starter/capabilities/01-grc.yml lands as program/01-grc/capabilities.yml.
-        mit0_bytes = {source.read_bytes()
-                      for directory in MIT0_DIRS
-                      for source in directory.rglob("*") if source.is_file()}
+        # config.yml is the user's own output and carries no upstream
+        # licence; everything else in program/ came from the seed.
+        # Matched on content, not on name, because init both renames and
+        # rewrites as it copies — the starter's dates are re-anchored to the
+        # day the program was created, which changes the bytes without
+        # changing where the text came from. Dates are normalised out of both
+        # sides: a date is not the licensable expression.
+        def normalised(path: Path) -> str:
+            return DATE_RE.sub("DATE", path.read_text(encoding="utf-8", errors="replace"))
 
-        generated = {"config.yml", "registry.md", "coverage.yml"}
+        mit0_text = {normalised(source)
+                     for directory in MIT0_DIRS
+                     for source in directory.rglob("*") if source.is_file()}
+
         copied = [p for p in (Path(tmp.name) / "program").rglob("*")
-                  if p.is_file() and p.name not in generated]
+                  if p.is_file() and p.name != "config.yml"]
         self.assertTrue(copied, "init copied nothing into program/")
         for written in copied:
             self.assertIn(
-                written.read_bytes(), mit0_bytes,
+                normalised(written), mit0_text,
                 f"{written.relative_to(tmp.name)} landed in program/ but matches "
                 f"no file in an MIT-0 directory",
             )

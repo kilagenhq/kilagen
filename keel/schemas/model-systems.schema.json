@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kilagen.com/schemas/model-systems.schema.json",
+  "title": "Kilagen system vocabulary",
+  "description": "program/model/systems.yml — flat ids for the systems: facet. A system is a label, not a profile: what is deployed, how it is configured and who uses it is the estate's truth, reachable through url.",
+  "type": "object",
+  "properties": {
+    "systems": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id":   { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$", "description": "Lowercase kebab-case. May start with a digit: real products do (1password)." },
+          "name": { "type": "string", "minLength": 1 },
+          "url":  { "type": "string", "format": "uri", "pattern": "^https?://", "description": "This system's entry in the real inventory (CMDB, estate tool)" }
+        },
+        "required": ["id", "name"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["systems"],
+  "additionalProperties": false
+}

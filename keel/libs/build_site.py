@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
-"""Build the _site/ directory for GitHub Pages.
+"""Build the _site/ directory the dashboard is served from.
 
-Scans ``program/`` for all documents and capabilities, reads lens taxonomies
-from ``keel/content/lenses/``, and generates:
+Produces:
 
-  1. ``_site/registry.json``   — structured data for the dashboard
-  2. ``_site/`` directory      — dashboard + raw files for GitHub Pages
-
-The registry.json contains all frontmatter metadata, capabilities, lens
-taxonomies, and pre-calculated coverage. Document bodies are NOT included;
-the dashboard fetches them on demand.
+  1. ``_site/registry.json`` — every document's frontmatter, the vocabularies,
+     the publishing contract and the computed framework coverage. Document
+     bodies are not included; the dashboard fetches them on demand.
+  2. ``_site/`` — the dashboard, the raw program files, and the framework's
+     own written material.
 
 Invoked by the CLI; not runnable on its own:
     kilagen build
@@ -20,91 +18,143 @@ import shutil
 import sys
 from datetime import datetime, timezone
 
-from .keel_lib import PROGRAM, REPO, KEEL, scan_all
+from . import keel_lib
+from .generate_coverage import build_coverage, build_requirement_state, summarize
+from .keel_lib import (TYPES, extract_frontmatter, load_framework_meta,
+                       load_framework_vocab, scan_all)
 
-SITE = REPO / "_site"
+# Framework material the dashboard deep-links into. The site layout is flat on
+# purpose and is not the package layout: the dashboard resolves this material
+# as ../keel/<name>, and its security allowlist keys off those bare names.
+KEEL_SITE_ITEMS = ["templates", "adrs", "glossary.md", "design.md",
+                   "compliance.md", "instantiation.md", "README.md"]
 
 
-def build_registry_json(config, documents, capabilities, lenses, coverage, schedule=None, threat_history=None) -> dict:
-    """Build the registry.json structure for the dashboard.
+def site_dir():
+    """Where the site is built — resolved at call time, never at import."""
+    return keel_lib.REPO / "_site"
 
-    Args:
-        config: Instance config dict from ``load_config()``.
-        documents: List of document dicts from ``scan_documents()``.
-        capabilities: Capabilities dict from ``scan_capabilities()``.
-        lenses: Lens taxonomy dict from ``scan_lenses()``.
-        coverage: Coverage map from ``build_coverage()``.
-        schedule: List of scheduled activity dicts from ``load_schedule()``.
-        threat_history: Ordered threat-ranking snapshots from ``load_threat_history()``.
 
-    Returns:
-        Dict ready to be serialized as JSON into ``_site/registry.json``.
+def framework_adrs() -> list[dict]:
+    """Index the framework's own ADRs, so the dashboard can list them.
+
+    They are shipped material, not program content, so they never enter the
+    document scan — but the Reference page needs their titles and the sentence
+    under each one, and the build is the only place that knows what it copied.
     """
-    result = {
+    folder = keel_lib.KEEL / "content" / "adrs"
+    if not folder.is_dir():
+        return []
+    entries = []
+    for path in sorted(folder.glob("*.md")):
+        if path.name == "README.md":
+            continue
+        fm = extract_frontmatter(path) or {}
+        entries.append({
+            "path": f"keel/adrs/{path.name}",
+            "id": fm.get("id") or path.stem,
+            "description": " ".join(str(fm.get("description", "")).split()),
+            "title": fm.get("title") or path.stem,
+            "decided": fm.get("decided", ""),
+        })
+    return entries
+
+
+def tool_inventory() -> dict:
+    """The vendored tool inventory, by capability.
+
+    Reference material about other people's products, maintained in its own
+    repository and snapshotted into a release (scripts/vendor-tools.sh). It
+    never says what this organisation runs — that is the estate's truth — and
+    it is never a recommendation.
+    """
+    folder = keel_lib.KEEL / "content" / "tools"
+    if not folder.is_dir():
+        return {}
+    found = {}
+    for path in sorted(folder.glob("*.yml")):
+        data = keel_lib._load_yaml(path) or {}
+        capability = data.get("capability")
+        if capability and data.get("tools"):
+            found[capability] = {"updated": str(data.get("updated", "")),
+                                 "tools": data["tools"]}
+    return found
+
+
+def build_registry_json(config, documents, model, publish, coverage, requirements,
+                        schedule=None, frameworks=None) -> dict:
+    """Assemble the structure the dashboard reads.
+
+    ``types`` travels with it so the dashboard renders the type registry rather
+    than keeping a second copy of it that can drift.
+    """
+    registry = {
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "config": config,
+        "types": [{"name": t.name, "prefix": t.prefix, "folder": t.folder,
+                   "dated": t.dated, "immutable": t.immutable} for t in TYPES],
         "documents": documents,
-        "capabilities": capabilities,
-        "lenses": lenses,
+        "model": model,
+        "publish": publish,
         "coverage": coverage,
+        "requirements": requirements,
+        # The structure and prose of each framework, kept apart from coverage
+        # on purpose: a group, a colour or a description must never be able to
+        # influence what coverage computes.
+        "frameworks": frameworks if frameworks is not None else {},
+        "framework_adrs": framework_adrs(),
+        "tools": tool_inventory(),
     }
     if schedule is not None:
-        result["schedule"] = schedule
-    if threat_history is not None:
-        result["threat_history"] = threat_history
-    return result
+        registry["schedule"] = schedule
+    return registry
 
 
 def build_site(registry: dict):
-    """Assemble the _site/ directory for GitHub Pages.
+    """Assemble the _site/ directory."""
+    site = site_dir()
+    if site.exists():
+        shutil.rmtree(site)
+    site.mkdir()
 
-    Writes ``registry.json``, copies the dashboard, program content, and
-    selected keel files. Also creates the root redirect and ``.nojekyll``.
-
-    Args:
-        registry: The registry dict from ``build_registry_json()``.
-    """
-    if SITE.exists():
-        shutil.rmtree(SITE)
-    SITE.mkdir()
-
-    # registry.json
-    (SITE / "registry.json").write_text(
+    (site / "registry.json").write_text(
         json.dumps(registry, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
 
-    # Dashboard
-    shutil.copytree(KEEL / "dashboard", SITE / "dashboard", ignore=shutil.ignore_patterns("node_modules", "tests", "*.config.js", "*.test.js", ".gitignore", ".node-version", "jsconfig.json"))
+    shutil.copytree(
+        keel_lib.KEEL / "dashboard", site / "dashboard",
+        ignore=shutil.ignore_patterns("node_modules", "tests", "*.config.js", "*.test.js",
+                                      ".gitignore", ".node-version", "jsconfig.json"),
+    )
 
-    # Program (raw .md files for on-demand body fetch)
-    shutil.copytree(PROGRAM, SITE / "program")
+    # program/branding.css, if the instance wrote one: copied next to app.css
+    # and loaded after it, so redefining a public token is one line and no
+    # fork. index.html links it unconditionally; a missing file is a 404 the
+    # browser ignores, and one request beats generating two index pages.
+    branding = keel_lib.PROGRAM / "branding.css"
+    if branding.is_file():
+        shutil.copy2(branding, site / "dashboard" / "branding.css")
+        print("  program/branding.css  (instance palette)")
 
-    # keel (lenses, glossary, maturity, design for deep-link).
-    #
-    # The site layout is flat on purpose and is not the package layout: the
-    # dashboard resolves framework material as ../keel/<name>, and its security
-    # allowlist keys off those bare names. Authored material lives under
-    # content/ in the package and is flattened here.
-    keel_dest = SITE / "keel"
+    # Raw .md files, so the dashboard can fetch a document body on demand.
+    shutil.copytree(keel_lib.PROGRAM, site / "program")
+
+    keel_dest = site / "keel"
     keel_dest.mkdir()
-    shutil.copytree(KEEL / "schemas", keel_dest / "schemas")
-    for item in ["lenses", "templates", "glossary.md", "maturity.md", "design.md",
-                 "compliance.md", "lenses.md", "instantiation.md", "README.md"]:
-        src = KEEL / "content" / item
+    shutil.copytree(keel_lib.KEEL / "schemas", keel_dest / "schemas")
+    for item in KEEL_SITE_ITEMS:
+        src = keel_lib.KEEL / "content" / item
         if src.is_dir():
             shutil.copytree(src, keel_dest / item)
         elif src.is_file():
             shutil.copy2(src, keel_dest / item)
 
-    # Root redirect
-    (SITE / "index.html").write_text(
+    (site / "index.html").write_text(
         '<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=dashboard/"></head><body></body></html>\n',
         encoding="utf-8",
     )
-
-    # .nojekyll
-    (SITE / ".nojekyll").touch()
+    (site / ".nojekyll").touch()
 
 
 def main() -> int:
@@ -113,9 +163,28 @@ def main() -> int:
         print(f"\nERROR: {warnings} YAML warning(s) during scan — fix them before building.", file=sys.stderr)
         return 1
 
+    print("Computing framework coverage...", end=" ", flush=True)
+    coverage = build_coverage(data["config"], data["documents"], load_framework_vocab())
+    requirements = build_requirement_state(data["documents"])
+    counts = summarize(coverage)
+    print(", ".join(f"{fw} {c['mapped']}/{c['clauses']} mapped" for fw, c in counts.items()) or "no frameworks")
+
     print("Building registry.json...", end=" ", flush=True)
-    registry = build_registry_json(**data)
+    registry = build_registry_json(
+        data["config"], data["documents"], data["model"], data["publish"],
+        coverage, requirements, data["schedule"], load_framework_meta(),
+    )
     print("done")
+
+    # publish: none keeps a document out of external destinations, never out
+    # of the built site — the site is as public as the repository. Saying so
+    # here is what stops somebody discovering it the expensive way.
+    unpublished = [d["id"] for d in data["documents"]
+                   if d.get("publish") == "none" and d.get("id")]
+    if unpublished:
+        print(f"  note: {len(unpublished)} document(s) marked 'publish: none' are still in "
+              "_site/ — that field governs external destinations, not the dashboard "
+              "(keel/adrs/adr-one-way-publishing.md)")
 
     print("Building _site/...", end=" ", flush=True)
     try:
@@ -126,7 +195,7 @@ def main() -> int:
         return 1
     print("done")
 
-    print(f"\n  _site/registry.json  ({(SITE / 'registry.json').stat().st_size // 1024}KB)")
+    site = site_dir()
+    print(f"\n  _site/registry.json  ({(site / 'registry.json').stat().st_size // 1024}KB)")
     print("  _site/               (ready for deploy or local server)")
     return 0
-

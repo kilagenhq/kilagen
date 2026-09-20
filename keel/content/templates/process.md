@@ -1,42 +1,33 @@
 ---
-id: PRO-REPLACE-ME
+id: pro-replace-me
+type: process
 title: "REPLACE ME"
 description: >
-  REPLACE ME — one or two sentences an LLM can use to decide relevance.
-type: process
+  REPLACE ME — one or two sentences an agent can use to decide relevance. This
+  is the field retrieval leans on hardest.
 status: draft
-domain: REPLACE-ME
-owner: role-REPLACE-ME
+owner: role-replace-me
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
-related:                     # optional — remove section if unused
-  policies: []
+domains: []                  # ids from program/model/domains.yml — a document may declare several
+capabilities: []             # ids from program/model/capabilities.yml
+systems: []                  # ids from program/model/systems.yml
+related: []                  # flat list of ids; the prefix says what each one is
+# publish: [confluence]      # overrides the per-type default in program/publish.yml
+# source_of_truth: https://example.com/replace-me   # the original lives there; this is the record
 ---
 
 # REPLACE ME — Process Title
 
-## Purpose
+## When this runs
 
-What this process accomplishes and when it should be followed.
-
-## When to use
-
-Triggering conditions or schedule for executing this process.
-
-## Prerequisites
-
-What must be in place before starting (access, approvals, tools).
+The trigger, and how often.
 
 ## Steps
 
-1. ...
-2. ...
-3. ...
+1. REPLACE ME
+2. REPLACE ME
 
-## Verification
+## Inputs and outputs
 
-How to confirm the process was completed successfully.
-
-## References
-
-- Links to related policies, standards, or runbooks.
+What the process needs, and what it produces.

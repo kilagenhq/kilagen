@@ -1,49 +1,43 @@
 ---
-id: POL-REPLACE-ME
+id: pol-replace-me
+type: policy
 title: "REPLACE ME"
 description: >
-  REPLACE ME — one or two sentences an LLM can use to decide relevance.
-  This is the most important field for AI retrieval.
-type: policy
+  REPLACE ME — one or two sentences an agent can use to decide relevance. This
+  is the field retrieval leans on hardest.
 status: draft
-domain: grc
-owner: role-REPLACE-ME
+owner: role-replace-me
 version: "1.0"
-approved_by: [role-REPLACE-ME]   # array of role slugs that approved this policy
-reviewed_by: [role-REPLACE-ME]   # role(s) that reviewed this policy (same shape as approved_by)
+approved_by: [role-replace-me]
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
-related:                     # optional — remove section if unused
-  standards: []              # STD-* IDs that implement this policy
+domains: []                  # ids from program/model/domains.yml — a document may declare several
+capabilities: []             # ids from program/model/capabilities.yml
+systems: []                  # ids from program/model/systems.yml
+related: []                  # flat list of ids; the prefix says what each one is
+# publish: [confluence]      # overrides the per-type default in program/publish.yml
+# source_of_truth: https://example.com/replace-me   # the original lives there; this is the record
 ---
 
 # REPLACE ME — Policy Title
 
 ## Purpose
 
-Why this policy exists and what business objective it supports.
+Why this policy exists and which business objective it serves.
 
 ## Scope
 
-Who and what this policy applies to (systems, teams, environments).
+Who and what it applies to.
 
-## Policy Objectives
+## Objectives
 
-High-level goals this policy establishes. Standards implement these objectives through enforceable requirements.
+What this policy requires in principle. Standards turn each objective into
+numbered, enforceable requirements.
 
-1. ...
-2. ...
-
-## Standards
-
-List the standards that implement this policy.
+1. REPLACE ME
+2. REPLACE ME
 
 ## Exceptions
 
-How to request an exception, who approves, and how exceptions are tracked. Exceptions should be documented as EXC-* entries in `01-grc/exceptions/`.
-
-## Revision History
-
-| Version | Date | Approved by | Change |
-|---|---|---|---|
-| 1.0 | YYYY-MM-DD | Role | Initial version |
+How a deviation is requested and approved. An approved one becomes an `exc-*`
+document with an expiry; an unapproved one is a `gap-*`.

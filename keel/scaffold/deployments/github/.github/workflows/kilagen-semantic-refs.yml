@@ -1,4 +1,4 @@
-# Validate bidirectional cross-references between systems, capabilities, and documents.
+# Validate that every reference in the program resolves — facets, relations, roles, requirements.
 name: Semantic references
 
 on:

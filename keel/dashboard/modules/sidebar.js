@@ -1,214 +1,169 @@
 import { mk, mkIcon } from './dom.js';
-import { DOMAINS, SUBFOLDER_LABELS, SUBFOLDER_ICONS } from './constants.js';
-import { state } from './state.js';
-import { go } from './nav.js';
+import { state, docsOfType, docsWithFacet } from './state.js';
+import { go, getHash, splitHash } from './nav.js';
+import { typeColor, typePlural, fwLabel, groupedTypes, domainIcon, domainColor } from './constants.js';
 
-var treeEl = document.getElementById('tree');
-var searchEl = document.getElementById('search');
+/* The sidebar is the whole navigation.
+ *
+ * The lens is chosen in the header; this is what is inside it.
+ *
+ * Both used to live here, which put everything one level deeper than it needed
+ * to be: a type sat under Browse, which sat in a list of five. Now the header
+ * says which lens you are in and the tree starts at the things themselves —
+ * the types under Program, the domains under Domains, the frameworks under
+ * Compliance. One level, and the tree is the only way into any of them, which
+ * is also the only navigation that survives at phone width.
+ *
+ * Reference is not here and neither is Overview. Reference is documentation
+ * about Kilagen rather than about this program; Overview is the program's own
+ * front page and lives on the mark in the corner.
+ *
+ * Only the active lens's subtree is open, which is what keeps seven entries
+ * from becoming forty.
+ *
+ * The active item is derived from the hash rather than pushed by a view,
+ * because the sidebar is rebuilt before the view renders and would otherwise
+ * always be one navigation behind.
+ */
 
-function getDocsForDomain(dir) {
-  return state.allDocs.filter(function(d) {
-    return d.path.startsWith(dir + '/') && d.path !== dir + '/README.md' && d.path !== dir + '/capabilities.yml';
+const treeEl = document.getElementById('tree');
+const searchEl = document.getElementById('search');
+const navEl = document.getElementById('app-nav');
+
+/* The four lenses that hold something. Overview is the mark in the corner —
+   it is the program itself rather than a view of part of it. */
+export const LENSES = [
+  ['program', 'Program'],
+  ['domains', 'Domains'],
+  ['compliance', 'Compliance'],
+  ['schedule', 'Schedule'],
+];
+
+/* Which lens a hash belongs to, so a detail page keeps its lens lit. */
+export function lensOf(hash) {
+  const head = hash.split('/')[0];
+  if (head === 'domain') return 'domains';
+  if (head === 'doc') return '';
+  if (head === '') return 'home';
+  return head;
+}
+
+function item(label, route, opts) {
+  const o = opts || {};
+  const el = mk('div', 'tree-item' + (o.active ? ' active' : '') + (o.nested ? ' tree-item-nested' : ''));
+  if (o.icon) {
+    const icon = mkIcon(o.icon, 'doc-type-icon');
+    if (o.color) icon.style.color = o.color;
+    el.appendChild(icon);
+  }
+  el.appendChild(mk('span', 'tree-item-label', label));
+  if (o.count != null) {
+    el.appendChild(mk('span', 'tree-count' + (o.count ? '' : ' tree-count-zero'), String(o.count)));
+  }
+  if (o.title) el.title = o.title;
+  el.addEventListener('click', function(e) { go(route, e); });
+  return el;
+}
+
+/* What is inside the lens you are looking at, at the top level of the tree. */
+function subtree(lens, hash) {
+  const rows = [];
+  if (lens === 'program') {
+    groupedTypes(state.types.map(function(t) { return t.name; })).forEach(function(group) {
+      const label = mk('div', 'tree-group-label');
+      label.appendChild(mk('span', '', group.label));
+      if (group.note) label.appendChild(mk('span', 'tree-group-note', group.note));
+      rows.push(label);
+      group.types.forEach(function(name) {
+        rows.push(item(typePlural(name), 'program/' + name, {
+          icon: name, color: typeColor(name),
+          count: docsOfType(name).length, active: hash === 'program/' + name,
+        }));
+      });
+    });
+  } else if (lens === 'domains') {
+    (state.model.domains || []).forEach(function(d) {
+      rows.push(item(d.name, 'domain/' + d.id, {
+        icon: domainIcon(d.id), color: domainColor(d.id), title: d.id,
+        count: docsWithFacet('domains', d.id).length,
+        active: hash === 'domain/' + d.id,
+      }));
+    });
+  } else if (lens === 'compliance') {
+    Object.keys(state.coverage).forEach(function(fw) {
+      const row = item(fwLabel(fw), 'compliance/' + fw, { active: hash === 'compliance/' + fw });
+      row.appendChild(mk('span', 'tree-count', frameworkCount(fw)));
+      rows.push(row);
+    });
+  } else if (lens === 'schedule') {
+    /* The two clocks the lens keeps, so the tree is not empty here either. */
+    const params = splitHash(getHash()).params;
+    rows.push(item('Activities', 'schedule', { active: params.tab !== 'reviews' }));
+    rows.push(item('Reviews', 'schedule?tab=reviews', { active: params.tab === 'reviews' }));
+  }
+  return rows;
+}
+
+function frameworkCount(fw) {
+  const clauses = state.coverage[fw] || {};
+  const refs = Object.keys(clauses);
+  const mapped = refs.filter(function(r) { return clauses[r].coverage === 'mapped'; }).length;
+  return mapped + ' / ' + refs.length;
+}
+
+function renderSearchMatches(query) {
+  const hits = [];
+  Object.keys(state.fmCache).forEach(function(path) {
+    const fm = state.fmCache[path];
+    const haystack = (path + ' ' + (fm.id || '') + ' ' + (fm.title || '') + ' ' + (fm.description || '')).toLowerCase();
+    if (haystack.indexOf(query) !== -1) hits.push(fm);
+  });
+  treeEl.appendChild(mk('div', 'tree-group-label', hits.length + ' matches'));
+  hits.slice(0, 80).forEach(function(fm) {
+    treeEl.appendChild(item(fm.id, 'doc/' + fm.path,
+      { icon: fm.type, color: typeColor(fm.type), active: state.currentDoc === fm.path }));
   });
 }
 
-function groupBySubfolder(docs, dir) {
-  var groups = {};
-  docs.forEach(function(d) {
-    var rest = d.path.substring(dir.length + 1);
-    var parts = rest.split('/');
-    if (parts.length >= 2) {
-      var subfolder = parts[0];
-      if (!groups[subfolder]) groups[subfolder] = [];
-      groups[subfolder].push(d);
-    }
-  });
-  return groups;
-}
-
-function docLabel(doc) {
-  var fm = state.fmCache[doc.path];
-  if (fm) return fm.title || fm.id || doc.name;
-  return doc.name.replace(/\.(?:md|yml)$/, '');
-}
-
-// --- Reusable builders ---
-
-function mkItem(parent, label, iconType, route) {
-  var item = mk('div', 'app-nav-item');
-  if (state.currentDoc === route) item.classList.add('active');
-  var lbl = mk('span', 'sidebar-label-inner');
-  if (iconType) lbl.appendChild(mkIcon(iconType, 'sidebar-icon'));
-  lbl.appendChild(document.createTextNode(label));
-  item.appendChild(lbl);
-  item.addEventListener('click', function(e) { go(route, e); });
-  parent.appendChild(item);
-  return item;
-}
-
-function mkSection(label, iconType, stateKey, defaultOpen, onHeaderClick) {
-  var isExpanded = state.expandedDomains[stateKey] !== undefined ? !!state.expandedDomains[stateKey] : !!defaultOpen;
-  var filter = searchEl.value.toLowerCase().trim();
-  if (filter) isExpanded = true;
-
-  var header = mk('div', 'app-nav-item section-header');
-  var arrow = mk('span', '', isExpanded ? '\u25BE' : '\u25B8');
-  arrow.style.fontSize = '9px'; arrow.style.minWidth = '10px'; arrow.style.color = 'var(--fg3)'; arrow.style.cursor = 'pointer';
-  arrow.addEventListener('click', function(e) {
-    e.stopPropagation();
-    state.expandedDomains[stateKey] = !isExpanded;
-    rebuildSidebar();
-  });
-  header.appendChild(arrow);
-  var lbl = mk('span', 'sidebar-label-inner');
-  if (iconType) lbl.appendChild(mkIcon(iconType, 'sidebar-icon'));
-  lbl.appendChild(document.createTextNode(label));
-  header.appendChild(lbl);
-  header.addEventListener('click', function(e) {
-    if (!isExpanded) { state.expandedDomains[stateKey] = true; rebuildSidebar(); }
-    if (onHeaderClick) onHeaderClick(e);
-  });
-  treeEl.appendChild(header);
-
-  if (!isExpanded) return null;
-  var children = mk('div', 'sidebar-children');
-  treeEl.appendChild(children);
-  return children;
-}
-
-var SUBFOLDER_BROWSE = { policies: 'policy', standards: 'standard', processes: 'process', runbooks: 'runbook', guidelines: 'guideline', playbooks: 'playbook', 'threat-models': 'threat-model', vendors: 'vendor', risks: 'risk', threats: 'threat', exceptions: 'exception' };
-
-function mkSubfolderLinks(parent, dir, docs) {
-  var filter = searchEl.value.toLowerCase().trim();
-  var groups = groupBySubfolder(docs, dir);
-  Object.keys(groups).sort().forEach(function(subfolder) {
-    var sfDocs = groups[subfolder];
-    var label = SUBFOLDER_LABELS[subfolder] || subfolder;
-    var count = filter ? sfDocs.filter(function(d) { return docLabel(d).toLowerCase().indexOf(filter) !== -1; }).length : sfDocs.length;
-    if (!count) return;
-    var typeKey = SUBFOLDER_BROWSE[subfolder];
-    var route = typeKey ? 'browse/' + typeKey + '/' + dir : null;
-    if (!route) return;
-    var subIcon = SUBFOLDER_ICONS[subfolder];
-    mkItem(parent, label + ' (' + count + ')', subIcon, route);
+/* The lens bar in the header. Rebuilt with the tree so the two cannot disagree
+   about which lens is lit. */
+function rebuildNav(lens) {
+  if (!navEl) return;
+  navEl.textContent = '';
+  LENSES.forEach(function(pair) {
+    const el = mk('button', 'app-nav-btn' + (lens === pair[0] ? ' active' : ''), pair[1]);
+    el.type = 'button';
+    if (lens === pair[0]) el.setAttribute('aria-current', 'page');
+    el.addEventListener('click', function(e) { go(pair[0], e); });
+    navEl.appendChild(el);
   });
 }
 
-// ================================================================
+/* Overview has no subtree, so the tree would be an empty column beside it.
+   Every other lens has one and needs it open. The panel follows the lens
+   rather than a preference, because the preference would be wrong half the
+   time — there is nothing to remember about a sidebar with nothing in it. */
+function setCollapsed(collapsed) {
+  const sidebar = document.getElementById('sidebar');
+  const btn = document.getElementById('sidebar-toggle');
+  if (!sidebar) return;
+  sidebar.classList.toggle('collapsed', collapsed);
+  if (btn) btn.textContent = collapsed ? '\u203A' : '\u2039';
+}
+
 export function rebuildSidebar() {
   treeEl.textContent = '';
-  var filter = searchEl.value.toLowerCase().trim();
 
-  // ── GOVERNANCE ──
-  var govChildren = mkSection('Governance', 'dom-grc', '_governance', false, function(e) { go('standards', e); });
-  if (govChildren) {
-    // Collect all governance items into a single array, then sort alphabetically
-    var govAllItems = [];
+  const hash = splitHash(getHash()).route;
+  const lens = lensOf(hash);
+  /* A document belongs to the lens it was opened from, and the hash does not
+     carry that — so the bar keeps whatever was lit. */
+  if (lens) rebuildNav(lens);
 
-    // GRC subfolders
-    var grcDocs = getDocsForDomain('01-grc');
-    if (grcDocs.length) {
-      var groups = groupBySubfolder(grcDocs, '01-grc');
-      Object.keys(groups).forEach(function(subfolder) {
-        var sfDocs = groups[subfolder];
-        var label = SUBFOLDER_LABELS[subfolder] || subfolder;
-        var count = filter ? sfDocs.filter(function(d) { return docLabel(d).toLowerCase().indexOf(filter) !== -1; }).length : sfDocs.length;
-        if (!count) return;
-        var typeKey = SUBFOLDER_BROWSE[subfolder];
-        if (!typeKey) return;
-        var subIcon = SUBFOLDER_ICONS[subfolder];
-        govAllItems.push({ label: label, count: count, icon: subIcon, route: 'browse/' + typeKey + '/01-grc' });
-      });
-    }
+  const query = (searchEl && searchEl.value || '').trim().toLowerCase();
+  if (query) { setCollapsed(false); renderSearchMatches(query); return; }
 
-    // Data Assets
-    var daCount = state.allDocs.filter(function(d) { return d.path.startsWith('data-assets/DA-'); }).length;
-    if (daCount) govAllItems.push({ label: 'Data Assets', count: daCount, icon: 'data-asset', route: 'browse/data-asset' });
-
-    // Business Processes
-    var bpCount = state.allDocs.filter(function(d) { return d.path.startsWith('business-processes/BP-'); }).length;
-    if (bpCount) govAllItems.push({ label: 'Business Processes', count: bpCount, icon: 'business-process', route: 'browse/business-process' });
-
-    // Sort and render
-    govAllItems.sort(function(a, b) { return a.label.localeCompare(b.label); });
-    govAllItems.forEach(function(item) {
-      if (filter && item.label.toLowerCase().indexOf(filter) === -1) return;
-      mkItem(govChildren, item.label + ' (' + item.count + ')', item.icon, item.route);
-    });
-  }
-
-  // ── DOMAINS ──
-  var domChildren = mkSection('Domains', 'domain', '_domains', true, function(e) { go('domains', e); });
-  if (domChildren) {
-    DOMAINS.filter(function(dd) { return dd.dir !== '01-grc'; }).forEach(function(dd) {
-      var dc = state.domainCaps[dd.dir];
-      var capKeys = dc ? Object.keys(dc) : [];
-      var domDocs = getDocsForDomain(dd.dir);
-      var isDomExpanded = !!state.expandedDomains[dd.dir] || !!filter;
-
-      if (filter) {
-        var domainMatch = dd.label.toLowerCase().indexOf(filter) !== -1 || dd.dir.indexOf(filter) !== -1;
-        var capMatch = capKeys.some(function(c) { return (dc[c].name || c).toLowerCase().indexOf(filter) !== -1; });
-        var docMatch = domDocs.some(function(d) { return docLabel(d).toLowerCase().indexOf(filter) !== -1; });
-        if (!domainMatch && !capMatch && !docMatch) return;
-      }
-
-      // Domain row (L2) — collapsible
-      var row = mk('div', 'app-nav-item');
-      if (state.currentDoc === dd.dir) row.classList.add('active');
-      var dArrow = mk('span', '', isDomExpanded ? '\u25BE' : '\u25B8');
-      dArrow.style.fontSize = '9px'; dArrow.style.minWidth = '10px'; dArrow.style.color = 'var(--fg3)'; dArrow.style.cursor = 'pointer';
-      dArrow.addEventListener('click', function(e) { e.stopPropagation(); state.expandedDomains[dd.dir] = !state.expandedDomains[dd.dir]; rebuildSidebar(); });
-      row.appendChild(dArrow);
-      var dLabel = mk('span', 'sidebar-label-inner'); dLabel.appendChild(mkIcon(dd.iconType, 'sidebar-icon')); dLabel.appendChild(document.createTextNode(dd.label)); row.appendChild(dLabel);
-      row.addEventListener('click', function(e) { if (!state.expandedDomains[dd.dir]) { state.expandedDomains[dd.dir] = true; rebuildSidebar(); } go('domain/' + dd.dir, e); });
-      domChildren.appendChild(row);
-
-      if (!isDomExpanded) return;
-
-      // Domain children (L3) — subfolder links only
-      var domInner = mk('div', 'sidebar-children');
-      domChildren.appendChild(domInner);
-      if (domDocs.length) mkSubfolderLinks(domInner, dd.dir, domDocs);
-    });
-  }
-
-  // ── SCHEDULE ──
-  if (state.schedule && state.schedule.length) {
-    var schedHeader = mk('div', 'app-nav-item section-header');
-    schedHeader.style.cursor = 'pointer';
-    if (state.currentView === 'schedule') schedHeader.classList.add('active');
-    var schedLbl = mk('span', 'sidebar-label-inner');
-    schedLbl.appendChild(mkIcon('schedule', 'sidebar-icon'));
-    schedLbl.appendChild(document.createTextNode('Schedule (' + state.schedule.length + ')'));
-    schedHeader.appendChild(schedLbl);
-    schedHeader.addEventListener('click', function(e) { go('schedule', e); });
-    treeEl.appendChild(schedHeader);
-  }
-
-  // ── SYSTEMS ──
-  var sysCount = state.allDocs.filter(function(d) { return d.path.startsWith('systems/SYS-'); }).length;
-  var sysHeader = mk('div', 'app-nav-item section-header');
-  sysHeader.style.cursor = 'pointer';
-  if (state.currentView === 'systems') sysHeader.classList.add('active');
-  var sysLbl = mk('span', 'sidebar-label-inner');
-  sysLbl.appendChild(mkIcon('system', 'sidebar-icon'));
-  sysLbl.appendChild(document.createTextNode('Systems (' + sysCount + ')'));
-  sysHeader.appendChild(sysLbl);
-  sysHeader.addEventListener('click', function(e) { go('systems', e); });
-  treeEl.appendChild(sysHeader);
-
-  // ── ADRs ──
-  var adrCount = state.allDocs.filter(function(d) { return d.path.startsWith('adr/'); }).length;
-  if (adrCount) {
-    var adrHeader = mk('div', 'app-nav-item section-header');
-    adrHeader.style.cursor = 'pointer';
-    if (state.currentView === 'adrs') adrHeader.classList.add('active');
-    var adrLbl = mk('span', 'sidebar-label-inner');
-    adrLbl.appendChild(mkIcon('adr', 'sidebar-icon'));
-    adrLbl.appendChild(document.createTextNode('ADRs (' + adrCount + ')'));
-    adrHeader.appendChild(adrLbl);
-    adrHeader.addEventListener('click', function(e) { go('adrs', e); });
-    treeEl.appendChild(adrHeader);
-  }
+  const rows = subtree(lens || state.currentView, hash);
+  rows.forEach(function(row) { treeEl.appendChild(row); });
+  setCollapsed(hash === 'home' || hash === '');
 }

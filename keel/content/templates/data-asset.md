@@ -1,46 +1,36 @@
 ---
-id: DA-REPLACE-ME
+id: da-replace-me
+type: data-asset
 title: "REPLACE ME"
 description: >
-  REPLACE ME — one or two sentences an LLM can use to decide relevance.
-type: data-asset
+  REPLACE ME — one or two sentences an agent can use to decide relevance. This
+  is the field retrieval leans on hardest.
 status: draft
-domain: data-security
-owner: role-REPLACE-ME
+owner: role-replace-me
+classification: internal    # public | internal | confidential | restricted
+pii: false
+retention_years: null
+retention_justification: "REPLACE ME"
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
-classification: confidential
-pii: false
-retention_years: 5
-retention_justification: "REPLACE ME"
-criticality: medium
-confidentiality: medium
-integrity: medium
-availability: medium
-related:
-  systems: []
+domains: []                  # ids from program/model/domains.yml — a document may declare several
+capabilities: []             # ids from program/model/capabilities.yml
+systems: []                  # ids from program/model/systems.yml
+related: []                  # flat list of ids; the prefix says what each one is
+# publish: [confluence]      # overrides the per-type default in program/publish.yml
+# source_of_truth: https://example.com/replace-me   # the original lives there; this is the record
 ---
 
 # REPLACE ME — Data Asset Title
 
-## Description
+## What this data is
 
-What this information asset is and why it exists.
+Its content, where it originates and where it lives.
 
-## Lifecycle
+## Handling
 
-| Phase | Detail |
-|---|---|
-| Collection | How and where data is collected or created |
-| Processing | Systems that process or transform this data |
-| Storage | Where data is stored at rest |
-| Transmission | How data moves between systems |
+What the classification requires in practice.
 
-## Impact assessment
+## Retention
 
-| Dimension | Confidentiality | Integrity | Availability |
-|---|---|---|---|
-| Financial | ... | ... | ... |
-| Operational | ... | ... | ... |
-| Legal & Regulatory | ... | ... | ... |
-| Reputational | ... | ... | ... |
+How long it is kept and why that period.

@@ -1,4 +1,4 @@
-"""Shared helpers for kilagen scripts."""
+"""Shared helpers for kilagen: paths, the type registry, and reading program/."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import os
 import re
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 import yaml
@@ -15,8 +16,8 @@ class StringLoader(yaml.SafeLoader):
     """YAML loader that preserves dates as strings.
 
     Without this, PyYAML coerces ISO dates (e.g. ``2026-06-15``) to
-    ``datetime`` objects, which breaks string-based date comparisons
-    used by ``check_reviews.py`` and registry generation.
+    ``datetime`` objects, which breaks the string comparisons used by the
+    schema (which expects strings), the review checks and the generators.
     """
     pass
 
@@ -25,6 +26,76 @@ StringLoader.yaml_implicit_resolvers = {
     k: [(t, r) for t, r in v if t != "tag:yaml.org,2002:timestamp"]
     for k, v in StringLoader.yaml_implicit_resolvers.items()
 }
+
+
+class DocType:
+    """One document type: what it is called, where it lives, how it is dated.
+
+    Attributes:
+        name: The ``type:`` value in frontmatter (e.g. ``"standard"``).
+        prefix: The id prefix (e.g. ``"std"``).
+        folder: The directory under ``program/`` that stores it.
+        dated: Whether instances are partitioned by year (``gaps/2026/gap-x.md``).
+        immutable: Whether the type records an event instead of a review cycle.
+    """
+
+    __slots__ = ("name", "prefix", "folder", "dated", "immutable")
+
+    def __init__(self, name, prefix, folder, *, dated=False, immutable=False):
+        self.name = name
+        self.prefix = prefix
+        self.folder = folder
+        self.dated = dated
+        self.immutable = immutable
+
+    def __repr__(self):
+        return f"DocType({self.name!r})"
+
+
+# The single registry every other module derives from. A folder means the
+# document type and nothing else; a subfolder may only ever mean a year.
+TYPES: tuple[DocType, ...] = (
+    DocType("policy", "pol", "policies"),
+    DocType("standard", "std", "standards"),
+    DocType("process", "pro", "processes"),
+    DocType("runbook", "rb", "runbooks"),
+    DocType("playbook", "pb", "playbooks"),
+    DocType("guideline", "gl", "guidelines"),
+    DocType("role", "role", "roles"),
+    DocType("vendor", "vnd", "vendors"),
+    DocType("threat", "thr", "threats"),
+    DocType("threat-model", "tm", "threat-models"),
+    DocType("data-asset", "da", "data-assets"),
+    DocType("business-process", "bp", "business-processes"),
+    DocType("risk", "rsk", "risks"),
+    DocType("exception", "exc", "exceptions", dated=True),
+    DocType("gap", "gap", "gaps", dated=True),
+    DocType("decision", "dec", "decisions", immutable=True),
+    DocType("incident", "inc", "incidents", dated=True, immutable=True),
+)
+
+BY_NAME = {t.name: t for t in TYPES}
+BY_PREFIX = {t.prefix: t for t in TYPES}
+BY_FOLDER = {t.folder: t for t in TYPES}
+
+# Longest prefix first: "role" must win over a hypothetical "ro", and the loop
+# below relies on the order to resolve an id to exactly one type.
+_PREFIX_ORDER = sorted(BY_PREFIX, key=len, reverse=True)
+
+ID_RE = re.compile(r"^(" + "|".join(t.prefix for t in TYPES) + r")-[a-z0-9][a-z0-9-]*$")
+REQUIREMENT_RE = re.compile(r"^(std-[a-z0-9][a-z0-9-]*)#([0-9]+(?:\.[0-9]+)*)$")
+YEAR_RE = re.compile(r"^\d{4}$")
+
+
+def type_of_id(doc_id: str) -> DocType | None:
+    """Return the DocType an id belongs to, derived from its prefix."""
+    if not isinstance(doc_id, str):
+        return None
+    for prefix in _PREFIX_ORDER:
+        if doc_id.startswith(prefix + "-"):
+            return BY_PREFIX[prefix]
+    return None
+
 
 # The framework's own files are located relative to this module, so they are
 # found both from an installed package and from an editable install of the
@@ -52,26 +123,15 @@ def _discover_repo() -> Path:
 
 REPO = _discover_repo()
 PROGRAM = REPO / "program"
+MODEL = PROGRAM / "model"
 
-def _discover_domain_dirs() -> list[str]:
-    """Return sorted list of domain directory names (e.g. ``["01-grc", ...]``).
-
-    Evaluated lazily on first call to avoid crashing at import time if
-    ``program/`` does not exist yet.
-    """
-    if not PROGRAM.is_dir():
-        return []
-    return sorted(
-        d.name for d in PROGRAM.iterdir()
-        if d.is_dir() and re.match(r"\d{2}-", d.name)
-    )
-
-SKIP_FILES = {"README.md", "capabilities.yml", "registry.md", "registry.json"}
-SKIP_DIRS = {".git", ".github", "node_modules", ".claude", "keel", "_migration", "evidence", "_site"}
+# Directories under program/ that hold no documents.
+NON_DOCUMENT_DIRS = {"model"}
 
 _DEFAULT_CONFIG = {"name": "Security Program", "repo": ""}
 
 _warnings = 0
+
 
 def _warn(msg: str):
     """Print a warning to stderr and increment the global warning counter."""
@@ -91,37 +151,26 @@ def get_warnings() -> int:
 
 
 def reset_warnings() -> None:
-    """Reset the warning counter to zero.
-
-    Entry-point ``main()`` functions call this on entry so the "non-zero
-    warnings = this run skipped data" contract is per-run rather than
-    per-process. Without it, an in-process caller that runs two validators
-    back-to-back would see the first run's warnings leak into the second.
-    """
+    """Reset the warning counter to zero, so the contract is per-run."""
     global _warnings
     _warnings = 0
 
-# Fields always present in every document entry (with empty-string default).
-_CORE_FIELDS = ("id", "title", "type", "domain", "status", "description", "owner", "last_reviewed", "next_review")
 
-# Optional fields copied as-is from frontmatter when present (truthy check).
-_OPTIONAL_FIELDS = (
-    "lenses", "related", "applies_to", "domains", "capabilities", "capability",
-    "category", "vendor", "deployment", "severity", "likelihood", "impact",
-    "gap_link", "version", "approved_by", "immutable", "vendor_name", "tier",
-    "certifications", "standard",
-    "requirement_ref", "expires", "risk_severity", "requested_by",
-    "decision_date", "incident_date", "resolved_date",
-    "governance", "managed_externally", "classification",
-    "retention_justification", "business_function",
-    "priority", "priority_rationale",
-    "second_owner", "role_type", "team", "reports_to", "direct_reports",
-    "reviewed_by",
-    "treatment", "control_effectiveness", "root_causes", "risk_category",
-)
-
-# Optional fields where False/0/null is a valid value, so we check `is not None`.
-_OPTIONAL_FIELDS_NULLABLE = ("regulator_reportable", "pii", "customer_facing", "retention_years", "rto")
+def _load_yaml(path: Path) -> dict | None:
+    """Read and parse one YAML file, warning (and returning None) on failure."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        _warn(f"File is not valid UTF-8 (skipped): {path}")
+        return None
+    except OSError as exc:
+        _warn(f"Could not read {path}: {exc}")
+        return None
+    try:
+        return yaml.load(text, Loader=StringLoader)
+    except yaml.YAMLError as exc:
+        _warn(f"YAML parse error in {path}: {exc}")
+        return None
 
 
 def extract_frontmatter(path: Path, *, raise_on_error: bool = False) -> dict | None:
@@ -129,9 +178,8 @@ def extract_frontmatter(path: Path, *, raise_on_error: bool = False) -> dict | N
 
     Args:
         path: Absolute path to the markdown file.
-        raise_on_error: If True, let ``yaml.YAMLError`` propagate instead
-            of logging a warning and returning None. Useful for validation
-            scripts that need to report parse errors inline.
+        raise_on_error: If True, let ``yaml.YAMLError`` propagate instead of
+            logging a warning and returning None.
 
     Returns:
         Parsed frontmatter as a dict, or None if the file has no valid
@@ -158,208 +206,432 @@ def extract_frontmatter(path: Path, *, raise_on_error: bool = False) -> dict | N
         return None
 
 
-def _extract_frameworks(requirements: list) -> dict:
-    """Build a frameworks index from a list of requirement dicts.
+# Fields carried into the registry for every document, with an empty default.
+_CORE_FIELDS = ("id", "type", "title", "description", "status", "owner")
 
-    Args:
-        requirements: The ``requirements`` list from a standard's frontmatter.
-            Each item may be a dict with a ``frameworks`` mapping of
-            ``{fw_key: [clause, ...]}``.
-
-    Returns:
-        Dict keyed by framework key (e.g. ``"nist_csf"``), with lists of
-        clause strings as values.
-    """
-    frameworks: dict[str, list] = {}
-    for req in requirements:
-        if not isinstance(req, dict):
-            continue
-        for fw_key, clauses in req.get("frameworks", {}).items():
-            frameworks.setdefault(fw_key, []).extend(clauses)
-    return frameworks
+# Everything else is copied through when present, so a type-specific field
+# reaches the dashboard without this module growing a branch for it. The
+# schema is what decides which of them are legal on which type.
+_SKIP_IN_PASSTHROUGH = set(_CORE_FIELDS)
 
 
-def _build_entry(path: Path, fm: dict) -> dict:
-    """Build a document entry dict from a file path and its parsed frontmatter.
-
-    Args:
-        path: Path to the markdown file, relative to ``program/``.
-        fm: Parsed YAML frontmatter dict.
-
-    Returns:
-        Document metadata dict with core fields, optional fields, and
-        derived frameworks index.
-    """
-    entry = {"path": str(path)}
+def _build_entry(rel_path: Path, fm: dict) -> dict:
+    """Build a registry entry from a path relative to program/ and frontmatter."""
+    entry = {"path": rel_path.as_posix()}
     for key in _CORE_FIELDS:
         entry[key] = fm.get(key, "")
-    for key in _OPTIONAL_FIELDS:
-        if fm.get(key):
-            entry[key] = fm[key]
-    for key in _OPTIONAL_FIELDS_NULLABLE:
-        if fm.get(key) is not None:
-            entry[key] = fm[key]
-    if fm.get("requirements"):
-        entry["requirements"] = fm["requirements"]
-        entry["frameworks"] = _extract_frameworks(fm["requirements"])
+    for key, value in fm.items():
+        if key in _SKIP_IN_PASSTHROUGH or value is None:
+            continue
+        entry[key] = value
+    doc_type = BY_NAME.get(fm.get("type"))
+    if doc_type is not None:
+        entry["folder"] = doc_type.folder
     return entry
 
 
 def scan_documents() -> list[dict]:
-    """Scan program/ for all .md documents with frontmatter.
+    """Scan program/ for documents, one type folder at a time.
 
-    Walks the ``program/`` tree, extracts frontmatter from every ``.md`` file
-    that has a ``type`` field, and returns a flat list of metadata dicts.
-    Skips README.md, capabilities.yml, and generated files.
+    Only the folders the type registry names are read, so a stray directory
+    under ``program/`` contributes nothing rather than silently becoming a
+    document source. Dated types are read one year-partition deep.
 
     Returns:
-        List of dicts, one per document. Each dict contains at minimum:
-        path, id, title, type, domain, status. Optional fields (lenses,
-        requirements, related, etc.) are included when present.
+        List of registry entries, sorted by path.
     """
     docs = []
-    for root, dirs, files in os.walk(PROGRAM):
-        dirs[:] = [d for d in dirs if not d.startswith(".")]
-        for f in sorted(files):
-            if not f.endswith(".md") or f in SKIP_FILES:
+    if not PROGRAM.is_dir():
+        return docs
+    for doc_type in TYPES:
+        folder = PROGRAM / doc_type.folder
+        if not folder.is_dir():
+            continue
+        for path in sorted(folder.rglob("*.md")):
+            if path.name == "README.md":
                 continue
-            path = Path(root) / f
             fm = extract_frontmatter(path)
             if not fm or "type" not in fm:
                 continue
             docs.append(_build_entry(path.relative_to(PROGRAM), fm))
+    docs.sort(key=lambda d: d["path"])
     return docs
 
 
-def scan_capabilities() -> dict:
-    """Scan all capabilities.yml files in domain directories.
+def document_files() -> list[Path]:
+    """Every markdown file under a type folder, whatever its content.
+
+    Used by the validators, which must report a file that has no frontmatter
+    at all — something ``scan_documents`` skips by design.
+    """
+    files = []
+    if not PROGRAM.is_dir():
+        return files
+    for doc_type in TYPES:
+        folder = PROGRAM / doc_type.folder
+        if folder.is_dir():
+            files.extend(p for p in sorted(folder.rglob("*.md")) if p.name != "README.md")
+    return files
+
+
+def load_config() -> dict:
+    """Load program/config.yml, falling back to defaults when absent."""
+    cfg_path = PROGRAM / "config.yml"
+    if not cfg_path.exists():
+        return _DEFAULT_CONFIG
+    return _load_yaml(cfg_path) or _DEFAULT_CONFIG
+
+
+def load_model() -> dict:
+    """Load the closed vocabularies in program/model/.
 
     Returns:
-        Dict keyed by domain directory name (e.g. ``"01-grc"``). Each value
-        is the parsed YAML content of that domain's ``capabilities.yml``,
-        which includes a ``capabilities`` list and a ``domain`` string.
+        ``{"domains": [...], "capabilities": [...], "systems": [...],
+        "risk_taxonomy": {...}}``. A missing file yields an empty collection;
+        the validators are what report it as an error.
     """
-    caps = {}
-    for d in _discover_domain_dirs():
-        cap_file = PROGRAM / d / "capabilities.yml"
-        if not cap_file.exists():
+    model = {"domains": [], "capabilities": [], "systems": [], "risk_taxonomy": {}}
+    for key, filename, list_key in (
+        ("domains", "domains.yml", "domains"),
+        ("capabilities", "capabilities.yml", "capabilities"),
+        ("systems", "systems.yml", "systems"),
+    ):
+        path = MODEL / filename
+        if not path.is_file():
             continue
-        try:
-            data = yaml.load(cap_file.read_text(encoding="utf-8"), Loader=StringLoader)
-        except yaml.YAMLError as exc:
-            _warn(f"YAML parse error in {cap_file}: {exc}")
+        data = _load_yaml(path)
+        if not isinstance(data, dict):
+            if data is not None:
+                _warn(f"{path.name}: top level is {type(data).__name__}, expected a mapping — skipped")
             continue
-        if data and data.get("capabilities"):
-            caps[d] = data
-    return caps
+        items = data.get(list_key) or []
+        if not isinstance(items, list):
+            _warn(f"{path.name}: '{list_key}' is {type(items).__name__}, expected a list — skipped")
+            continue
+        model[key] = [i for i in items if isinstance(i, dict)]
+    taxonomy_path = MODEL / "risk-taxonomy.yml"
+    if taxonomy_path.is_file():
+        data = _load_yaml(taxonomy_path)
+        if isinstance(data, dict):
+            model["risk_taxonomy"] = data
+    return model
 
 
-def scan_lenses() -> dict:
-    """Scan keel/lenses/ for lens taxonomy files.
+def severity_model(model: dict) -> dict:
+    """The scoring half of the risk taxonomy: the two axes and the bands.
+
+    Empty when the taxonomy declares none, which is legitimate — a program
+    that does not score risks numerically simply has no matrix.
+    """
+    severity = (model.get("risk_taxonomy") or {}).get("severity")
+    return severity if isinstance(severity, dict) else {}
+
+
+def severity_point(name, axis: list) -> int | None:
+    """The numeric value of a point on a scoring axis, named by its label.
+
+    A risk says `likelihood: low`, because that is what the schema allows —
+    the axis is where a label is bound to a number. Reading the label is
+    therefore the only way to score a document that validates; requiring an
+    integer meant the scoring code never ran on real content at all.
+    """
+    if not isinstance(name, str):
+        return None
+    for point in axis or []:
+        if not isinstance(point, dict):
+            continue
+        if str(point.get("label", "")).strip().lower() == name.strip().lower():
+            value = point.get("value")
+            return value if isinstance(value, int) else None
+    return None
+
+
+def severity_band(score: int, severity: dict) -> str | None:
+    """Which band a likelihood x impact score falls into.
+
+    Returns None when no band covers the score, which the validator reports:
+    a hole in the bands is a hole in the standard, not something to paper over.
+    """
+    for band in severity.get("bands") or []:
+        if not isinstance(band, dict):
+            continue
+        low, high = band.get("min"), band.get("max")
+        if isinstance(low, int) and isinstance(high, int) and low <= score <= high:
+            return band.get("id")
+    return None
+
+
+def model_ids(model: dict) -> dict[str, set[str]]:
+    """Reduce the vocabularies to the id sets the facets are checked against."""
+    return {
+        "domains": {d["id"] for d in model["domains"] if isinstance(d.get("id"), str)},
+        "capabilities": {c["id"] for c in model["capabilities"] if isinstance(c.get("id"), str)},
+        "systems": {s["id"] for s in model["systems"] if isinstance(s.get("id"), str)},
+    }
+
+
+def load_publish() -> dict:
+    """Load program/publish.yml — the publishing contract.
 
     Returns:
-        Dict keyed by lens id (e.g. ``"nist"``). Each value is the
-        parsed YAML content including ``functions`` with nested ``categories``.
+        ``{"destinations": {...}, "defaults": {...}}``, empty when the file is
+        absent (a program that publishes nowhere is legitimate).
     """
-    lenses = {}
-    lenses_dir = KEEL / "content" / "lenses"
-    if not lenses_dir.exists():
-        return lenses
-    for f in sorted(lenses_dir.iterdir()):
-        if f.suffix != ".yml":
+    path = PROGRAM / "publish.yml"
+    if not path.is_file():
+        return {"destinations": {}, "defaults": {}}
+    data = _load_yaml(path)
+    if not isinstance(data, dict):
+        if data is not None:
+            _warn("publish.yml: top level is not a mapping — skipped")
+        return {"destinations": {}, "defaults": {}}
+    destinations = data.get("destinations") or {}
+    defaults = data.get("defaults") or {}
+    if not isinstance(destinations, dict):
+        _warn("publish.yml: 'destinations' is not a mapping — skipped")
+        destinations = {}
+    if not isinstance(defaults, dict):
+        _warn("publish.yml: 'defaults' is not a mapping — skipped")
+        defaults = {}
+    return {"destinations": destinations, "defaults": defaults}
+
+
+def publish_targets(doc: dict, publish: dict) -> list[str]:
+    """Resolve where one document is published.
+
+    The document's own ``publish:`` wins; otherwise the per-type default in
+    ``publish.yml`` applies, which is what stops a new policy from going
+    unpublished because nobody remembered to tag it.
+    """
+    override = doc.get("publish")
+    if override == "none":
+        return []
+    if override == "all":
+        return sorted(publish["destinations"])
+    if isinstance(override, list):
+        return list(override)
+    return list(publish["defaults"].get(doc.get("type"), []))
+
+
+def load_schedule() -> list[dict]:
+    """Load program/schedule.yml — recurring activities that are not reviews."""
+    path = PROGRAM / "schedule.yml"
+    if not path.is_file():
+        return []
+    data = _load_yaml(path)
+    if not data:
+        return []
+    activities = data.get("activities", [])
+    if not isinstance(activities, list):
+        _warn(f"schedule.yml 'activities' must be a list, got {type(activities).__name__}")
+        return []
+    return activities
+
+
+SHIPPED_FRAMEWORKS = KEEL / "content" / "frameworks"
+
+
+def _clause_refs(clauses) -> list[str]:
+    """Flatten a clause list to refs, whichever of the two shapes it uses.
+
+    A clause is either the bare ref or ``{ref, name, description}``. Coverage
+    only ever needs the ref, so this is where the two shapes stop being two.
+    """
+    refs = []
+    for c in clauses or []:
+        if isinstance(c, dict):
+            ref = c.get("ref")
+            if isinstance(ref, str) and ref:
+                refs.append(ref)
             continue
-        try:
-            data = yaml.load(f.read_text(encoding="utf-8"), Loader=StringLoader)
-        except yaml.YAMLError as exc:
-            _warn(f"YAML parse error in {f}: {exc}")
-            continue
-        if data and data.get("id"):
-            lenses[data["id"]] = data
-    return lenses
+        if not isinstance(c, str):
+            _warn(f"clause {c!r} is {type(c).__name__}, not a quoted string — "
+                  "quote it (e.g. \"13.60\") to avoid numeric collapse")
+        refs.append(str(c))
+    return refs
 
 
-def load_framework_vocab(frameworks_dir: Path | None = None) -> dict[str, list[str]]:
-    """Load clause vocabularies from ``program/frameworks/<id>.yml``.
+def _parse_framework_file(path: Path) -> dict | None:
+    """Read one framework file into ``{meta, refs}``, or None when unusable."""
+    data = _load_yaml(path)
+    if data is None:
+        return None
+    if not isinstance(data, dict):
+        _warn(f"{path.name}: top level is {type(data).__name__}, expected a "
+              "mapping with a 'clauses:' or 'groups:' list — skipped")
+        return None
 
-    Each file is keyed by its filename stem (the framework id, matching a
-    ``config.yml`` framework id) and holds a flat ``clauses:`` list of clause
-    reference strings — the authoritative clause set for that framework edition.
-    Reference-not-copy: clause refs only; the text lives at the framework's
-    ``url`` in ``config.yml``.
+    groups = data.get("groups")
+    clauses = data.get("clauses")
+    if groups is not None and not isinstance(groups, list):
+        _warn(f"{path.name}: 'groups' is {type(groups).__name__}, expected a list — skipped")
+        groups = None
+    if clauses is not None and not isinstance(clauses, list):
+        # A string/dict here would be iterated char-by-char / key-by-key,
+        # fabricating phantom clauses with no warning. Refuse it.
+        _warn(f"{path.name}: 'clauses' is {type(clauses).__name__}, expected a "
+              "list of clause-ref strings — skipped")
+        clauses = None
+
+    refs: list[str] = []
+    meta_groups = []
+    if groups:
+        for group in groups:
+            if not isinstance(group, dict):
+                _warn(f"{path.name}: a group is {type(group).__name__}, expected a mapping — skipped")
+                continue
+            group_refs = _clause_refs(group.get("clauses"))
+            refs.extend(group_refs)
+            meta_groups.append({
+                "id": group.get("id", ""),
+                "name": group.get("name", ""),
+                "description": group.get("description", ""),
+                "color": group.get("color", ""),
+                "center": bool(group.get("center")),
+                "clauses": _clause_entries(group.get("clauses")),
+            })
+    else:
+        refs = _clause_refs(clauses)
+
+    meta = {
+        "name": data.get("name", ""),
+        "description": data.get("description", ""),
+        "granularity": data.get("granularity", ""),
+        "resources": [r for r in (data.get("resources") or []) if isinstance(r, dict)],
+        "groups": meta_groups,
+    }
+    if not meta_groups:
+        meta["clauses"] = _clause_entries(clauses)
+    return {"meta": meta, "refs": refs}
+
+
+def _clause_entries(clauses) -> list[dict]:
+    """Normalise clauses to ``{ref, name, description}`` for the dashboard."""
+    entries = []
+    for c in clauses or []:
+        if isinstance(c, dict):
+            ref = c.get("ref")
+            if not isinstance(ref, str) or not ref:
+                continue
+            entries.append({"ref": ref, "name": c.get("name", ""),
+                            "description": c.get("description", "")})
+        elif isinstance(c, str):
+            entries.append({"ref": c, "name": "", "description": ""})
+        else:
+            entries.append({"ref": str(c), "name": "", "description": ""})
+    return entries
+
+
+def framework_files(frameworks_dir: Path | None = None,
+                    shipped_dir: Path | None = None) -> dict[str, Path]:
+    """Resolve every framework id to the file that defines it.
+
+    The product ships the frameworks; an instance only declares which ones are
+    in scope. ``program/model/frameworks/<id>.yml`` still wins where it exists,
+    which is how an instance overrides a shipped edition or adds one of its
+    own — but nobody has to type 93 ISO controls to get coverage.
 
     Args:
-        frameworks_dir: Directory to scan. Defaults to ``program/frameworks/``.
-            Injectable for testing.
+        frameworks_dir: The instance's override directory. Defaults to
+            ``program/model/frameworks/``. Injectable for testing.
+        shipped_dir: The package's catalogue. Defaults to
+            ``keel/content/frameworks/``. Injectable for testing.
+
+    Returns:
+        ``{framework_id: path}``, overrides shadowing shipped editions.
+    """
+    if frameworks_dir is None:
+        frameworks_dir = MODEL / "frameworks"
+    if shipped_dir is None:
+        shipped_dir = SHIPPED_FRAMEWORKS
+    resolved: dict[str, Path] = {}
+    for source in (shipped_dir, frameworks_dir):
+        if not source or not source.is_dir():
+            continue
+        for f in sorted(source.iterdir()):
+            if f.suffix == ".yml":
+                resolved[f.stem] = f
+    return resolved
+
+
+def load_framework_vocab(frameworks_dir: Path | None = None,
+                         shipped_dir: Path | None = None) -> dict[str, list[str]]:
+    """Load clause vocabularies, flattened to refs.
+
+    The clause set is the denominator of the only coverage this program
+    computes, so this deliberately returns nothing but refs: whether a file
+    declares its clauses flat or inside ``groups:``, coverage sees one list and
+    cannot tell the difference.
 
     Returns:
         Dict keyed by framework id, value the list of clause-ref strings.
     """
-    if frameworks_dir is None:
-        frameworks_dir = PROGRAM / "frameworks"
     vocab: dict[str, list[str]] = {}
-    if not frameworks_dir.is_dir():
-        return vocab
-    for f in sorted(frameworks_dir.iterdir()):
-        if f.suffix != ".yml":
-            continue
-        try:
-            data = yaml.load(f.read_text(encoding="utf-8"), Loader=StringLoader)
-        except yaml.YAMLError as exc:
-            _warn(f"YAML parse error in {f}: {exc}")
-            continue
-        if data is not None and not isinstance(data, dict):
-            # A bare list/scalar at the top level would otherwise crash on
-            # .get(); flag it and treat as no vocab (fail-closed) rather than
-            # raising an uncaught AttributeError.
-            _warn(f"{f.name}: top level is {type(data).__name__}, expected a "
-                  "mapping with a 'clauses:' list — skipped")
-            vocab[f.stem] = []
-            continue
-        clauses = (data or {}).get("clauses", [])
-        if clauses is None:
-            clauses = []
-        if not isinstance(clauses, list):
-            # A string/dict here would be iterated char-by-char / key-by-key,
-            # fabricating phantom clauses with no warning. Refuse it.
-            _warn(f"{f.name}: 'clauses' is {type(clauses).__name__}, expected a "
-                  "list of clause-ref strings — skipped")
-            vocab[f.stem] = []
-            continue
-        refs = []
-        for c in clauses:
-            if not isinstance(c, str):
-                _warn(f"{f.name}: clause {c!r} is {type(c).__name__}, not a quoted "
-                      "string — quote it (e.g. \"13.60\") to avoid numeric collapse")
-            refs.append(str(c))
-        vocab[f.stem] = refs
+    for fw_id, path in framework_files(frameworks_dir, shipped_dir).items():
+        parsed = _parse_framework_file(path)
+        vocab[fw_id] = parsed["refs"] if parsed else []
     return vocab
 
 
-def scan_framework_mappings(standards_dir: Path | None = None) -> list[dict]:
+def load_framework_meta(frameworks_dir: Path | None = None,
+                        shipped_dir: Path | None = None) -> dict[str, dict]:
+    """Load the structure and prose of every framework, for the dashboard.
+
+    Separate from ``load_framework_vocab`` on purpose: coverage must not be
+    able to see a group, a colour or a description, because none of them is
+    allowed to influence what it computes.
+    """
+    meta: dict[str, dict] = {}
+    for fw_id, path in framework_files(frameworks_dir, shipped_dir).items():
+        parsed = _parse_framework_file(path)
+        if parsed:
+            entry = dict(parsed["meta"])
+            entry["source"] = "override" if path.parent == (frameworks_dir or MODEL / "frameworks") else "shipped"
+            meta[fw_id] = entry
+    return meta
+
+
+def config_framework_ids(config: dict) -> list[str]:
+    """Return the in-scope framework ids declared in ``config.yml``."""
+    return [f["id"] for f in (config.get("frameworks") or [])
+            if isinstance(f, dict) and "id" in f]
+
+
+def requirement_index(documents: list[dict]) -> dict[str, dict]:
+    """Index every requirement inside every standard, keyed ``std-id#ref``.
+
+    This is what makes ``requirement:`` on a gap or an exception a real
+    reference rather than a string: it either resolves here or it fails.
+    """
+    index: dict[str, dict] = {}
+    for doc in documents:
+        if doc.get("type") != "standard":
+            continue
+        std_id = doc.get("id", "")
+        for req in doc.get("requirements") or []:
+            if not isinstance(req, dict) or "ref" not in req:
+                continue
+            key = f"{std_id}#{req['ref']}"
+            index[key] = {"standard": std_id, "ref": str(req["ref"]),
+                          "text": req.get("text", ""), "frameworks": req.get("frameworks") or {}}
+    return index
+
+
+def scan_framework_mappings(documents: list[dict]) -> list[dict]:
     """Extract every requirement ``frameworks:`` mapping from the standards.
 
     The single mapping extraction, reused by the coverage generator and the
     forward referential check — there is no second parser.
 
-    Args:
-        standards_dir: Directory of ``STD-*.md``. Defaults to
-            ``program/01-grc/standards/``. Injectable for testing.
-
     Returns:
-        List of ``{std_id, ref, fw, clause}`` records — one per
-        (requirement, framework, clause).
+        List of ``{std_id, ref, fw, clause}`` records.
     """
-    if standards_dir is None:
-        standards_dir = PROGRAM / "01-grc" / "standards"
     records: list[dict] = []
-    if not standards_dir.is_dir():
-        return records
-    for path in sorted(standards_dir.glob("STD-*.md")):
-        fm = extract_frontmatter(path)
-        if not fm:
+    for doc in documents:
+        if doc.get("type") != "standard":
             continue
-        std_id = fm.get("id", path.stem)
-        for req in fm.get("requirements", []) or []:
+        std_id = doc.get("id", "")
+        for req in doc.get("requirements") or []:
             if not isinstance(req, dict):
                 continue
             ref = str(req.get("ref", ""))
@@ -384,327 +656,97 @@ def scan_framework_mappings(standards_dir: Path | None = None) -> list[dict]:
     return records
 
 
-def compute_coverage_map(in_scope_ids: list[str], vocab: dict[str, list[str]],
-                         inbound: dict[str, set]) -> dict:
-    """Classify each in-scope clause as mapped or unmapped.
+# Everything that may exist under program/, and what validates it.
+#
+# This table is the anti-drift device. `schedule.yml` proved the rule the hard
+# way: a file with no validator is not "pending validation", it is outside the
+# model — the refactor skipped it entirely and nobody noticed for three weeks.
+# Anything here with a schema is checked; anything with None is prose, and
+# saying so is a decision rather than an oversight. A file that matches
+# nothing at all is reported.
+PROGRAM_FILE_RULES: tuple[tuple[str, str | None], ...] = (
+    ("config.yml", "config.schema.json"),
+    ("publish.yml", "publish.schema.json"),
+    ("schedule.yml", "schedule.schema.json"),
+    ("README.md", None),                       # orientation, written by init
+    ("branding.css", None),                    # optional: the instance's own palette
+    ("model/domains.yml", "model-domains.schema.json"),
+    ("model/capabilities.yml", "model-capabilities.schema.json"),
+    ("model/systems.yml", "model-systems.schema.json"),
+    ("model/risk-taxonomy.yml", "model-risk-taxonomy.schema.json"),
+    ("model/frameworks/*.yml", "framework-vocab.schema.json"),
+)
 
-    A framework is covered only when it is both in scope (declared in
-    ``config.yml``) and has a vocab file. A clause is ``mapped`` when at least
-    one requirement maps to it, else ``unmapped`` with ``posture: not-assessed``
-    — the only posture a generator may assert.
 
-    Args:
-        in_scope_ids: Framework ids declared in config.yml.
-        vocab: Clause vocabularies from ``load_framework_vocab``.
-        inbound: ``{framework_id: {clause refs mapped by some requirement}}``.
+def validator_for(relative: str) -> tuple[bool, str | None]:
+    """What validates a file under program/, by its path relative to program/.
 
-    Returns:
-        ``{framework_id: {clause_ref: {coverage, [posture]}}}`` — clauses sorted
-        lexicographically by ref string (for stable diffs, not numeric order),
-        frameworks in ``in_scope_ids`` order. Frameworks without vocab are
-        skipped; the caller is expected to warn about those.
+    Returns ``(recognised, schema_name)``. A document in a type folder is
+    covered by the frontmatter schema; everything else has to be in the table.
     """
-    coverage: dict[str, dict] = {}
-    for fw_id in in_scope_ids:
-        clauses = vocab.get(fw_id)
-        if not clauses:
+    from fnmatch import fnmatch
+
+    for pattern, schema in PROGRAM_FILE_RULES:
+        if fnmatch(relative, pattern):
+            return True, schema
+
+    parts = relative.split("/")
+    doc_type = BY_FOLDER.get(parts[0])
+    if doc_type and relative.endswith(".md"):
+        depth = 3 if doc_type.dated else 2
+        if len(parts) == depth:
+            return True, "frontmatter.schema.json"
+    return False, None
+
+
+def unrecognised_program_files() -> list[str]:
+    """Files under program/ that no validator claims."""
+    if not PROGRAM.is_dir():
+        return []
+    found = []
+    for path in sorted(PROGRAM.rglob("*")):
+        if not path.is_file() or path.name.startswith("."):
             continue
-        mapped = inbound.get(fw_id, set())
-        entries: dict[str, dict] = {}
-        for ref in sorted(set(clauses)):
-            if ref in mapped:
-                entries[ref] = {"coverage": "mapped"}
-            else:
-                entries[ref] = {"coverage": "unmapped", "posture": "not-assessed"}
-        coverage[fw_id] = entries
-    return coverage
+        relative = str(path.relative_to(PROGRAM))
+        recognised, _ = validator_for(relative)
+        if not recognised:
+            found.append(relative)
+    return found
 
 
-def config_framework_ids(config: dict) -> list[str]:
-    """Return the in-scope framework ids declared in ``config.yml``.
+def is_open_gap(doc: dict) -> bool:
+    """A gap is open until a write-once fact closes it.
 
-    The single definition of "in scope", shared by the coverage generator and
-    the forward referential check so the two cannot diverge. Malformed entries
-    (non-dict, or missing ``id``) are skipped.
-
-    Args:
-        config: Parsed ``config.yml`` (as returned by ``load_config``).
-
-    Returns:
-        List of framework ids, in ``config.yml`` order.
+    There is no status to read: either it was remediated, or an approved
+    exception superseded it, or it is still open.
     """
-    return [f["id"] for f in (config.get("frameworks") or [])
-            if isinstance(f, dict) and "id" in f]
+    return not doc.get("remediated") and not doc.get("excepted_by")
 
 
-def load_config() -> dict:
-    """Load program/config.yml.
+def is_live_exception(doc: dict, today: str | None = None) -> bool:
+    """An exception is live until it is revoked or it expires.
 
-    Returns:
-        Dict with at least ``name`` and ``repo`` keys. Falls back to
-        sensible defaults if the file is missing or unparsable.
+    Two signals, both write-once facts. There is no status to read: a third
+    signal could only contradict these two, which is exactly what it used to do.
     """
-    cfg_path = PROGRAM / "config.yml"
-    if not cfg_path.exists():
-        return _DEFAULT_CONFIG
-    try:
-        data = yaml.load(cfg_path.read_text(encoding="utf-8"), Loader=StringLoader)
-        return data or _DEFAULT_CONFIG
-    except yaml.YAMLError as exc:
-        _warn(f"YAML parse error in {cfg_path}: {exc}")
-        return _DEFAULT_CONFIG
-
-
-def load_schedule() -> list[dict]:
-    """Load program/schedule.yml — recurring security activities.
-
-    Returns:
-        List of activity dicts, or empty list if file is missing.
-    """
-    sched_path = PROGRAM / "schedule.yml"
-    if not sched_path.exists():
-        return []
-    try:
-        data = yaml.load(sched_path.read_text(encoding="utf-8"), Loader=StringLoader)
-    except UnicodeDecodeError:
-        _warn(f"File is not valid UTF-8 (skipped): {sched_path}")
-        return []
-    except yaml.YAMLError as exc:
-        _warn(f"YAML parse error in {sched_path}: {exc}")
-        return []
-    except OSError as exc:
-        _warn(f"Could not read {sched_path}: {exc}")
-        return []
-    if not data:
-        return []
-    activities = data.get("activities", [])
-    if not isinstance(activities, list):
-        _warn(f"schedule.yml 'activities' must be a list, got {type(activities).__name__}")
-        return []
-    return activities
-
-
-THREATS_DIR_REL = (PROGRAM / "01-grc" / "threats").relative_to(REPO).as_posix()
-
-
-def _git(args: list[str], *, warn_on_error: bool = True) -> str | None:
-    """Run a git command in the repo, returning stdout or None on failure.
-
-    Returns None on FileNotFoundError (git binary missing — legitimate for
-    deployed tarballs) or CalledProcessError (git returned non-zero — stderr
-    is logged via _warn to surface real failures like corrupt packs or
-    missing refs). Other exceptions propagate.
-
-    Pass ``warn_on_error=False`` for probes where a non-zero exit is an
-    expected answer rather than a failure.
-    """
-    try:
-        out = subprocess.run(
-            ["git", "-C", str(REPO), *args],
-            capture_output=True, text=True, check=True,
-        )
-        return out.stdout
-    except FileNotFoundError:
-        return None
-    except subprocess.CalledProcessError as exc:
-        if not warn_on_error:
-            return None
-        detail = (exc.stderr or "").strip() or f"rc={exc.returncode}"
-        _warn(f"git {' '.join(args)} failed: {detail}")
-        return None
-
-
-def _parse_frontmatter_text(text: str | None, *, context: str = "<text>") -> dict | None:
-    """Parse YAML frontmatter from raw markdown text (e.g. ``git show`` output).
-
-    Args:
-        text: Raw markdown content.
-        context: Identifier surfaced in warnings, e.g. ``"THR-foo.md@abc1234"``,
-            so a parse failure inside historical git data can be traced back
-            to the commit and file that produced it.
-    """
-    if not text or not text.startswith("---"):
-        return None
-    try:
-        end = text.index("---", 3)
-    except ValueError:
-        _warn(f"Frontmatter has opening '---' but no closing '---' (skipped): {context}")
-        return None
-    try:
-        return yaml.load(text[3:end], Loader=StringLoader)
-    except yaml.YAMLError as exc:
-        _warn(f"YAML parse error in {context}: {exc}")
-        return None
-
-
-def load_threat_history() -> list[dict]:
-    """Reconstruct threat priority/severity rankings over time from git history.
-
-    Walks commits that touched ``program/01-grc/threats/`` (oldest first) and,
-    at each commit, reads every ``THR-*.md``'s ``priority``/``severity``/``title``
-    via ``git show``. Emits one snapshot per commit where the priority ranking
-    actually changed — commits that left the ranking unchanged are collapsed.
-
-    Returns:
-        Ordered list of ``{"date", "commit", "threats": {id: {...}}}`` snapshots,
-        or an empty list if git is unavailable (e.g. a deployed tarball) or no
-        threat history exists. The view treats an empty list as "baseline only".
-    """
-    snapshots: list[dict] = []
-    prev_key = None
-
-    # An unborn HEAD — a repository with no commits yet — has no history to
-    # reconstruct. That is the normal state right after 'kilagen init', so it
-    # must not count as skipped data; warning here would fail the first build.
-    if _git(["rev-parse", "--verify", "--quiet", "HEAD"], warn_on_error=False) is None:
-        return snapshots
-
-    # --first-parent: follow only mainline commits, so reconstruction matches what
-    # reviewers actually merged. Without it, --reverse over a non-linear log can
-    # emit interleaved branch-side states that never existed on main.
-    log = _git(["log", "--reverse", "--first-parent", "--format=%H|%cI", "--", THREATS_DIR_REL])
-    if not log:
-        # Stay silent only when git is genuinely unavailable (deployed tarball).
-        # If .git exists yet the log returned nothing, _git already warned via
-        # CalledProcessError; we don't double-warn here.
-        return snapshots
-    for line in log.strip().splitlines():
-        if "|" not in line:
-            continue
-        commit, iso = line.split("|", 1)
-        tree = _git(["ls-tree", "-r", "--name-only", commit, THREATS_DIR_REL])
-        if tree is None:
-            # ls-tree failing for a commit the log just listed is an inconsistency
-            # (corrupt pack, missing object). _git already warned with the git
-            # stderr; skip this commit's snapshot rather than emit a partial one.
-            continue
-        threats: dict[str, dict] = {}
-        read_failed = False
-        for path in tree.strip().splitlines():
-            name = path.rsplit("/", 1)[-1]
-            if not (name.startswith("THR-") and name.endswith(".md")):
-                continue
-            raw = _git(["show", f"{commit}:{path}"])
-            if raw is None:
-                # git is present (log/ls-tree succeeded) yet a file it just listed
-                # could not be read — skip the whole commit rather than emit a
-                # snapshot with a missing threat, which would key the ranking on
-                # a partial set and fabricate a spurious move/retirement.
-                # _git already warned via CalledProcessError.
-                read_failed = True
-                break
-            fm = _parse_frontmatter_text(raw, context=f"{path}@{commit[:7]}")
-            # No priority is legitimate for commits predating the priority field —
-            # the threat is simply unranked then, so it is absent from the ranking.
-            if not fm or fm.get("priority") is None:
-                continue
-            tid = fm.get("id") or name[:-3]
-            threats[tid] = {
-                "priority": fm.get("priority"),
-                "severity": fm.get("severity"),
-                "title": fm.get("title") or tid,
-                "rationale": fm.get("priority_rationale"),
-            }
-        if read_failed or not threats:
-            continue
-        # Collapse no-op commits: key on the id->priority ranking.
-        key = tuple(sorted((tid, t["priority"]) for tid, t in threats.items()))
-        if key == prev_key:
-            continue
-        prev_key = key
-        snapshots.append({"date": iso[:10], "commit": commit[:7], "threats": threats})
-    return snapshots
-
-
-def compute_coverage(caps_for_cat: list[dict], docs_for_cat: list[dict]) -> str:
-    """Compute coverage status for a single lens category.
-
-    Args:
-        caps_for_cat: Capabilities tagged with this category's lens tag.
-        docs_for_cat: Documents tagged with this category's lens tag.
-
-    Returns:
-        One of ``"covered"``, ``"partial"``, or ``"gap"`` based on capability
-        maturity levels and document statuses.
-    """
-    levels = []
-    for c in caps_for_cat:
-        mat = c.get("maturity", "L0-none")
-        try:
-            levels.append(int(mat[1]))
-        except (IndexError, ValueError):
-            levels.append(0)
-
-    active_docs = sum(1 for d in docs_for_cat if d.get("status") == "active")
-    non_active_docs = sum(1 for d in docs_for_cat if d.get("status") != "active")
-
-    if levels:
-        if all(l >= 2 for l in levels):
-            return "covered"
-        if all(l == 0 for l in levels):
-            return "partial" if active_docs > 0 else "gap"
-        return "partial"
-
-    if active_docs > 0:
-        return "covered"
-    if non_active_docs > 0:
-        return "partial"
-    return "gap"
-
-
-def build_coverage(documents: list[dict], all_caps: dict, lenses: dict) -> dict:
-    """Build coverage map for all lens categories.
-
-    Args:
-        documents: List of document dicts as returned by ``scan_documents()``.
-        all_caps: Capabilities dict as returned by ``scan_capabilities()``.
-        lenses: Lens taxonomy dict as returned by ``scan_lenses()``.
-
-    Returns:
-        Dict keyed by lens tag (e.g. ``"nist:PR.PS"``). Each value is a dict
-        with ``status``, ``capabilities`` (count), and ``documents`` (count).
-    """
-    tagged_caps = {}
-    tagged_docs = {}
-
-    for doc in documents:
-        for tag in doc.get("lenses", []):
-            tagged_docs.setdefault(tag, []).append(doc)
-
-    for domain_dir, data in all_caps.items():
-        for cap in data.get("capabilities", []):
-            for tag in cap.get("lenses", []):
-                tagged_caps.setdefault(tag, []).append(cap)
-
-    coverage = {}
-    for lens_id, lens_data in lenses.items():
-        prefix = lens_data.get("tag_prefix", lens_id)
-        for fn in lens_data.get("functions", []):
-            for cat in fn.get("categories", []):
-                tag = prefix + ":" + cat["id"]
-                caps_list = tagged_caps.get(tag, [])
-                docs_list = tagged_docs.get(tag, [])
-                coverage[tag] = {
-                    "status": compute_coverage(caps_list, docs_list),
-                    "capabilities": len(caps_list),
-                    "documents": len(docs_list),
-                }
-    return coverage
+    if doc.get("revoked"):
+        return False
+    expires = doc.get("expires")
+    if not expires:
+        return False
+    return str(expires) >= (today or date.today().isoformat())
 
 
 def scan_all(*, verbose: bool = False) -> tuple[dict, int]:
-    """Run the full scan pipeline: documents, capabilities, lenses, config, coverage.
+    """Run the full scan: documents, model, config, publish, schedule.
 
-    Args:
-        verbose: If True, print progress to stdout.
+    Coverage is computed by the coverage generator, not here — it needs the
+    document set and the vocabularies this function returns.
 
     Returns:
-        Tuple of (data_dict, warning_count). The data dict has keys
-        ``documents``, ``capabilities``, ``lenses``, ``config``, and
-        ``coverage``, ready to be passed to generators.
+        Tuple of (data_dict, warning_count).
     """
-    global _warnings
-    _warnings = 0
+    reset_warnings()
 
     if not PROGRAM.is_dir():
         _warn(f"program/ directory not found at {PROGRAM} — no documents to scan")
@@ -716,19 +758,14 @@ def scan_all(*, verbose: bool = False) -> tuple[dict, int]:
         print(f"{len(documents)} found")
 
     if verbose:
-        print("Scanning capabilities...", end=" ", flush=True)
-    capabilities = scan_capabilities()
+        print("Loading model...", end=" ", flush=True)
+    model = load_model()
     if verbose:
-        total = sum(len(d.get("capabilities", [])) for d in capabilities.values())
-        print(f"{total} across {len(capabilities)} domains")
-
-    if verbose:
-        print("Loading lenses...", end=" ", flush=True)
-    lenses = scan_lenses()
-    if verbose:
-        print(f"{len(lenses)} lens(es)")
+        print(f"{len(model['domains'])} domains, {len(model['capabilities'])} capabilities, "
+              f"{len(model['systems'])} systems")
 
     config = load_config()
+    publish = load_publish()
 
     if verbose:
         print("Loading schedule...", end=" ", flush=True)
@@ -736,27 +773,10 @@ def scan_all(*, verbose: bool = False) -> tuple[dict, int]:
     if verbose:
         print(f"{len(schedule)} activities")
 
-    if verbose:
-        print("Loading threat history...", end=" ", flush=True)
-    threat_history = load_threat_history()
-    if verbose:
-        print(f"{len(threat_history)} snapshot(s)")
-
-    if verbose:
-        print("Computing coverage...", end=" ", flush=True)
-    coverage = build_coverage(documents, capabilities, lenses)
-    if verbose:
-        covered = sum(1 for c in coverage.values() if c["status"] == "covered")
-        partial = sum(1 for c in coverage.values() if c["status"] == "partial")
-        gaps = sum(1 for c in coverage.values() if c["status"] == "gap")
-        print(f"{covered} covered, {partial} partial, {gaps} gaps")
-
     return {
         "documents": documents,
-        "capabilities": capabilities,
-        "lenses": lenses,
+        "model": model,
         "config": config,
-        "coverage": coverage,
+        "publish": publish,
         "schedule": schedule,
-        "threat_history": threat_history,
-    }, _warnings
+    }, get_warnings()

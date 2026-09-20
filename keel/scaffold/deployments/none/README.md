@@ -3,8 +3,8 @@
 Nothing is written into the instance. Run the framework yourself:
 
 ```bash
-kilagen check          # every check: frontmatter, refs, reviews, artifacts
-kilagen build          # regenerate the committed artifacts and the site
+kilagen check          # every check: frontmatter, refs, reviews
+kilagen build          # validate and build the site
 kilagen serve          # browse it locally
 ```
 

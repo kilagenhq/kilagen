@@ -17,6 +17,6 @@ except PackageNotFoundError:
 # The content contract this framework speaks. A program records how far it has
 # been migrated in program/config.yml; the two must agree. Only ever raised in
 # a major release, and only when the contract actually changes.
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 3
 
 __all__ = ["SCHEMA_VERSION", "__version__"]

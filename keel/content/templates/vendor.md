@@ -1,54 +1,42 @@
 ---
-id: VEN-REPLACE-ME
+id: vnd-replace-me
+type: vendor
 title: "REPLACE ME"
 description: >
-  REPLACE ME — one or two sentences an LLM can use to decide relevance.
-type: vendor
+  REPLACE ME — one or two sentences an agent can use to decide relevance. This
+  is the field retrieval leans on hardest.
 status: draft
-domain: grc                  # vendors live in 01-grc/vendors/
-owner: role-REPLACE-ME
+owner: role-replace-me
+vendor_name: "REPLACE ME"
+tier: standard              # critical | important | standard
+certifications: []          # each one dated: [{name: "SOC 2 Type II", verified: 2026-01-01, url: "https://..."}]
+data_scope: []              # kinds of data this vendor processes
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
-vendor_name: "REPLACE ME"    # official vendor name
-tier: medium                 # critical | high | medium | low
-system: SYS-REPLACE-ME      # optional — corresponding SYS-* ID if security operates/touches this product; remove if none
-certifications:              # optional — remove if unknown
-  - "SOC 2 Type II"
-  - "ISO 27001"
-# related:                   # optional — uncomment and fill in if needed
+domains: []                  # ids from program/model/domains.yml — a document may declare several
+capabilities: []             # ids from program/model/capabilities.yml
+systems: []                  # ids from program/model/systems.yml
+related: []                  # flat list of ids; the prefix says what each one is
+# publish: [confluence]      # overrides the per-type default in program/publish.yml
+# source_of_truth: https://example.com/replace-me   # the original lives there; this is the record
 ---
 
 # REPLACE ME — Vendor Title
 
-## Vendor overview
+## What they do for us
 
-What the vendor provides and why we use them.
+The service, and which systems depend on it.
 
-## Scope of access
+## Assessment
 
-What data, systems, or environments the vendor can access.
+What was reviewed and what it showed. `next_review` is the annual
+reassessment — the review machinery handles it like any other document.
 
-## Security assessment
+## Data
 
-| Aspect | Detail |
-|---|---|
-| Certifications | ... |
-| SOC 2 report status | ... |
-| Last security review | ... |
-| Next review due | ... |
+What the vendor holds or processes, and under what terms.
 
-## Data processed
+## Evidence
 
-What data the vendor processes, stores, or transmits on our behalf.
-
-## Contractual controls
-
-Key security clauses in the contract (DPA, SLA, breach notification).
-
-## Termination plan
-
-How to offboard this vendor and migrate away if needed.
-
-## References
-
-- Links to related controls, risk entries, or contract documents.
+Their SOC 2 or equivalent goes in `evidence:` as a link, never as a committed
+PDF.

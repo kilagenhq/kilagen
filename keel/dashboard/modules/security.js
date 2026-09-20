@@ -1,16 +1,20 @@
-import { TOP_DIRS, ROOT_FILES } from './constants.js';
+import { state } from './state.js';
 
-const KEEL_PREFIXES = ['lenses/', 'schemas/', 'templates/', 'glossary.md', 'maturity.md', 'design.md', 'compliance.md', 'lenses.md', 'instantiation.md'];
-
+/* A content path names the tree it lives in. Framework material is prefixed
+ * `keel/`, program content is not — which is what lets a program's documents
+ * and the framework's own material coexist in the flattened site layout without an
+ * allowlist that has to guess between them. */
 export function isSafePath(p) {
   if (typeof p !== 'string') return false;
   if (p.indexOf('..') !== -1 || p.indexOf('//') !== -1 || p.indexOf('\\') !== -1) return false;
   if (p.charAt(0) === '/') return false;
   if (/[\x00-\x1f\x7f]/.test(p)) return false;
   if (!/^[a-zA-Z0-9_\-.\/]+\.(md|yml|json)$/.test(p)) return false;
-  if (p.indexOf('/') === -1) return ROOT_FILES.indexOf(p) !== -1;
-  const t = p.split('/')[0];
-  return TOP_DIRS.indexOf(t) !== -1;
+  const parts = p.split('/');
+  if (parts[0] === 'keel') return parts.length > 1;
+  if (parts.length === 1) return /^(config|publish)\.yml$/.test(p);
+  return (state.types || []).some(function(t) { return t.folder === parts[0]; })
+    || parts[0] === 'model';
 }
 
 export function safeUrl(url) {
@@ -18,15 +22,10 @@ export function safeUrl(url) {
   return /^https?:\/\//i.test(url) ? url : null;
 }
 
-/* Resolve the base URL for a content path.
- * Dashboard is served from _site/dashboard/.
- * - Program content (domain docs, systems, adr): ../program/
- * - Framework content (lenses, glossary, maturity): ../keel/
- * See KEEL_PREFIXES above for the list of paths resolved as framework content.
- */
+/* Resolve the base URL for a content path. The dashboard is served from
+ * _site/dashboard/, and the `keel/` prefix says which sibling tree to read. */
 export function resolveBase(p) {
-  const isKeel = KEEL_PREFIXES.some(function(pre) { return p === pre || p.indexOf(pre) === 0; });
-  return isKeel ? '../keel/' : '../program/';
+  return p.indexOf('keel/') === 0 ? '../' : '../program/';
 }
 
 export function resolvePath(h) { const c = h.replace(/#.*$/, '').replace(/\?.*$/, ''); if (c.indexOf('..') !== -1) return ''; const p = c.split('/'), r = []; for (let i = 0; i < p.length; i++) { if (p[i] === '.' || p[i] === '') continue; r.push(p[i]); } return r.join('/'); }

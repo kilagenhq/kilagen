@@ -1,69 +1,44 @@
 ---
-id: RSK-REPLACE-ME
+id: rsk-replace-me
+type: risk
 title: "REPLACE ME"
 description: >
-  REPLACE ME — one or two sentences an LLM can use to decide relevance.
-type: risk
+  REPLACE ME — one or two sentences an agent can use to decide relevance. This
+  is the field retrieval leans on hardest.
 status: draft
-domain: grc
-owner: role-REPLACE-ME
+owner: role-replace-me
+severity: medium            # negligible | low | medium | high | critical
+# likelihood: medium
+# impact: high
+# treatment: mitigate       # mitigate | avoid | transfer | accept | tbd
+# tracker: https://example.com/browse/REPLACE-ME
+# risk_category:            # a path in program/model/risk-taxonomy.yml
+#   principle: replace-me
+#   category1: replace-me
+#   category2: replace-me
+# root_causes: []           # cause slugs from the taxonomy
 last_reviewed: 2026-01-01
 next_review: 2027-01-01
-severity: medium             # negligible | low | medium | high | critical
-likelihood: medium           # negligible | low | medium | high | critical
-impact: medium               # negligible | low | medium | high | critical
-control_effectiveness: not-evaluated  # fully | substantially | partially | largely-ineffective | none | not-evaluated
-# treatment: mitigate           # mitigate | avoid | transfer | accept | tbd
-# root_causes: [misconfiguration, cyber-attack]  # slugs from program/risk-taxonomy.yml under `causes:`
-# risk_category:
-#   principle: operational-risk
-#   category1: information-security
-#   category2: compromised-integrity
-related:                     # optional — remove section if unused
-  threats: []                # THR-* IDs that drive this risk
-  standards: []              # STD-* IDs that mitigate this risk (the "Key Controls")
-  policies: []
-  systems: []
+domains: []                  # ids from program/model/domains.yml — a document may declare several
+capabilities: []             # ids from program/model/capabilities.yml
+systems: []                  # ids from program/model/systems.yml
+related: []                  # flat list of ids; the prefix says what each one is
+# publish: [confluence]      # overrides the per-type default in program/publish.yml
+# source_of_truth: https://example.com/replace-me   # the original lives there; this is the record
 ---
 
 # REPLACE ME — Risk Title
 
-## Risk description
+## The risk
 
-Clear description of the risk scenario.
+What could happen, to what, and why it matters.
 
-## Affected assets
+## Assessment
 
-Systems, data, or business processes exposed. Reference `SYS-*`, `DA-*`, `BP-*` IDs.
+How severity was arrived at.
 
-## Threat actors
+## Treatment
 
-Who or what could exploit this risk (external, insider, automated).
-
-## Likelihood rationale
-
-Why the likelihood is rated as it is — threat landscape, exposure, history.
-
-## Impact rationale
-
-What the business impact would be — financial, regulatory, reputational, operational.
-
-## Current controls
-
-Controls already in place that mitigate this risk.
-
-## Control effectiveness
-
-Aggregate effectiveness with a one-line justification per Key Control.
-
-## Key risk indicators
-
-KRIs and their thresholds (Red / Amber / Green), if any.
-
-## Treatment plan
-
-Planned action and any future Key Mitigating Controls. Link Jira tickets where the work is tracked.
-
-## Three Lines of Defence
-
-1st: Risk Owner (= `owner`), supported by the named operators of the controls.
+What is being done about it. The state of that work lives in the tracker —
+this document owns the content, `tracker:` owns the lifecycle. There is
+deliberately no status field here to mirror it.
