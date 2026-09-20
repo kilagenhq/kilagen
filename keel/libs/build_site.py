@@ -14,6 +14,7 @@ Invoked by the CLI; not runnable on its own:
 """
 
 import json
+import re
 import shutil
 import sys
 from datetime import datetime, timezone
@@ -81,6 +82,57 @@ def tool_inventory() -> dict:
     return found
 
 
+def collector_inventory() -> dict:
+    """The collectors this program can run, by name.
+
+    A collector refreshes one piece of evidence and returns two facts: where
+    the artefact now lives, and the day it was produced. Which ones exist is
+    the one thing the dashboard cannot work out for itself — the evidence
+    entries name the collectors they use, but a collector nobody has wired up
+    yet is invisible from the content, and those are exactly the ones somebody
+    browsing wants to find.
+
+    Resolution is the two-layer rule ``collect_evidence`` uses: the instance's
+    ``collectors/<name>.py`` wins over a shipped one of the same name.
+
+    **Read as text, never imported.** Importing runs somebody else's code, and
+    a build that executes the modules it is cataloguing is a build that can be
+    made to do anything by adding a file. The docstring and a ``raise
+    NotImplementedError`` are both plainly visible without running a line.
+    """
+    found: dict[str, dict] = {}
+    # Shipped first, so an instance's collector of the same name overwrites it.
+    sources = [("framework", keel_lib.KEEL / "collectors"),
+               ("program", keel_lib.PROGRAM.parent / "collectors")]
+    for source, folder in sources:
+        if not folder.is_dir():
+            continue
+        for path in sorted(folder.glob("*.py")):
+            if path.name.startswith("_"):
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace")
+            found[path.stem] = {
+                "source": source,
+                "path": f"collectors/{path.name}" if source == "program"
+                        else f"keel/collectors/{path.name}",
+                "summary": _module_summary(text),
+                # A shipped module that only raises is the shape of a collector
+                # rather than one: saying so beats letting somebody wire it up
+                # and discover it at the next scheduled run.
+                "template": "NotImplementedError" in text,
+            }
+    return found
+
+
+def _module_summary(text: str) -> str:
+    """The first line of a module docstring, which is written as a summary."""
+    match = re.search(r'^\s*(?:"""|\'\'\')(.*?)(?:"""|\'\'\')', text, re.S)
+    if not match:
+        return ""
+    first = match.group(1).strip().split("\n\n")[0]
+    return " ".join(first.split())
+
+
 def build_registry_json(config, documents, model, publish, coverage, requirements,
                         schedule=None, frameworks=None) -> dict:
     """Assemble the structure the dashboard reads.
@@ -104,6 +156,7 @@ def build_registry_json(config, documents, model, publish, coverage, requirement
         "frameworks": frameworks if frameworks is not None else {},
         "framework_adrs": framework_adrs(),
         "tools": tool_inventory(),
+        "collectors": collector_inventory(),
     }
     if schedule is not None:
         registry["schedule"] = schedule

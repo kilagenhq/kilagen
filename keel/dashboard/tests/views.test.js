@@ -13,6 +13,15 @@ import { state } from '../modules/state.js';
    replacing it would leave nav.js holding detached elements. */
 document.body.innerHTML = '<div id="main"></div><div id="right"></div><nav id="app-nav"></nav><div id="tree"></div><input id="search">';
 
+/* Evidence goes off against today, so a fixture with fixed dates would start
+   failing on a date nobody chose. Every artefact below is placed relative to
+   the day the suite runs. */
+function daysAgo(n) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
 const REGISTRY = {
   config: { name: 'Test Program', repo: 'org/test', frameworks: [{ id: 'pci_dss', binding: 'mandatory' }] },
   types: [
@@ -43,7 +52,17 @@ const REGISTRY = {
   documents: [
     { path: 'roles/role-owner.md', id: 'role-owner', type: 'role', title: 'Owner', description: 'The accountable role.', status: 'active', owner: 'role-owner', last_reviewed: '2026-01-01', next_review: '2030-01-01' },
     { path: 'policies/pol-info-sec.md', id: 'pol-info-sec', type: 'policy', title: 'Information Security', description: 'Top-level principles.', status: 'active', owner: 'role-owner', domains: ['grc'], related: ['std-access-control'], last_reviewed: '2026-01-01', next_review: '2020-01-01' },
-    { path: 'standards/std-access-control.md', id: 'std-access-control', type: 'standard', title: 'Access Control', description: 'How access is granted.', status: 'active', owner: 'role-owner', domains: ['iam'], capabilities: ['iam.idp'], systems: ['okta'], last_reviewed: '2026-01-01', next_review: '2030-01-01', requirements: [{ ref: '1.2', text: 'Every user has a unique account.', frameworks: { pci_dss: ['8'] } }] },
+    { path: 'standards/std-access-control.md', id: 'std-access-control', type: 'standard', title: 'Access Control', description: 'How access is granted.', status: 'active', owner: 'role-owner', domains: ['iam'], capabilities: ['iam.idp'], systems: ['okta'], last_reviewed: '2026-01-01', next_review: '2030-01-01', requirements: [
+      { ref: '1.2', text: 'Every user has a unique account.', frameworks: { pci_dss: ['8'] },
+        how_demonstrated: 'Quarterly export of every account from the identity provider.',
+        evidence: [
+          { name: 'Account inventory, this quarter', url: 'https://drive.example.com/accounts.csv', collected: daysAgo(10), freshness: 'quarterly', collector: 'manual' },
+          { name: 'Account inventory, last year', url: 'https://drive.example.com/accounts-old.csv', collected: daysAgo(400), freshness: 'annually' },
+        ] },
+      /* No frameworks and no evidence: the em dash in the mapping matrix and
+         the unproven row in the evidence table both need one of these. */
+      { ref: '1.3', text: 'Administrative access is time-bound and approved.' },
+    ] },
     { path: 'gaps/2026/gap-shared-accounts.md', id: 'gap-shared-accounts', type: 'gap', title: 'Shared accounts', description: 'Two hosts share an account.', owner: 'role-owner', requirement: 'std-access-control#1.2', source: 'audit', found: '2020-02-01', severity: 'medium', tracker: 'https://tracker.example.com/SEC-9', last_reviewed: '2026-02-01', next_review: '2030-01-01' },
     { path: 'exceptions/2026/exc-batch-account.md', id: 'exc-batch-account', type: 'exception', title: 'Batch account', description: 'A job uses a service account.', owner: 'role-owner', requirement: 'std-access-control#1.2', approved_by: ['role-owner'], expires: '2030-06-01', last_reviewed: '2026-02-01', next_review: '2030-01-01' },
     { path: 'vendors/vnd-okta.md', id: 'vnd-okta', type: 'vendor', title: 'Okta', description: 'The identity provider.', status: 'active', owner: 'role-owner', vendor_name: 'Okta', tier: 'critical', criticality: 'critical', cia: { confidentiality: 'high', integrity: 'critical', availability: 'critical' }, rto: '4h', rpo: '1h', certifications: ['ISO/IEC 27001'], last_reviewed: '2026-05-14', next_review: '2030-05-14' },
@@ -59,6 +78,15 @@ const REGISTRY = {
   },
   requirements: {
     'std-access-control#1.2': { standard: 'std-access-control', ref: '1.2', text: 'Every user has a unique account.', frameworks: { pci_dss: ['8'] }, gaps: ['gap-shared-accounts'], exceptions: ['exc-batch-account'] },
+    'std-access-control#1.3': { standard: 'std-access-control', ref: '1.3', text: 'Administrative access is time-bound and approved.', gaps: [], exceptions: [] },
+  },
+  collectors: {
+    manual: { source: 'framework', path: 'keel/collectors/manual.py', template: false,
+              summary: 'A person refreshed this evidence; record the day and leave the link alone.' },
+    'okta-access-review': { source: 'framework', path: 'keel/collectors/okta-access-review.py', template: true,
+                            summary: 'Fetch the quarterly access review export from Okta. Not implemented.' },
+    'quarter-end': { source: 'program', path: 'collectors/quarter-end.py', template: false,
+                     summary: 'Stamp evidence with the quarter it covers.' },
   },
   frameworks: {
     pci_dss: {
@@ -93,7 +121,7 @@ beforeEach(async () => {
   Object.assign(state, {
     types: [], model: { domains: [], capabilities: [], systems: [], risk_taxonomy: {} }, coverage: {},
     requirements: {}, publish: { destinations: {}, defaults: {} }, schedule: [],
-    frameworkAdrs: [], frameworks: {}, tools: {},
+    frameworkAdrs: [], frameworks: {}, tools: {}, collectors: {},
     fmCache: {}, idToPath: {}, allDocs: [], bodyCache: {},
     config: { name: 'Security Program', repo: '', organization: null, frameworks: [] },
     expandedSections: {}, currentDoc: '', currentView: 'home',
@@ -906,6 +934,208 @@ describe('degenerate data nothing should choke on', () => {
     renderCompliance('pci_dss');
     // The slice may exist, but no empty card is drawn for it.
     expect(main()).not.toContain('Ghost group');
+    expect(errors).toEqual([]);
+  });
+});
+
+describe('A standard, four ways', () => {
+  it('opens on its requirements, and offers the other three views', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    navigateDoc('standards/std-access-control.md');
+    const tabs = [...document.querySelectorAll('#main .doc-tab')].map((t) => t.textContent);
+    expect(tabs).toHaveLength(4);
+    expect(tabs[0]).toContain('Requirements');
+    expect(tabs[1]).toContain('Mappings');
+    expect(tabs[2]).toContain('Gaps');
+    expect(tabs[3]).toContain('Evidence');
+    expect(document.querySelector('#main .doc-tab.active').textContent).toContain('Requirements');
+    expect(main()).toContain('Every user has a unique account');
+    expect(errors).toEqual([]);
+  });
+
+  it('counts what is behind each tab, and evidence as a ratio', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    navigateDoc('standards/std-access-control.md');
+    const counts = [...document.querySelectorAll('#main .doc-tab-count')].map((t) => t.textContent);
+    // Two requirements, one clause reference, an open gap and a live exception
+    // standing against them, and one of the two requirements proven.
+    expect(counts).toEqual(['2', '1', '2', '1/2']);
+  });
+
+  it('opens straight at the view the link names', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    location.hash = 'doc/standards/std-access-control.md?tab=mappings';
+    navigateDoc('standards/std-access-control.md');
+    expect(document.querySelector('#main .doc-tab.active').textContent).toContain('Mappings');
+    expect(document.querySelector('#main .mapping-table')).not.toBeNull();
+    expect(errors).toEqual([]);
+  });
+
+  it('draws the requirement-by-framework matrix that exists nowhere else', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    location.hash = 'doc/standards/std-access-control.md?tab=mappings';
+    navigateDoc('standards/std-access-control.md');
+    const table = document.querySelector('#main .mapping-table');
+    const headers = [...table.querySelectorAll('th')].map((h) => h.textContent);
+    expect(headers[0]).toContain('Requirement');
+    expect(headers[1]).toContain('PCI DSS');
+    // 1.2 maps to clause 8; 1.3 maps to nothing and says so rather than going blank.
+    expect(table.textContent).toContain('8');
+    expect(table.querySelector('.mapping-none')).not.toBeNull();
+  });
+
+  it('shows a closed gap in the table while the badge counts only what stands', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    // Close the gap: the badge drops to the live exception alone, and the
+    // remediated row stays in the table because the history is the point.
+    state.fmCache['gaps/2026/gap-shared-accounts.md'].remediated = '2026-03-01';
+    location.hash = 'doc/standards/std-access-control.md?tab=gaps';
+    navigateDoc('standards/std-access-control.md');
+    expect(main()).toContain('gap-shared-accounts');
+    expect(main()).toContain('remediated 2026-03-01');
+    const gapTab = [...document.querySelectorAll('#main .doc-tab')][2];
+    expect(gapTab.querySelector('.doc-tab-count').textContent).toBe('1');
+    delete state.fmCache['gaps/2026/gap-shared-accounts.md'].remediated;
+  });
+
+  it('says plainly when nothing has been filed against a standard', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    state.fmCache['gaps/2026/gap-shared-accounts.md'].requirement = 'std-other#1.1';
+    state.fmCache['exceptions/2026/exc-batch-account.md'].requirement = 'std-other#1.1';
+    location.hash = 'doc/standards/std-access-control.md?tab=gaps';
+    navigateDoc('standards/std-access-control.md');
+    expect(main()).toContain('Nothing is filed against this standard');
+    state.fmCache['gaps/2026/gap-shared-accounts.md'].requirement = 'std-access-control#1.2';
+    state.fmCache['exceptions/2026/exc-batch-account.md'].requirement = 'std-access-control#1.2';
+  });
+
+  it('shows what can be proven and what has gone stale', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    location.hash = 'doc/standards/std-access-control.md?tab=evidence';
+    navigateDoc('standards/std-access-control.md');
+    expect(main()).toContain('1 / 2');
+    expect(main()).toContain('Account inventory, this quarter');
+    expect(main()).toContain('stale');
+    expect(main()).toContain('nothing attached');
+    // The standard's own page does not repeat its own name down every row.
+    const headers = [...document.querySelectorAll('#main .evidence-table th')].map((h) => h.textContent);
+    expect(headers.join(' ')).not.toContain('Standard');
+    expect(errors).toEqual([]);
+  });
+
+  it('leaves every other type without tabs', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    navigateDoc('policies/pol-info-sec.md');
+    expect(document.querySelector('#main .doc-tabs')).toBeNull();
+  });
+});
+
+describe('Slicing by standard', () => {
+  it('offers the standard as a facet wherever the bar is drawn', async () => {
+    const { renderBrowse } = await import('../modules/views/browse.js');
+    location.hash = 'program/gap';
+    renderBrowse('gap');
+    const names = [...document.querySelectorAll('.filter-facet-btn')].map((b) => b.textContent);
+    expect(names.some((n) => n.indexOf('Standard') === 0)).toBe(true);
+  });
+
+  it('narrows gaps to the standard whose requirement they contest', async () => {
+    const { renderBrowse } = await import('../modules/views/browse.js');
+    location.hash = 'program/gap?standard=std-access-control';
+    renderBrowse('gap');
+    expect(main()).toContain('gap-shared-accounts');
+    location.hash = 'program/gap?standard=std-nothing';
+    renderBrowse('gap');
+    expect(main()).not.toContain('gap-shared-accounts');
+  });
+
+  it('cuts a framework down to the clauses one standard reaches', async () => {
+    const { renderCompliance } = await import('../modules/views/compliance.js');
+    location.hash = 'compliance/pci_dss?standard=std-access-control';
+    renderCompliance('pci_dss');
+    // Clause 8 is reached through std-access-control#1.2; clause 7 is not reached at all.
+    expect(main()).toContain('std-access-control#1.2');
+    expect(main()).toContain('clauses are reached by the selected standard');
+    const rows = [...document.querySelectorAll('#main .compliance-table tr')];
+    expect(rows).toHaveLength(2); // the header and clause 8
+    expect(errors).toEqual([]);
+  });
+
+  it('stands the figure down beside a filtered table, rather than counting two things at once', async () => {
+    const { renderCompliance } = await import('../modules/views/compliance.js');
+    location.hash = 'compliance/pci_dss';
+    renderCompliance('pci_dss');
+    expect(document.querySelector('#main .fw-bars-wrap, #main .fw-wheel-wrap')).not.toBeNull();
+    location.hash = 'compliance/pci_dss?standard=std-access-control';
+    renderCompliance('pci_dss');
+    expect(document.querySelector('#main .fw-bars-wrap, #main .fw-wheel-wrap')).toBeNull();
+  });
+});
+
+describe('Evidence, the other half of Compliance', () => {
+  it('is a tab of the lens, not a lens of its own', async () => {
+    const { renderCompliance } = await import('../modules/views/compliance.js');
+    renderCompliance(null);
+    const tabs = [...document.querySelectorAll('#main .doc-tab')].map((t) => t.textContent);
+    expect(tabs).toEqual(['Frameworks', 'Evidence']);
+  });
+
+  it('counts what the program can prove, in the words the check uses', async () => {
+    const { renderEvidenceLens } = await import('../modules/views/evidence.js');
+    renderEvidenceLens();
+    expect(main()).toContain('1 / 2');
+    expect(main()).toContain('requirements with evidence attached');
+    const labels = [...document.querySelectorAll('.evidence-counter-label')].map((l) => l.textContent);
+    expect(labels).toEqual(['unproven', 'stale', 'undated', 'due soon', 'no expiry set', 'fresh']);
+    expect(errors).toEqual([]);
+  });
+
+  it('puts every artefact and every unproven requirement in one table', async () => {
+    const { renderEvidenceLens } = await import('../modules/views/evidence.js');
+    renderEvidenceLens();
+    const table = document.querySelector('#main .evidence-table');
+    expect(table.textContent).toContain('Account inventory, this quarter');
+    expect(table.textContent).toContain('Account inventory, last year');
+    expect(table.textContent).toContain('nothing attached');
+    expect(table.textContent).toContain('std-access-control');
+  });
+
+  it('filters the table by status, so "what can we not prove" is a link', async () => {
+    const { renderEvidenceLens } = await import('../modules/views/evidence.js');
+    location.hash = 'compliance/evidence?status=unproven';
+    renderEvidenceLens();
+    const table = document.querySelector('#main .evidence-table');
+    expect(table.textContent).toContain('nothing attached');
+    expect(table.textContent).not.toContain('Account inventory, this quarter');
+  });
+
+  it('describes every collector, and marks the one that only raises', async () => {
+    const { renderEvidenceLens } = await import('../modules/views/evidence.js');
+    renderEvidenceLens();
+    expect(main()).toContain('Collectors');
+    expect(main()).toContain('manual');
+    expect(main()).toContain('A person refreshed this evidence');
+    expect(main()).toContain('keel/collectors/manual.py');
+    // The Okta one is the shape of a collector, not one.
+    expect(main()).toContain('template');
+    // And one that lives in this repository rather than the package.
+    expect(main()).toContain('this repository');
+    expect(main()).toContain('Not named by any evidence entry');
+  });
+
+  it('says which commands produced any of this', async () => {
+    const { renderEvidenceLens } = await import('../modules/views/evidence.js');
+    renderEvidenceLens();
+    expect(right()).toContain('kilagen check evidence');
+    expect(right()).toContain('kilagen update evidence --apply');
+    expect(right()).toContain('never the proof');
+  });
+
+  it('has somewhere to stand when no standard states a requirement', async () => {
+    const { renderEvidenceLens } = await import('../modules/views/evidence.js');
+    delete state.fmCache['standards/std-access-control.md'].requirements;
+    renderEvidenceLens();
+    expect(main()).toContain('No requirements to prove');
     expect(errors).toEqual([]);
   });
 });

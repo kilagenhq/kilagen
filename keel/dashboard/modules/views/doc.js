@@ -1,10 +1,12 @@
 import { mk, mkIcon, mkEmpty, mkMetaRow, mkCopyBtn, mkSourcePanel, formatRoles, makeCollapsible, dropRepeatedTitle } from '../dom.js';
-import { state, docById, isOpenGap, isLiveException, typeInfo, supersededBy, statusOf } from '../state.js';
+import { state, docById, isLiveException, supersededBy, statusOf } from '../state.js';
 import { go, setActiveView, setBread, mainEl, rightEl, showRightPanel } from '../nav.js';
 import { renderMd, safeHtmlNode } from '../parsers.js';
 import { safeFetch, hookLinks } from '../security.js';
 import { renderConnections } from '../connections.js';
-import { typeColor, typeLabel, typePlural, statusColor, SEVERITY_COLORS, fwLabel, daysUntil, FRESHNESS_DAYS } from '../constants.js';
+import { idLink } from '../doclink.js';
+import { renderStandardTabs } from './standard.js';
+import { typeColor, typeLabel, typePlural, statusColor, SEVERITY_COLORS, daysUntil } from '../constants.js';
 
 /* One document, its metadata, its body, and what it relates to.
  *
@@ -12,19 +14,6 @@ import { typeColor, typeLabel, typePlural, statusColor, SEVERITY_COLORS, fwLabel
  * the grouping you see here is computed at render time and cannot contradict
  * the data — which is exactly what the grouped mapping used to allow.
  */
-
-function idLink(id) {
-  const fm = docById(id);
-  const el = mk('span', 'id-link', id);
-  if (fm) {
-    el.title = fm.title || '';
-    el.addEventListener('click', function(e) { go('doc/' + fm.path, e); });
-  } else {
-    el.classList.add('id-link-missing');
-    el.title = 'No document with this id';
-  }
-  return el;
-}
 
 function groupByPrefix(ids) {
   const groups = {};
@@ -44,77 +33,6 @@ function relatedSection(container, title, ids) {
     const block = mk('div', 'related-group');
     block.appendChild(mk('div', 'related-group-label', typePlural(type)));
     groups[type].forEach(function(id) { block.appendChild(idLink(id)); });
-    container.appendChild(block);
-  });
-}
-
-function requirementsBlock(container, fm) {
-  const requirements = fm.requirements || [];
-  if (!requirements.length) return;
-  container.appendChild(mk('h2', '', 'Requirements'));
-  container.appendChild(mk('p', 'section-note',
-    'Each one is addressable on its own: a framework clause maps to it, and a gap '
-    + 'or an exception is filed against it by id.'));
-
-  requirements.forEach(function(req) {
-    const key = fm.id + '#' + req.ref;
-    const state_ = state.requirements[key] || { gaps: [], exceptions: [] };
-    const block = mk('div', 'req-block');
-
-    const head = mk('div', 'req-head');
-    head.appendChild(mk('code', 'req-ref', key));
-    (state_.gaps || []).forEach(function(id) {
-      const pill = mk('span', 'pill clickable', 'gap: ' + id);
-      pill.style.borderColor = 'var(--sev-high)'; pill.style.color = 'var(--sev-high)';
-      pill.addEventListener('click', function(e) { const g = docById(id); if (g) go('doc/' + g.path, e); });
-      head.appendChild(pill);
-    });
-    (state_.exceptions || []).forEach(function(id) {
-      const pill = mk('span', 'pill clickable', 'exception: ' + id);
-      pill.style.borderColor = 'var(--sev-medium)'; pill.style.color = 'var(--sev-medium)';
-      pill.addEventListener('click', function(e) { const x = docById(id); if (x) go('doc/' + x.path, e); });
-      head.appendChild(pill);
-    });
-    block.appendChild(head);
-
-    block.appendChild(mk('div', 'req-text', String(req.text || '').trim()));
-    /* Two different things an auditor asks for separately: how you show it,
-       and then show me. They used to share the name `evidence` and the audit
-       page listed them together, half of them clickable. */
-    if (req.how_demonstrated) {
-      const how = mk('div', 'req-evidence');
-      how.appendChild(mk('span', 'req-evidence-label', 'How demonstrated'));
-      how.appendChild(mk('span', '', String(req.how_demonstrated).trim()));
-      block.appendChild(how);
-    }
-    (req.evidence || []).forEach(function(item) {
-      const ev = mk('div', 'req-evidence');
-      ev.appendChild(mk('span', 'req-evidence-label', 'Evidence'));
-      const link = mk('a', 'source-link', item.name || item.url);
-      link.href = item.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
-      ev.appendChild(link);
-      if (item.collected) {
-        const age = mk('span', 'req-evidence-age', 'collected ' + item.collected);
-        const days = daysUntil(item.collected);
-        if (days !== null && FRESHNESS_DAYS[item.freshness] && -days > FRESHNESS_DAYS[item.freshness]) {
-          age.style.color = 'var(--sev-high)';
-          age.textContent += ' · overdue';
-        }
-        ev.appendChild(age);
-      }
-      block.appendChild(ev);
-    });
-    if (req.frameworks) {
-      const maps = mk('div', 'req-frameworks');
-      Object.keys(req.frameworks).forEach(function(fw) {
-        (req.frameworks[fw] || []).forEach(function(clause) {
-          const pill = mk('span', 'pill clickable', fwLabel(fw) + ' ' + clause);
-          pill.addEventListener('click', function(e) { go('compliance/' + fw, e); });
-          maps.appendChild(pill);
-        });
-      });
-      block.appendChild(maps);
-    }
     container.appendChild(block);
   });
 }
@@ -280,7 +198,6 @@ export function navigateDoc(path) {
     return;
   }
 
-  const info = typeInfo(fm.type);
   setBread([
     { label: typePlural(fm.type), action: function(e) { go('browse/' + fm.type, e); } },
     { label: fm.id },
@@ -325,7 +242,9 @@ export function navigateDoc(path) {
     block.appendChild(mk('div', '', String(fm.retention_justification).trim()));
     mainEl.appendChild(block);
   }
-  requirementsBlock(mainEl, fm);
+  /* A standard is the one type with requirements, and they are the reason
+     anybody opens it. Four views of them, in place of the single list. */
+  if (fm.type === 'standard') renderStandardTabs(mainEl, fm, path);
 
   const bodyCard = mk('div', 'doc-body');
   mainEl.appendChild(bodyCard);

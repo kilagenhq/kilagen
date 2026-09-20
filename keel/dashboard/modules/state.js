@@ -9,6 +9,7 @@ export const state = window.__keelState = {
   frameworkAdrs: [],   // the framework's own ADRs, indexed by the build
   frameworks: {},      // framework id -> structure and prose; never seen by coverage
   tools: {},           // capability id -> the vendored inventory of what exists
+  collectors: {},      // collector name -> where it lives and what it does
 
   // Document index
   fmCache: {},          // path -> frontmatter
@@ -126,6 +127,20 @@ export function supersededBy(fm) {
   if (!fm || !fm.id) return null;
   if (!supersedeIndex || supersedeIndexFor !== state.fmCache) buildSupersedeIndex();
   return supersedeIndex[fm.id] || null;
+}
+
+/* Which standard a document belongs to.
+ *
+ * A standard is its own. A gap or an exception belongs to the standard of the
+ * requirement it contests, which it already names as `<standard-id>#<ref>` —
+ * so this is a read of existing data, not a new field. Nothing else has one,
+ * and returning '' is how the filter bar learns the facet does not apply.
+ */
+export function standardIdOf(fm) {
+  if (!fm) return '';
+  if (fm.type === 'standard') return fm.id || '';
+  if (fm.requirement) return String(fm.requirement).split('#')[0];
+  return '';
 }
 
 /* The declared status, unless something supersedes this document — in which

@@ -128,8 +128,8 @@ const EXTRA_COLUMNS = {
 /* The facets each view offers, in order. The bar drops any that have no
    values in the current set, so a type-specific one costs nothing on a type
    that does not carry it. */
-const ALL_FACETS = ['type', 'status', 'owner', 'domain', 'capability', 'system', 'severity'];
-const TYPE_FACETS = ['status', 'state', 'owner', 'domain', 'capability', 'system',
+const ALL_FACETS = ['type', 'status', 'standard', 'owner', 'domain', 'capability', 'system', 'severity'];
+const TYPE_FACETS = ['status', 'state', 'standard', 'owner', 'domain', 'capability', 'system',
                      'severity', 'treatment', 'cause', 'source', 'tier', 'criticality',
                      'classification'];
 

@@ -1,3 +1,5 @@
+import { state } from './state.js';
+
 /* Labels and colors. Everything structural — what types exist, what domains
    exist — comes from registry.json, so this file cannot drift from the law. */
 
@@ -61,7 +63,19 @@ export const KEEL_ROOT_FILES = ['design.md', 'README.md', 'glossary.md',
 
 export const FRAMEWORK_LABELS = { nist_csf: 'NIST CSF 2.0', iso_27001: 'ISO/IEC 27001:2022', soc2: 'SOC 2', pci_dss: 'PCI DSS' };
 
+/* The framework's own name, as the vocabulary publishes it.
+ *
+ * The id is the edition — `pci_dss_4_0_1` is a different list from `pci_dss` —
+ * so a static table of labels is a table that goes stale the first time a
+ * regulator publishes a revision: the card read "PCI DSS v4.0.1" from the
+ * vocabulary while the tree beside it spelled the id out as "PCI DSS 4 0 1".
+ * The shipped name wins, the table is the fallback for a framework that
+ * carries none, and the prettifier is the last resort.
+ */
 export function fwLabel(key) {
+  if (!key) return '';
+  const meta = (state.frameworks || {})[key];
+  if (meta && meta.name) return meta.name;
   return FRAMEWORK_LABELS[key] || key.replace(/_/g, ' ')
     .replace(/\b(iso|soc|nist|csf|pci|dss|ccss|bcm)\b/gi, function(m) { return m.toUpperCase(); })
     .replace(/\b([a-z])/g, function(m) { return m.toUpperCase(); });

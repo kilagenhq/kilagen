@@ -2,6 +2,7 @@ import { mk, mkIcon } from './dom.js';
 import { state, docsOfType, docsWithFacet } from './state.js';
 import { go, getHash, splitHash } from './nav.js';
 import { typeColor, typePlural, fwLabel, groupedTypes, domainIcon, domainColor } from './constants.js';
+import { evidenceSummary } from './evidence.js';
 
 /* The sidebar is the whole navigation.
  *
@@ -95,6 +96,17 @@ function subtree(lens, hash) {
       row.appendChild(mk('span', 'tree-count', frameworkCount(fw)));
       rows.push(row);
     });
+    /* The other half of the lens, and the only way to reach it without going
+       through the landing page. Separated by its own label because it is not
+       a framework: it cuts across every one of them. */
+    rows.push(mk('div', 'tree-group-label', 'The proof'));
+    const proof = evidenceSummary();
+    rows.push(item('Evidence', 'compliance/evidence', {
+      icon: 'standard', active: hash === 'compliance/evidence',
+      title: 'What the program can show is true, and what has gone stale',
+    }));
+    rows[rows.length - 1].appendChild(
+      mk('span', 'tree-count', proof.proven + ' / ' + proof.requirements));
   } else if (lens === 'schedule') {
     /* The two clocks the lens keeps, so the tree is not empty here either. */
     const params = splitHash(getHash()).params;

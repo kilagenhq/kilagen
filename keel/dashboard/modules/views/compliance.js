@@ -1,7 +1,9 @@
 import { mk, mkEmpty, mkIcon, th } from '../dom.js';
 import { state, docById } from '../state.js';
-import { go, setActiveView, setBread, mainEl, rightEl, showRightPanel, hideRightPanel } from '../nav.js';
+import { go, setActiveView, setBread, setParams, splitHash, getHash, mainEl, rightEl, showRightPanel, hideRightPanel } from '../nav.js';
 import { frameworkWheel, frameworkBars, wheelCaption, barsCaption } from '../wheel.js';
+import { chip, docChip } from '../doclink.js';
+import { mkFacetPicker } from '../filters.js';
 import { fwLabel, BINDING_NOTE } from '../constants.js';
 
 /* The auditor's lens: clause to requirement to what still stands against it.
@@ -14,20 +16,6 @@ import { fwLabel, BINDING_NOTE } from '../constants.js';
  * Two pages. The entry compares every framework in scope; the detail is one
  * framework, drawn in its own published structure.
  */
-
-function chip(text, color, route) {
-  const el = mk('span', 'pill', text);
-  if (color) { el.style.borderColor = color; el.style.color = color; }
-  if (route) { el.classList.add('clickable'); el.addEventListener('click', function(e) { e.stopPropagation(); go(route, e); }); }
-  return el;
-}
-
-function docChip(id, color) {
-  const fm = docById(id);
-  const chipEl = chip(id, color, fm ? 'doc/' + fm.path : null);
-  if (fm && fm.title) chipEl.title = fm.title;
-  return chipEl;
-}
 
 function frameworkSummary(fw) {
   const clauses = state.coverage[fw] || {};
@@ -67,10 +55,36 @@ function bar(mapped, total) {
   return wrap;
 }
 
+/* The two halves of the auditor's question, as one bar.
+ *
+ * Coverage says a clause is addressed by a written requirement. Evidence says
+ * whether that requirement can be shown to be true. They are the same
+ * interrogation, so they are one lens with two faces rather than two lenses —
+ * and the bar lives here, with the lens, so neither page can draw it alone.
+ */
+export function renderComplianceTabs(container, current) {
+  const bar = mk('div', 'doc-tabs');
+  bar.setAttribute('role', 'tablist');
+  bar.setAttribute('aria-label', 'Compliance views');
+  [['frameworks', 'Frameworks', 'compliance'],
+   ['evidence', 'Evidence', 'compliance/evidence']].forEach(function(spec) {
+    const btn = mk('button', 'doc-tab' + (current === spec[0] ? ' active' : ''));
+    btn.type = 'button';
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', current === spec[0] ? 'true' : 'false');
+    btn.tabIndex = current === spec[0] ? 0 : -1;
+    btn.appendChild(mk('span', 'doc-tab-label', spec[1]));
+    btn.addEventListener('click', function(e) { go(spec[2], e); });
+    bar.appendChild(btn);
+  });
+  container.appendChild(bar);
+}
+
 /* ===== Entry: every framework in scope, side by side ===== */
 
 function renderDashboard(frameworks) {
   mainEl.appendChild(mk('h1', '', 'Compliance'));
+  renderComplianceTabs(mainEl, 'frameworks');
 
   const grid = mk('div', 'fw-card-grid');
   frameworks.forEach(function(fw) {
@@ -166,6 +180,39 @@ function clauseTable(container, refs, clauseNames) {
   container.appendChild(scroller);
 }
 
+/* Which standards map anything into this framework, and how many clauses each
+   one reaches. The denominator an auditor asks for when the question is "show
+   me what Access Control covers of PCI". */
+function standardsMapping(fw) {
+  const clauses = state.coverage[fw] || {};
+  const tally = {};
+  Object.keys(clauses).forEach(function(ref) {
+    (clauses[ref].requirements || []).forEach(function(key) {
+      const id = String(key).split('#')[0];
+      if (!tally[id]) tally[id] = {};
+      tally[id][ref] = true;
+    });
+  });
+  return Object.keys(tally).sort().map(function(id) {
+    const fm = docById(id);
+    return {
+      value: id,
+      label: (fm && fm.title) ? fm.title : id,
+      count: Object.keys(tally[id]).length,
+    };
+  });
+}
+
+/* Rewrite the slice and redraw. A filtered framework is a link, which is the
+   point: it goes in a ticket, an email, an audit request. */
+function reroute(fw, standards) {
+  const next = splitHash(getHash()).params;
+  if (standards.length) next.standard = standards.join(',');
+  else delete next.standard;
+  setParams('compliance/' + fw, next);
+  renderCompliance(fw);
+}
+
 function renderDetail(fw) {
   const clauses = state.coverage[fw];
   const m = meta(fw);
@@ -190,6 +237,55 @@ function renderDetail(fw) {
   pack.addEventListener('click', function(e) { go('audit/' + fw, e); });
   title.appendChild(pack);
   mainEl.appendChild(title);
+
+  /* Slice the framework by the standard that answers it. The question this
+     exists for — "show me what Access Control covers of PCI" — had no answer
+     anywhere in the product: the mapping was visible per requirement on the
+     standard and per clause here, and never from one to the other. */
+  const selected = (splitHash(getHash()).params.standard || '').split(',').filter(Boolean);
+  /* A clause is in scope when a selected standard maps a requirement to it.
+     With nothing selected every clause is, which is the unfiltered view. */
+  const inScope = function(ref) {
+    if (!clauses[ref]) return false;
+    if (!selected.length) return true;
+    return (clauses[ref].requirements || []).some(function(key) {
+      return selected.indexOf(String(key).split('#')[0]) !== -1;
+    });
+  };
+  const mappers = standardsMapping(fw);
+  if (mappers.length) {
+    const bar = mk('div', 'filter-bar filter-bar-inline');
+    mkFacetPicker(bar, {
+      name: 'Standard',
+      entries: mappers,
+      selected: selected,
+      onToggle: function(value, checked) {
+        const next = selected.filter(function(v) { return v !== value; });
+        if (checked) next.push(value);
+        reroute(fw, next);
+      },
+      onClear: function() { reroute(fw, []); },
+    });
+    if (selected.length) {
+      const tokens = mk('div', 'filter-tokens');
+      selected.forEach(function(id) {
+        const fm = docById(id);
+        const token = mk('span', 'filter-token');
+        token.appendChild(mk('span', 'filter-token-key', 'Standard'));
+        token.appendChild(mk('span', 'filter-token-value', (fm && fm.title) ? fm.title : id));
+        const x = mk('button', 'filter-token-x', '\u00d7');
+        x.type = 'button';
+        x.title = 'Remove this filter';
+        x.addEventListener('click', function() {
+          reroute(fw, selected.filter(function(v) { return v !== id; }));
+        });
+        token.appendChild(x);
+        tokens.appendChild(token);
+      });
+      bar.appendChild(tokens);
+    }
+    mainEl.appendChild(bar);
+  }
 
   /* The centre column is the clauses. Everything that describes the framework
      rather than listing it — what it is, what the denominator means, what
@@ -239,6 +335,14 @@ function renderDetail(fw) {
     mainEl.appendChild(box);
   }
 
+  if (selected.length) {
+    const reached = Object.keys(clauses).filter(inScope).length;
+    mainEl.appendChild(mk('p', 'section-note',
+      reached + ' of ' + s.total + ' clauses are reached by the selected standard'
+      + (selected.length === 1 ? '' : 's') + '. The rest of the framework is still '
+      + 'in scope — it is answered somewhere else, or nowhere.'));
+  }
+
   const clauseNames = {};
   const groups = m.groups || [];
   groups.forEach(function(g) {
@@ -247,8 +351,7 @@ function renderDetail(fw) {
   (m.clauses || []).forEach(function(c) { clauseNames[c.ref] = c; });
 
   const entriesFor = function(refs) {
-    return refs.filter(function(ref) { return clauses[ref]; })
-      .map(function(ref) { return { ref: ref, entry: clauses[ref] }; });
+    return refs.filter(inScope).map(function(ref) { return { ref: ref, entry: clauses[ref] }; });
   };
 
   if (groups.length) {
@@ -270,7 +373,9 @@ function renderDetail(fw) {
     const figure = radial
       ? frameworkWheel(groups, statsOf, jump)
       : frameworkBars(groups, statsOf, jump);
-    if (figure) {
+    /* The figure counts the whole framework. Beside a filtered table it would
+       be two different denominators on one screen, so it stands down. */
+    if (figure && !selected.length) {
       const wrap = mk('div', radial ? 'fw-wheel-wrap' : 'fw-bars-wrap');
       wrap.appendChild(figure);
       mainEl.appendChild(wrap);

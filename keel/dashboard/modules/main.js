@@ -9,6 +9,7 @@ import { renderHome } from './views/home.js';
 import { renderBrowse } from './views/browse.js';
 import { renderDomains, renderDomain } from './views/domains.js';
 import { renderCompliance } from './views/compliance.js';
+import { renderEvidenceLens } from './views/evidence.js';
 import { renderAudit } from './views/audit.js';
 import { renderSchedule } from './views/schedule.js';
 import { navigateDoc } from './views/doc.js';
@@ -39,6 +40,9 @@ function route(hash) {
   if (h === 'domains') return renderDomains();
   if (h.indexOf('domain/') === 0) return renderDomain(h.substring(7));
   if (h === 'compliance') return renderCompliance(null);
+  /* Before the framework branch: `evidence` is the other half of the lens,
+     not a framework id, and coverage would never resolve it. */
+  if (h === 'compliance/evidence') return renderEvidenceLens();
   if (h.indexOf('compliance/') === 0) return renderCompliance(h.substring(11));
   if (h.indexOf('audit/') === 0) return renderAudit(h.substring(6));
   if (h === 'schedule') return renderSchedule();

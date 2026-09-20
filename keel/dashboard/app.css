@@ -1354,3 +1354,282 @@ th.sortable[aria-sort="descending"] .sort-btn::after { content: " \2193"; color:
 .conn-label { cursor: pointer; }
 .conn-dot { cursor: grab; }
 .conn-node:active .conn-dot { cursor: grabbing; }
+
+/* ============================================================
+   TABS — one thing, seen several ways
+   ------------------------------------------------------------
+   An underline, not a pill. The header's lens bar is already pills on
+   accent-soft, and a second row of those would read as a second lens
+   bar rather than as a level below it. A rule with one segment lit is
+   the plainest way to say "same page, different view".
+   ============================================================ */
+.doc-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2xl);
+  border-bottom: 1px solid var(--border);
+  margin: var(--space-xl) 0 var(--space-lg);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.doc-tabs::-webkit-scrollbar { display: none; }
+.doc-tab {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  margin-bottom: -1px;
+  padding: var(--space-md) 2px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-family: var(--sans);
+  font-size: var(--text-md);
+  color: var(--fg2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.12s, border-color 0.12s;
+}
+.doc-tab:hover { color: var(--fg); border-bottom-color: var(--border); }
+.doc-tab.active { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
+.doc-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+/* The number is the reason to open the tab, so it is set like a reading on an
+   instrument: mono, tabular, quiet until it is the live one. */
+.doc-tab-count {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--fg3);
+  font-variant-numeric: tabular-nums;
+}
+.doc-tab.active .doc-tab-count { color: var(--accent); }
+.doc-tabpanel { margin-bottom: var(--space-3xl); }
+@media (max-width: 768px) { .doc-tabs { gap: var(--space-lg); } }
+@media print { .doc-tabs { display: none; } }
+
+/* ============================================================
+   MAPPINGS — requirement x framework
+   ------------------------------------------------------------
+   The matrix that did not exist anywhere: the pills were per
+   requirement and the clause list per framework, and nobody could see
+   the grid they form. An empty cell is an em dash, never blank — the
+   reader has to tell "nothing maps here" from "the table stopped".
+   ============================================================ */
+.mapping-table { table-layout: auto; }
+.mapping-req { min-width: 240px; max-width: 420px; }
+.mapping-req .req-ref { display: block; margin-bottom: 2px; }
+.mapping-req-text {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--fg2);
+  line-height: 1.5;
+}
+.mapping-cell { vertical-align: top; white-space: normal; }
+.mapping-cell .pill { margin: 0 3px 3px 0; }
+.mapping-none { color: var(--fg3); font-family: var(--mono); }
+
+/* ============================================================
+   EVIDENCE
+   ------------------------------------------------------------
+   The proof: the pointer, the day it was produced, and whether it
+   still proves anything. Colour carries the same meanings it does
+   everywhere else in the console — high for gone, medium for going,
+   accent for good — so nothing new has to be learned to read it.
+   ============================================================ */
+.evidence-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3xl);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-xl);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.evidence-headline { flex: 1 1 260px; min-width: 0; }
+.evidence-headline-ratio { display: flex; align-items: baseline; gap: var(--space-md); flex-wrap: wrap; }
+.evidence-headline-value {
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: -0.8px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+}
+.evidence-headline-label { font-size: var(--text-xs); color: var(--fg3); }
+/* Each counter is the filter it names, so it is a button — and a rule between
+   them, because a row of numbers with no separation reads as one number. */
+.evidence-counters { display: flex; flex-wrap: wrap; align-items: stretch; }
+.evidence-counter {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0 var(--space-xl);
+  border: none;
+  border-right: 1px solid var(--border);
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.evidence-counter:last-child { border-right: none; padding-right: 0; }
+.evidence-counter:first-child { padding-left: 0; }
+.evidence-counter:hover .evidence-counter-label { color: var(--fg); }
+.evidence-counter:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
+.evidence-counter-value {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--fg3);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+}
+.evidence-counter-label { font-size: var(--text-xs); color: var(--fg3); white-space: nowrap; }
+
+/* The same strip, compact, on a standard's own tab. */
+.evidence-strip { max-width: 420px; margin-bottom: var(--space-lg); }
+.evidence-strip-ratio { display: flex; align-items: baseline; gap: var(--space-md); flex-wrap: wrap; }
+.evidence-strip-value {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+.evidence-strip-label { font-size: var(--text-xs); color: var(--fg3); }
+
+/* Widths as hints, under automatic layout, with a floor the scroller picks up
+   below it. `table-layout: fixed` was the first attempt and it was wrong twice:
+   the declared widths summed over 100%, and a fixed cell does not grow for a
+   date it cannot fit — so the columns overlapped instead of pushing. */
+.evidence-table { width: 100%; min-width: 780px; }
+.evidence-table td { vertical-align: top; }
+.evidence-table .ev-standard { width: 12%; }
+.evidence-table .ev-req { width: 5%; }
+.evidence-table .ev-how { width: 25%; }
+.evidence-table .ev-artefact { width: 20%; }
+.evidence-table .ev-dates { width: 13%; }
+.evidence-table .ev-status { width: 10%; }
+.evidence-table .ev-collector { width: 12%; }
+.evidence-table td.ev-how {
+  font-size: var(--text-xs);
+  color: var(--fg2);
+  white-space: normal;
+  line-height: 1.5;
+}
+/* Three lines, then an ellipsis. The method matters, but a paragraph of it in
+   every row turns the table back into a document. The full sentence is on the
+   cell's title, and on the standard's own page in full. */
+.evidence-how-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* A pill per row, eight rows down, is a column of buttons. In the table the
+   collector is what it is — a name — and clicking it still filters. */
+.evidence-table td.ev-collector .pill {
+  border-color: transparent;
+  padding-left: 0;
+  padding-right: 0;
+  font-family: var(--mono);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.evidence-table td.ev-collector .pill.clickable:hover { color: var(--accent); }
+.evidence-table td.ev-artefact { white-space: normal; }
+.evidence-table td.ev-dates { white-space: nowrap; font-family: var(--mono); font-size: var(--text-xs); }
+.evidence-dates { display: flex; flex-direction: column; gap: 1px; }
+.evidence-dates-to { color: var(--fg3); }
+.evidence-dates-open { color: var(--fg3); font-family: var(--sans); font-style: italic; }
+/* An id breaks at its own hyphens rather than mid-word, which is where it
+   already reads as separable. */
+.evidence-table td.ev-standard { white-space: normal; }
+.evidence-table td.ev-standard .id-link { overflow-wrap: break-word; }
+/* In a table the bordered link reads as a button in every row. Here it is a
+   link, and the border goes. */
+.evidence-table .source-link {
+  border: none;
+  margin-top: 0;
+  padding: 0;
+  background: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+/* A requirement nobody has attached anything to is not an error, so it is set
+   back rather than marked up: the row is quieter, not louder. */
+.evidence-row-unproven td { color: var(--fg3); }
+.evidence-none { color: var(--fg3); font-style: italic; }
+.evidence-pill { margin-left: var(--space-sm); }
+.req-ref.clickable { cursor: pointer; }
+.req-ref.clickable:hover { color: var(--accent); }
+
+/* ============================================================
+   COLLECTORS
+   ------------------------------------------------------------
+   What can refresh the proof without anybody opening a console. The
+   card says three things a reader needs before wiring one up: where it
+   resolves from, what it does, and whether it is a working collector
+   or the shape of one.
+   ============================================================ */
+.collector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+.collector-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.collector-head { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+.collector-icon {
+  width: 15px; height: 15px; flex-shrink: 0;
+  fill: none; stroke: var(--accent); stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.collector-name { font-family: var(--mono); font-size: var(--text-md); color: var(--fg); font-weight: 600; }
+.collector-source,
+.collector-template {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  color: var(--fg3);
+}
+/* A template raises rather than collects. Medium, not high: it is a thing
+   waiting to be written, not a thing that broke. */
+.collector-template { border-color: var(--sev-medium); color: var(--sev-medium); }
+.collector-summary { margin: 0; font-size: var(--text-sm); color: var(--fg2); line-height: 1.6; }
+.collector-path { font-family: var(--mono); font-size: var(--text-xs); color: var(--fg3); }
+.collector-uses {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm);
+  padding-top: var(--space-md); border-top: 1px solid var(--border);
+}
+.collector-uses-label { font-size: var(--text-xs); color: var(--fg3); }
+.collector-uses-none { font-size: var(--text-xs); color: var(--fg3); font-style: italic; }
+
+/* The commands behind the page, in the panel. A page that shows what a verb
+   produced should say which verb, or the reader cannot reproduce it. */
+.evidence-commands { display: flex; flex-direction: column; gap: var(--space-md); }
+.evidence-command { display: flex; flex-direction: column; gap: 2px; }
+.evidence-command code {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--fg);
+  background: var(--bg3);
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-sm);
+  overflow-wrap: anywhere;
+}
+
+/* A facet bar with no search box: the clause table is already the framework's
+   own list, and there is one thing to slice it by. */
+.filter-bar-inline { margin: var(--space-lg) 0 var(--space-md); }

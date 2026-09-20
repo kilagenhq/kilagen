@@ -42,6 +42,7 @@ export function loadRegistry() {
     if (Array.isArray(reg.framework_adrs)) state.frameworkAdrs = reg.framework_adrs;
     if (reg.frameworks && typeof reg.frameworks === 'object') state.frameworks = reg.frameworks;
     if (reg.tools && typeof reg.tools === 'object') state.tools = reg.tools;
+    if (reg.collectors && typeof reg.collectors === 'object') state.collectors = reg.collectors;
 
     state.fullDiscoveryDone = true;
   });

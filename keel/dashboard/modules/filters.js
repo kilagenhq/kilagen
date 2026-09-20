@@ -1,5 +1,5 @@
 import { mk, mkIcon, roleTitle } from './dom.js';
-import { state, statusOf } from './state.js';
+import { state, statusOf, docById, standardIdOf } from './state.js';
 import { splitHash, setParams, getHash } from './nav.js';
 import { typeLabel } from './constants.js';
 
@@ -29,6 +29,11 @@ export const FACETS = [
   { key: 'type', name: 'Type', get: function(fm) { return fm.type; }, label: typeLabel },
   { key: 'status', name: 'Status', get: statusOf },
   { key: 'owner', name: 'Owner', get: function(fm) { return fm.owner; }, label: roleTitle },
+  /* A gap names the requirement it contests as `<standard-id>#<ref>`, so
+     slicing gaps, exceptions and standards by the standard they belong to
+     costs one derivation and no new field. It is the facet the auditor and
+     the standard's owner both reach for first. */
+  { key: 'standard', name: 'Standard', get: standardIdOf, label: docTitle },
   { key: 'domain', name: 'Domain', get: function(fm) { return fm.domains; }, label: modelName('domains') },
   { key: 'capability', name: 'Capability', get: function(fm) { return fm.capabilities; }, label: modelName('capabilities') },
   { key: 'system', name: 'System', get: function(fm) { return fm.systems; }, label: modelName('systems') },
@@ -60,6 +65,13 @@ function derivedState(fm) {
     return String(fm.expires) >= new Date().toISOString().slice(0, 10) ? 'live' : 'expired';
   }
   return '';
+}
+
+/* An id resolves to the document's own title, and to the bare id when no
+   document carries it — a filter must not hide a value it can still match. */
+function docTitle(id) {
+  const fm = docById(id);
+  return (fm && fm.title) ? fm.title : id;
 }
 
 function modelName(collection) {
@@ -102,6 +114,117 @@ function readSelection(params, facets) {
   return selection;
 }
 
+/* ===== The facet control =====
+ *
+ * A button that opens the values of one facet with their counts. It is
+ * exported because the Compliance clause table needs exactly this control
+ * over a set that is *not* documents — it filters clauses against the
+ * framework's vocabulary — and a second popover that merely looked the same
+ * would drift from this one inside a release.
+ *
+ * Every open picker registers here and one document listener closes them all.
+ * That listener used to be added per mount, so every re-render left another
+ * one behind holding the previous render's closure.
+ */
+const openPickers = [];
+
+export function closeAllFacetPickers(except, refocus) {
+  for (let i = openPickers.length - 1; i >= 0; i--) {
+    if (openPickers[i] !== except) openPickers[i].close(refocus);
+  }
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', function() { closeAllFacetPickers(null, false); });
+}
+
+/**
+ * Mount one facet button, and return a handle to it.
+ *
+ * @param {HTMLElement} container Where the button goes.
+ * @param {object} opts
+ *   - name: what the button says, and what the popover is labelled by.
+ *   - entries: [{ value, label, count }], already ordered.
+ *   - selected: the values currently chosen. Read, never written.
+ *   - onToggle: function(value, checked) — the caller owns the selection.
+ *   - onClear: function() — offered only when something is selected.
+ */
+export function mkFacetPicker(container, opts) {
+  const selected = opts.selected || [];
+  const wrap = mk('div', 'filter-facet');
+  const btn = mk('button', 'filter-facet-btn' + (selected.length ? ' selected' : ''));
+  btn.type = 'button';
+  btn.setAttribute('aria-expanded', 'false');
+  btn.setAttribute('aria-label', 'Filter by ' + opts.name);
+  btn.appendChild(mk('span', '', opts.name));
+  btn.appendChild(mk('span', 'filter-facet-caret',
+    selected.length ? String(selected.length) : '▾'));
+  wrap.appendChild(btn);
+  container.appendChild(wrap);
+
+  let pop = null;
+
+  const picker = {
+    el: wrap,
+    close: function(refocus) {
+      const at = openPickers.indexOf(picker);
+      if (at !== -1) openPickers.splice(at, 1);
+      if (pop) { pop.remove(); pop = null; }
+      btn.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+      if (refocus) btn.focus();
+    },
+    open: function() {
+      closeAllFacetPickers();
+      btn.classList.add('open');
+      btn.setAttribute('aria-expanded', 'true');
+      pop = mk('div', 'filter-popover');
+      pop.setAttribute('role', 'group');
+      pop.setAttribute('aria-label', 'Filter by ' + opts.name);
+      /* Escape closes it and puts the focus back on the button that opened
+         it, which is where a keyboard user expects to be. */
+      pop.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') { e.stopPropagation(); picker.close(true); }
+      });
+      (opts.entries || []).forEach(function(entry) {
+        const row = mk('label', 'filter-popover-row');
+        const box = mk('input');
+        box.type = 'checkbox';
+        box.checked = selected.indexOf(entry.value) !== -1;
+        box.addEventListener('change', function() { opts.onToggle(entry.value, box.checked); });
+        row.appendChild(box);
+        row.appendChild(mk('span', 'filter-popover-label',
+          entry.label == null ? entry.value : entry.label));
+        row.appendChild(mk('span', 'filter-popover-count', String(entry.count)));
+        pop.appendChild(row);
+      });
+      if (selected.length && opts.onClear) {
+        const clear = mk('button', 'filter-popover-clear', 'Clear ' + opts.name);
+        clear.type = 'button';
+        clear.addEventListener('click', function() { opts.onClear(); });
+        pop.appendChild(clear);
+      }
+      pop.addEventListener('click', function(e) { e.stopPropagation(); });
+      wrap.appendChild(pop);
+      openPickers.push(picker);
+    },
+  };
+
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (btn.classList.contains('open')) picker.close();
+    else picker.open();
+  });
+  btn.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && btn.classList.contains('open')) {
+      e.stopPropagation();
+      picker.close(true);
+    }
+  });
+
+  return picker;
+}
+
 /* The search box currently on screen, so the `/` shortcut lands on the filter
    the user is looking at rather than the sidebar's tree search. */
 let activeInput = null;
@@ -122,11 +245,24 @@ export function focusFilterSearch() {
  *   - facets: facet keys to offer, in order. Absent ones are skipped anyway.
  *   - render: function(filteredDocs, resultsEl) — draws the results.
  *   - noun: what is being counted, default 'documents'.
+ *   - match: function(row, query) — how the search box matches a row. The
+ *     default reads a document's id, title and description; rows that are not
+ *     documents pass their own.
  */
 export function mountFilters(container, docs, opts) {
+  /* A facet is named by key when it is one of the document facets above, or
+     passed whole when the rows are not documents at all — which is how the
+     Evidence page filters artefacts through this same bar instead of growing
+     a second one that would drift. */
   const facets = (opts.facets || FACETS.map(function(f) { return f.key; }))
-    .map(function(k) { return BY_KEY[k]; })
+    .map(function(k) { return typeof k === 'string' ? BY_KEY[k] : k; })
     .filter(Boolean);
+  /* Which query-string keys this bar owns, and may therefore rewrite. Every
+     document facet counts, offered here or not, so navigating between views
+     does not carry a stale slice along; a caller's own facets are added. */
+  const owned = Object.assign({}, BY_KEY);
+  facets.forEach(function(f) { owned[f.key] = f; });
+  const matches = opts.match || matchesQuery;
   const noun = opts.noun || 'documents';
   const route = opts.route;
 
@@ -161,7 +297,7 @@ export function mountFilters(container, docs, opts) {
      facet's counts, and what makes them truthful. */
   function setExcluding(skipKey) {
     return docs.filter(function(fm) {
-      if (!matchesQuery(fm, query)) return false;
+      if (!matches(fm, query)) return false;
       for (let i = 0; i < facets.length; i++) {
         const f = facets[i];
         if (f.key === skipKey) continue;
@@ -179,59 +315,13 @@ export function mountFilters(container, docs, opts) {
     const next = {};
     const current = splitHash(getHash()).params;
     Object.keys(current).forEach(function(k) {
-      if (k !== 'q' && !BY_KEY[k]) next[k] = current[k];
+      if (k !== 'q' && !owned[k]) next[k] = current[k];
     });
     if (query) next.q = query;
     facets.forEach(function(f) {
       if (selection[f.key].length) next[f.key] = selection[f.key].join(',');
     });
     setParams(route, next);
-  }
-
-  function closePopovers(refocus) {
-    facetRow.querySelectorAll('.filter-popover').forEach(function(el) { el.remove(); });
-    facetRow.querySelectorAll('.filter-facet-btn.open').forEach(function(el) {
-      el.classList.remove('open');
-      el.setAttribute('aria-expanded', 'false');
-      if (refocus) el.focus();
-    });
-  }
-
-  function openPopover(btn, facet, counts) {
-    closePopovers();
-    btn.classList.add('open');
-    btn.setAttribute('aria-expanded', 'true');
-    const pop = mk('div', 'filter-popover');
-    pop.setAttribute('role', 'group');
-    pop.setAttribute('aria-label', 'Filter by ' + facet.name);
-    /* Escape closes it and puts the focus back on the button that opened it,
-       which is where a keyboard user expects to be. */
-    pop.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') { e.stopPropagation(); closePopovers(true); }
-    });
-    counts.forEach(function(entry) {
-      const row = mk('label', 'filter-popover-row');
-      const box = mk('input');
-      box.type = 'checkbox';
-      box.checked = selection[facet.key].indexOf(entry.value) !== -1;
-      box.addEventListener('change', function() {
-        const at = selection[facet.key].indexOf(entry.value);
-        if (box.checked && at === -1) selection[facet.key].push(entry.value);
-        else if (!box.checked && at !== -1) selection[facet.key].splice(at, 1);
-        apply();
-      });
-      row.appendChild(box);
-      row.appendChild(mk('span', 'filter-popover-label', facet.label ? facet.label(entry.value) : entry.value));
-      row.appendChild(mk('span', 'filter-popover-count', String(entry.count)));
-      pop.appendChild(row);
-    });
-    if (selection[facet.key].length) {
-      const clear = mk('button', 'filter-popover-clear', 'Clear ' + facet.name);
-      clear.addEventListener('click', function() { selection[facet.key] = []; apply(); });
-      pop.appendChild(clear);
-    }
-    pop.addEventListener('click', function(e) { e.stopPropagation(); });
-    btn.parentNode.appendChild(pop);
   }
 
   function drawFacets() {
@@ -244,30 +334,24 @@ export function mountFilters(container, docs, opts) {
       base.forEach(function(fm) {
         valuesOf(facet, fm).forEach(function(v) { tally[v] = (tally[v] || 0) + 1; });
       });
-      const counts = Object.keys(tally).sort().map(function(v) { return { value: v, count: tally[v] }; });
+      const entries = Object.keys(tally).sort().map(function(v) {
+        return { value: v, count: tally[v], label: facet.label ? facet.label(v) : v };
+      });
       // Nothing to offer: do not draw an empty dropdown.
-      if (!counts.length) return;
+      if (!entries.length) return;
 
-      const wrap = mk('div', 'filter-facet');
-      const chosen = selection[facet.key];
-      const btn = mk('button', 'filter-facet-btn' + (chosen.length ? ' selected' : ''));
-      btn.setAttribute('aria-expanded', 'false');
-      btn.setAttribute('aria-label', 'Filter by ' + facet.name);
-      btn.appendChild(mk('span', '', facet.name));
-      btn.appendChild(mk('span', 'filter-facet-caret', chosen.length ? String(chosen.length) : '▾'));
-      btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        if (btn.classList.contains('open')) { closePopovers(); return; }
-        openPopover(btn, facet, counts);
+      mkFacetPicker(facetRow, {
+        name: facet.name,
+        entries: entries,
+        selected: selection[facet.key],
+        onToggle: function(value, checked) {
+          const at = selection[facet.key].indexOf(value);
+          if (checked && at === -1) selection[facet.key].push(value);
+          else if (!checked && at !== -1) selection[facet.key].splice(at, 1);
+          apply();
+        },
+        onClear: function() { selection[facet.key] = []; apply(); },
       });
-      btn.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && btn.classList.contains('open')) {
-          e.stopPropagation();
-          closePopovers(true);
-        }
-      });
-      wrap.appendChild(btn);
-      facetRow.appendChild(wrap);
     });
   }
 
@@ -314,7 +398,7 @@ export function mountFilters(container, docs, opts) {
   }
 
   function apply() {
-    closePopovers();
+    closeAllFacetPickers();
     const filtered = currentSet();
     const active = drawTokens();
     drawFacets();
@@ -352,7 +436,6 @@ export function mountFilters(container, docs, opts) {
     if (e.key === 'Escape') { e.stopPropagation(); input.value = ''; query = ''; apply(); input.blur(); }
     if (e.key === 'Enter') { clearTimeout(debounce); query = input.value.trim().toLowerCase(); apply(); }
   });
-  document.addEventListener('click', closePopovers);
 
   apply();
   return { apply: apply, input: input };
