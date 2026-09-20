@@ -57,7 +57,11 @@ class _ScaffoldFixture(unittest.TestCase):
         engine.mkdir(parents=True)
         (engine / "engine.yml").write_text("name: None\n")
 
-        self._real_scaffold = cli.SCAFFOLD
+        # Restored through addCleanup, not tearDown: setUp calls cmd_init
+        # below, and unittest skips tearDown when setUp raises — which would
+        # leave every later test in the run looking at this temp scaffold.
+        real_scaffold = cli.SCAFFOLD
+        self.addCleanup(lambda: setattr(cli, 'SCAFFOLD', real_scaffold))
         cli.SCAFFOLD = self.scaffold
 
         self.instance = root / "instance"
@@ -69,7 +73,6 @@ class _ScaffoldFixture(unittest.TestCase):
 
     def tearDown(self):
         os.chdir(self._cwd)
-        cli.SCAFFOLD = self._real_scaffold
         self._tmp.cleanup()
 
     def _manifest(self) -> dict:
