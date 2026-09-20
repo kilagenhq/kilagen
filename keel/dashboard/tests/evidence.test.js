@@ -6,6 +6,8 @@
  * against an explicit `when` rather than today, because a rule about expiry
  * tested on a moving date is a rule that passes for the wrong reason.
  */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { state } from '../modules/state.js';
 import {
@@ -177,5 +179,46 @@ describe('the collectors a program can run', () => {
     state.collectors = {};
     const rows = collectorRows(TODAY);
     expect(rows.map((c) => c.name).sort()).toEqual(['manual', 'nowhere']);
+  });
+});
+
+/* The JavaScript half of the shared freshness contract.
+ *
+ * The same table `tests/test_evidence_rules.py` reads. The page and the check
+ * are two implementations of one rule; when they drift, they drift silently —
+ * the page calls an artefact good while the check calls it expired — so the
+ * table is what stops them. The dashboard's extra `due soon` is a warning a
+ * page can afford and a command cannot, and collapses to `current`.
+ */
+/* Resolved from the working directory rather than from `import.meta.url`:
+   under the jsdom environment the module URL is not a file: URL, and
+   `readFileSync` refuses it. vitest runs with this package as its root. */
+const SPEC = JSON.parse(readFileSync(
+  resolve(process.cwd(), '../../tests/fixtures/evidence-freshness.json'), 'utf8'));
+
+const COLLAPSE = {
+  fresh: 'current',
+  'due-soon': 'current',
+  stale: 'stale',
+  undated: 'undated',
+  unscheduled: 'no-window',
+};
+
+describe('the freshness rule, against the table the check also reads', () => {
+  it('reads the shared table', () => {
+    expect(SPEC.cases.length).toBeGreaterThan(50);
+    expect(SPEC.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  SPEC.cases.forEach((c) => {
+    const name = (c.collected || 'no date') + ' + ' + (c.freshness || 'no period')
+      + ' \u2192 ' + c.verdict;
+    it(name, () => {
+      const item = { name: 'Artefact', url: 'https://example.com/a.pdf' };
+      if (c.collected) item.collected = c.collected;
+      if (c.freshness) item.freshness = c.freshness;
+      expect(COLLAPSE[evidenceState(item, SPEC.today)]).toBe(c.verdict);
+      expect(expiresOn(item)).toBe(c.expires || '');
+    });
   });
 });
