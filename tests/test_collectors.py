@@ -93,6 +93,20 @@ class InventoryTests(ProgramTestCase):
         self.assertEqual(collect_evidence.collector_path("manual", self.repo).parent.name,
                          "collectors")
 
+    def test_the_resolver_follows_the_program_it_is_pointed_at(self):
+        """`collector_path` with no root must read the current PROGRAM.
+
+        It used to `from .keel_lib import PROGRAM`, which freezes the value at
+        import time — so repointing `keel_lib.PROGRAM` (which is how every
+        test, and `init`, moves the program) never reached it, and the default
+        resolved against whatever directory the process started in.
+        """
+        (self._collectors_dir() / "local-only.py").write_text(
+            '"""Only this program has it."""\n\ndef collect(config):\n    return {}\n',
+            encoding="utf-8")
+        found = collect_evidence.collector_path("local-only")
+        self.assertEqual(found.parent, self.repo / "collectors")
+
     def test_cataloguing_a_collector_never_runs_it(self):
         """A build that imported what it lists would execute arbitrary code.
 

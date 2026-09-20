@@ -1,4 +1,4 @@
-import { mk, mkEmpty, mkIcon, th, makeSortable } from '../dom.js';
+import { mk, mkEmpty, mkIcon, th, makeSortable, mkStatStrip } from '../dom.js';
 import { state } from '../state.js';
 import { go, setActiveView, setBread, setParams, splitHash, getHash, mainEl, rightEl, showRightPanel } from '../nav.js';
 import { chip } from '../doclink.js';
@@ -182,46 +182,28 @@ export function evidenceTable(container, rows, opts) {
 /* ===== The summary strip ===== */
 
 function renderSummary(container, summary) {
-  const strip = mk('div', 'evidence-summary');
-
-  const headline = mk('div', 'evidence-headline');
-  const ratio = mk('div', 'evidence-headline-ratio');
-  ratio.appendChild(mk('span', 'evidence-headline-value',
-    summary.proven + ' / ' + summary.requirements));
-  ratio.appendChild(mk('span', 'evidence-headline-label',
-    'requirements with evidence attached'));
-  headline.appendChild(ratio);
-  const bar = mk('div', 'fw-bar');
-  const fill = mk('div', 'fw-bar-fill');
-  fill.style.width = (summary.requirements
-    ? Math.round(summary.proven / summary.requirements * 100) : 0) + '%';
-  bar.appendChild(fill);
-  headline.appendChild(bar);
-  strip.appendChild(headline);
-
   /* Each counter is the filter it describes. A number you cannot click is a
      number you have to go and reproduce by hand. */
-  const counters = mk('div', 'evidence-counters');
-  EVIDENCE_STATES.forEach(function(entry) {
-    const key = entry[0];
-    const count = summary.counts[key] || 0;
-    const info = evidenceStateInfo(key);
-    const cell = mk('button', 'evidence-counter');
-    cell.type = 'button';
-    const value = mk('span', 'evidence-counter-value', String(count));
-    if (count) value.style.color = info.color;
-    cell.appendChild(value);
-    cell.appendChild(mk('span', 'evidence-counter-label', info.label));
-    cell.addEventListener('click', function() {
-      const next = splitHash(getHash()).params;
-      next.status = key;
-      setParams('compliance/evidence', next);
-      renderEvidenceLens();
-    });
-    counters.appendChild(cell);
-  });
-  strip.appendChild(counters);
-  container.appendChild(strip);
+  container.appendChild(mkStatStrip({
+    value: summary.proven + ' / ' + summary.requirements,
+    label: 'requirements with evidence attached',
+    fill: summary.requirements ? summary.proven / summary.requirements : 0,
+    counters: EVIDENCE_STATES.map(function(entry) {
+      const key = entry[0];
+      const info = evidenceStateInfo(key);
+      return {
+        value: summary.counts[key] || 0,
+        label: info.label,
+        color: info.color,
+        onClick: function() {
+          const next = splitHash(getHash()).params;
+          next.status = key;
+          setParams('compliance/evidence', next);
+          renderEvidenceLens();
+        },
+      };
+    }),
+  }));
 }
 
 /* ===== Collectors ===== */

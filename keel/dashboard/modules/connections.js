@@ -1,4 +1,4 @@
-import { mk, svgEl, mkIcon } from './dom.js';
+import { mk, svgEl, mkIcon, onActivate } from './dom.js';
 import { state, docById } from './state.js';
 import { go } from './nav.js';
 import { typeColor } from './constants.js';
@@ -200,9 +200,7 @@ export function renderConnections(container, fm) {
       node.appendChild(title);
 
       function open(e) { go('doc/' + n.path, e); }
-      node.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e); }
-      });
+      onActivate(node, open);
       svg.appendChild(node);
 
       nodes.push({
@@ -343,15 +341,12 @@ function animate(svg, nodes, cx, cy, w, h) {
      Without the distinction every drag would also navigate away. */
   nodes.forEach(function(n) {
     let downAt = null;
-    /* The label is the link and the disc is the handle. Both drag, because a
-       drag that only works on one half of a node is a puzzle; only the label
-       navigates, because clicking a thing you are about to move should not
-       take you somewhere else. */
-    function navigatesOnRelease(target) {
-      return target === n.label;
-    }
     n.el.addEventListener('pointerdown', function(e) {
-      downAt = { x: e.clientX, y: e.clientY, moved: false, fromLabel: navigatesOnRelease(e.target) };
+      /* The label is the link and the disc is the handle. Both drag, because a
+         drag that only works on one half of a node is a puzzle; only the label
+         navigates, because clicking a thing you are about to move should not
+         take you somewhere else. */
+      downAt = { x: e.clientX, y: e.clientY, moved: false, fromLabel: e.target === n.label };
       dragging = n;
       n.pinned = true;
       if (n.el.setPointerCapture) { try { n.el.setPointerCapture(e.pointerId); } catch (err) { /* not captureable */ } }
@@ -380,7 +375,7 @@ function animate(svg, nodes, cx, cy, w, h) {
         n.homeX = n.x;
         n.homeY = n.y;
         n.right = n.x >= cx;
-          n.label.setAttribute('text-anchor', n.right ? 'start' : 'end');
+        n.label.setAttribute('text-anchor', n.right ? 'start' : 'end');
       } else if (downAt && downAt.fromLabel) {
         /* A click on the text opens the document. A click on the disc is a
            drag that happened not to move, and opens nothing. */

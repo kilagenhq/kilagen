@@ -1,5 +1,5 @@
 import { mk, mkEmpty, mkIcon, th } from '../dom.js';
-import { state, docById } from '../state.js';
+import { state, docById, coverageOf } from '../state.js';
 import { go, setActiveView, setBread, setParams, splitHash, getHash, mainEl, rightEl, showRightPanel, hideRightPanel } from '../nav.js';
 import { frameworkWheel, frameworkBars, wheelCaption, barsCaption } from '../wheel.js';
 import { chip, docChip } from '../doclink.js';
@@ -20,9 +20,10 @@ import { fwLabel, BINDING_NOTE } from '../constants.js';
 function frameworkSummary(fw) {
   const clauses = state.coverage[fw] || {};
   const refs = Object.keys(clauses);
+  const cov = coverageOf(fw);
   return {
-    total: refs.length,
-    mapped: refs.filter(function(r) { return clauses[r].coverage === 'mapped'; }).length,
+    total: cov.total,
+    mapped: cov.mapped,
     gaps: refs.filter(function(r) { return clauses[r].gaps.length; }).length,
     exceptions: refs.filter(function(r) { return clauses[r].exceptions.length; }).length,
   };
@@ -63,9 +64,9 @@ function bar(mapped, total) {
  * and the bar lives here, with the lens, so neither page can draw it alone.
  */
 export function renderComplianceTabs(container, current) {
-  const bar = mk('div', 'doc-tabs');
-  bar.setAttribute('role', 'tablist');
-  bar.setAttribute('aria-label', 'Compliance views');
+  const tabs = mk('div', 'doc-tabs');
+  tabs.setAttribute('role', 'tablist');
+  tabs.setAttribute('aria-label', 'Compliance views');
   [['frameworks', 'Frameworks', 'compliance'],
    ['evidence', 'Evidence', 'compliance/evidence']].forEach(function(spec) {
     const btn = mk('button', 'doc-tab' + (current === spec[0] ? ' active' : ''));
@@ -75,9 +76,9 @@ export function renderComplianceTabs(container, current) {
     btn.tabIndex = current === spec[0] ? 0 : -1;
     btn.appendChild(mk('span', 'doc-tab-label', spec[1]));
     btn.addEventListener('click', function(e) { go(spec[2], e); });
-    bar.appendChild(btn);
+    tabs.appendChild(btn);
   });
-  container.appendChild(bar);
+  container.appendChild(tabs);
 }
 
 /* ===== Entry: every framework in scope, side by side ===== */
@@ -254,8 +255,8 @@ function renderDetail(fw) {
   };
   const mappers = standardsMapping(fw);
   if (mappers.length) {
-    const bar = mk('div', 'filter-bar filter-bar-inline');
-    mkFacetPicker(bar, {
+    const filterBar = mk('div', 'filter-bar filter-bar-inline');
+    mkFacetPicker(filterBar, {
       name: 'Standard',
       entries: mappers,
       selected: selected,
@@ -282,9 +283,9 @@ function renderDetail(fw) {
         token.appendChild(x);
         tokens.appendChild(token);
       });
-      bar.appendChild(tokens);
+      filterBar.appendChild(tokens);
     }
-    mainEl.appendChild(bar);
+    mainEl.appendChild(filterBar);
   }
 
   /* The centre column is the clauses. Everything that describes the framework
@@ -413,6 +414,10 @@ export function renderCompliance(framework) {
   const frameworks = Object.keys(state.coverage);
   if (!frameworks.length) {
     mainEl.appendChild(mk('h1', '', 'Compliance'));
+    /* The tabs are drawn even here. Evidence does not depend on a framework
+       being in scope — a program can prove its requirements before it maps
+       any clause — and without this the only way to reach it is the tree. */
+    renderComplianceTabs(mainEl, 'frameworks');
     mainEl.appendChild(mkEmpty('standard', 'No framework coverage',
       'A framework is measured when it is declared in program/config.yml. '
       + 'Kilagen ships the clause vocabularies, so the id is all it needs.'));

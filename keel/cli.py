@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Iterable
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -136,8 +137,9 @@ def _seed_plan(deployment: str, agent: str) -> dict[Path, Path]:
     plan = _tree_plan(SCAFFOLD / "base")
     plan |= _tree_plan(SCAFFOLD / "deployments" / deployment)
     engine_file = SCAFFOLD / "engines" / agent / "engine.yml"
-    engine = yaml.safe_load(engine_file.read_text(encoding="utf-8")) or {} \
-        if engine_file.is_file() else {}
+    engine = {}
+    if engine_file.is_file():
+        engine = yaml.safe_load(engine_file.read_text(encoding="utf-8")) or {}
     skills_dir = engine.get("skills_dir")
     if skills_dir:
         plan |= _tree_plan(SKILLS, prefix=Path(skills_dir))
@@ -211,7 +213,7 @@ FRAMEWORK_URLS = {
 DEFAULT_BINDING = {"nist_csf": "reference", "iso_27017": "reference", "iso_27018": "reference"}
 
 
-def _program_config(name: str, frameworks=None) -> str:
+def _program_config(name: str, frameworks: Iterable[str] | None = None) -> str:
     return (
         "# Identity and framework selection for this program.\n"
         f"name: {name}\n"
@@ -276,7 +278,7 @@ def _require_schema_version() -> None:
 # commands
 
 
-def _scope_frameworks(text: str, in_scope) -> str:
+def _scope_frameworks(text: str, in_scope: Iterable[str]) -> str:
     """Drop framework mappings the program is not measured against.
 
     The starter's standard maps its requirements to NIST CSF and PCI DSS
@@ -351,13 +353,15 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     target = Path.cwd().resolve()
     program = target / "program"
+    scope = getattr(args, "frameworks", None) or DEFAULT_FRAMEWORKS
 
     # Argument errors first: an unusable flag should be reported whether or not
     # the directory happens to be initialised already.
     for kind, value in (("deployments", args.deployment), ("engines", args.agent)):
-        if value not in _options(kind):
+        available = _options(kind)
+        if value not in available:
             raise CommandError(
-                f"unknown {kind[:-1]} '{value}' — available: {', '.join(_options(kind))}"
+                f"unknown {kind[:-1]} '{value}' — available: {', '.join(available)}"
             )
     if program.exists() and not args.force:
         raise CommandError(f"{program} already exists — refusing to overwrite (use --force)")
@@ -368,7 +372,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     # and never appears in the manifest: upgrade must not touch it.
     program.mkdir(parents=True, exist_ok=True)
     (program / "config.yml").write_text(
-        _program_config(args.name, getattr(args, "frameworks", None)), encoding="utf-8")
+        _program_config(args.name, scope), encoding="utf-8")
 
     # A folder means the document type and nothing else. All of them are
     # created up front: an empty folder is the menu of what this program can
@@ -398,6 +402,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     # and a gap and an exception filed against the same requirement so the
     # difference between the two is visible on day one.
     today = date.today()
+    owner_title = getattr(args, "owner_title", None)
     for source in sorted((starter / "documents").glob("*.md")):
         doc_type = keel_lib.type_of_id(source.stem)
         folder = program / doc_type.folder
@@ -405,8 +410,7 @@ def cmd_init(args: argparse.Namespace) -> int:
             folder = folder / str(today.year)
         folder.mkdir(parents=True, exist_ok=True)
         text = _reanchor_dates(source.read_text(encoding="utf-8"), today)
-        text = _scope_frameworks(text, getattr(args, "frameworks", None) or DEFAULT_FRAMEWORKS)
-        owner_title = getattr(args, "owner_title", None)
+        text = _scope_frameworks(text, scope)
         if owner_title and source.stem == "role-security-owner":
             # The id every seeded document points at stays; only the human
             # name changes, so nothing is left dangling.
@@ -420,7 +424,6 @@ def cmd_init(args: argparse.Namespace) -> int:
     print(f"Initialised '{args.name}' in {target}")
     print(f"  deployment: {args.deployment}    agent: {args.agent}")
     print(f"  {len(copied)} files copied, tracked in {MANIFEST_NAME}")
-    scope = getattr(args, "frameworks", None) or DEFAULT_FRAMEWORKS
     print("\nYour program starts as a map of what it could hold: the capability")
     print(f"menu as a checklist, {len(scope)} framework(s) in scope "
           f"({', '.join(scope)}), and five draft")
@@ -514,13 +517,6 @@ def cmd_collect_evidence(args: argparse.Namespace) -> int:
     from .libs import collect_evidence
 
     return collect_evidence.main(apply=getattr(args, "apply", False))
-
-
-_UPDATE_TARGETS = {
-    "config": lambda args: cmd_upgrade(args),
-    "content": lambda args: cmd_migrate(args),
-    "evidence": lambda args: cmd_collect_evidence(args),
-}
 
 
 def cmd_build(args: argparse.Namespace) -> int:
@@ -748,6 +744,12 @@ def cmd_migrate(args: argparse.Namespace) -> int:
     print("\nMigrated. Review with: git diff, then run: kilagen check")
     return 0
 
+
+_UPDATE_TARGETS = {
+    "config": cmd_upgrade,
+    "content": cmd_migrate,
+    "evidence": cmd_collect_evidence,
+}
 
 COMMANDS = {
     "init": cmd_init,

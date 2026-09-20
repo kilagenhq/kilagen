@@ -128,11 +128,12 @@ export function evidenceSummary(when) {
     row.evidence.forEach(function(found) { counts[found.state] += 1; artefacts += 1; });
   });
   const proven = requirements.filter(function(row) { return row.evidence.length; }).length;
-  counts.unproven = requirements.length - proven;
+  const unproven = requirements.length - proven;
+  counts.unproven = unproven;
   return {
     requirements: requirements.length,
     proven: proven,
-    unproven: requirements.length - proven,
+    unproven: unproven,
     artefacts: artefacts,
     counts: counts,
   };

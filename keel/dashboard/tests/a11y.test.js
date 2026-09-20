@@ -111,6 +111,16 @@ const VIEWS = [
   ['One framework', () => import('../modules/views/compliance.js').then((m) => m.renderCompliance('pci_dss'))],
   ['The audit pack', () => import('../modules/views/audit.js').then((m) => m.renderAudit('pci_dss'))],
   ['Schedule', () => import('../modules/views/schedule.js').then((m) => m.renderSchedule())],
+  ['Evidence', () => import('../modules/views/evidence.js').then((m) => m.renderEvidenceLens())],
+  ['A standard and its tabs', () => import('../modules/views/doc.js').then((m) => m.navigateDoc('standards/std-access-control.md'))],
+  ['A standard, mapping matrix', () => {
+    location.hash = 'doc/standards/std-access-control.md?tab=mappings';
+    return import('../modules/views/doc.js').then((m) => m.navigateDoc('standards/std-access-control.md'));
+  }],
+  ['A framework cut down to one standard', () => {
+    location.hash = 'compliance/pci_dss?standard=std-access-control';
+    return import('../modules/views/compliance.js').then((m) => m.renderCompliance('pci_dss'));
+  }],
   ['One document', () => import('../modules/views/doc.js').then((m) => m.navigateDoc('standards/std-access-control.md'))],
   ['The sidebar', () => import('../modules/sidebar.js').then((m) => m.rebuildSidebar())],
 ];
@@ -137,6 +147,42 @@ describe('the keyboard reaches everything the mouse does', () => {
     pop.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(document.querySelector('#main .filter-popover')).toBeNull();
     expect(btn.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('a tablist is one tab stop, and the arrows move inside it', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    navigateDoc('standards/std-access-control.md');
+    const bar = document.querySelector('#main .doc-tabs');
+    expect(bar.getAttribute('role')).toBe('tablist');
+    const tabs = [...bar.querySelectorAll('[role="tab"]')];
+    // Exactly one tab is reachable with Tab; the rest are reached with arrows.
+    expect(tabs.filter((t) => t.tabIndex === 0)).toHaveLength(1);
+    expect(tabs.filter((t) => t.getAttribute('aria-selected') === 'true')).toHaveLength(1);
+    tabs.forEach((t) => expect(t.getAttribute('aria-controls')).toBe('std-tabpanel'));
+
+    bar.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(tabs[1].getAttribute('aria-selected')).toBe('true');
+    expect(tabs[0].getAttribute('aria-selected')).toBe('false');
+    // And it wraps, rather than stopping at the end.
+    bar.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    bar.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(tabs[tabs.length - 1].getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('the panel says which tab it belongs to', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    navigateDoc('standards/std-access-control.md');
+    const panel = document.querySelector('#main .doc-tabpanel');
+    expect(panel.getAttribute('role')).toBe('tabpanel');
+    expect(document.getElementById(panel.getAttribute('aria-labelledby'))).not.toBeNull();
+  });
+
+  it('a segment meter reads as one figure, not as a row of empty boxes', async () => {
+    const { renderDomains } = await import('../modules/views/domains.js');
+    renderDomains();
+    const meter = document.querySelector('#main .seg-meter');
+    expect(meter.getAttribute('role')).toBe('img');
+    expect(meter.getAttribute('aria-label')).toMatch(/\d+ of \d+ capabilit/);
   });
 
   it('every table header says what it heads', async () => {

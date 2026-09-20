@@ -7,6 +7,17 @@ export function th(label, scope) {
   cell.setAttribute('scope', scope || 'col');
   return cell;
 }
+/* Enter and Space activate a thing that is only a button or a link by role.
+   A real <button> gets this from the browser; anything wearing role="button"
+   or role="link" has to implement it, and six hand-written copies of the same
+   two keys is six chances for one of them to be forgotten. */
+export function onActivate(el, run) {
+  el.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    run(e);
+  });
+}
 export function mkEmpty(iconType, title, desc) {
   const el = mk('div', 'empty-state');
   el.appendChild(mkIcon(iconType, 'empty-state-icon'));
@@ -82,15 +93,31 @@ export function ghUrl(path) {
 export function mkMetaRow(label, value) { const row = mk('div', 'meta-row'); row.appendChild(mk('span', 'meta-key', label)); row.appendChild(mk('span', 'meta-val', value)); return row; }
 export function mkSourcePanel(container, filePath) {
   container.appendChild(mk('h3', '', 'Source'));
-  var pathRow = mk('div', 'meta-row');
+  const pathRow = mk('div', 'meta-row');
   pathRow.appendChild(mk('span', 'meta-key', 'File'));
-  var pathVal = mk('span', 'meta-val', filePath);
+  const pathVal = mk('span', 'meta-val', filePath);
   pathVal.style.fontFamily = "'SF Mono',SFMono-Regular,Consolas,monospace";
   pathVal.style.fontSize = '11px';
   pathRow.appendChild(pathVal);
   container.appendChild(pathRow);
-  var href = ghUrl(filePath);
-  if (href) { var link = mk('a', 'source-link', 'View in GitHub'); link.href = href; link.target = '_blank'; link.rel = 'noopener noreferrer'; container.appendChild(link); }
+  const href = ghUrl(filePath);
+  if (href) { const link = mk('a', 'source-link', 'View in GitHub'); link.href = href; link.target = '_blank'; link.rel = 'noopener noreferrer'; container.appendChild(link); }
+}
+
+/* Upstream attribution, required by Apache-2.0 section 4(d): this site is a
+   redistribution of the framework's schemas and reference documents. Drawn by
+   both the landing page and Reference, so the licence notice cannot come to
+   read two different ways on two pages. */
+export function appendAttribution(container) {
+  container.appendChild(mk('h3', '', 'Framework'));
+  const link = mk('a', 'about-fw-link', 'Kilagen');
+  link.href = 'https://github.com/kilagenhq/kilagen';
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  const row = mk('div', 'meta-row');
+  row.appendChild(link);
+  row.appendChild(document.createTextNode(' · Apache-2.0'));
+  container.appendChild(row);
 }
 export function roleTitle(slug) {
   if (!slug || typeof slug !== 'string') return '';
@@ -135,6 +162,79 @@ export function mkCopyBtn() {
   return btn;
 }
 
+/* A strip of figures: one headline ratio with its bar, then the counters that
+ * break it down. Compliance's Evidence page and the Domains lens both open
+ * with one, and a console where two pages state their numbers in two different
+ * shapes reads as two products.
+ *
+ * A counter is a button when it is also the filter it describes, and a plain
+ * figure when there is nothing to filter — a number you can click and a number
+ * you cannot must not look the same.
+ *
+ * @param {object} spec
+ *   - value: the headline, e.g. "19 / 49"
+ *   - label: what it counts
+ *   - fill: 0..1, the proportion the bar shows. Omit for no bar.
+ *   - counters: [{ value, label, color, onClick }]
+ */
+export function mkStatStrip(spec) {
+  const strip = mk('div', 'stat-strip');
+
+  const headline = mk('div', 'stat-headline');
+  const ratio = mk('div', 'stat-headline-ratio');
+  ratio.appendChild(mk('span', 'stat-value', String(spec.value)));
+  ratio.appendChild(mk('span', 'stat-label', spec.label));
+  headline.appendChild(ratio);
+  if (typeof spec.fill === 'number') {
+    const bar = mk('div', 'fw-bar');
+    const fill = mk('div', 'fw-bar-fill');
+    fill.style.width = Math.round(Math.max(0, Math.min(1, spec.fill)) * 100) + '%';
+    bar.appendChild(fill);
+    headline.appendChild(bar);
+  }
+  strip.appendChild(headline);
+
+  const counters = mk('div', 'stat-counters');
+  (spec.counters || []).forEach(function(entry) {
+    const cell = mk(entry.onClick ? 'button' : 'div', 'stat-counter');
+    if (entry.onClick) {
+      cell.type = 'button';
+      cell.addEventListener('click', entry.onClick);
+    }
+    const value = mk('span', 'stat-counter-value', String(entry.value));
+    if (entry.color && entry.value) value.style.color = entry.color;
+    cell.appendChild(value);
+    cell.appendChild(mk('span', 'stat-counter-label', entry.label));
+    counters.appendChild(cell);
+  });
+  strip.appendChild(counters);
+  return strip;
+}
+
+/* One mark per capability, filled when something is written about it.
+ *
+ * Not a percentage bar. What is being counted is a small set of discrete
+ * things — three to ten — and each one is written about or it is not, so a
+ * continuous fill implies a precision the data does not have. It also fixes
+ * the row nobody had written anything in: `0 / 3` as an empty track read as a
+ * broken page, while three empty marks read as a fact.
+ */
+export function mkSegmentMeter(filled, total, color, label) {
+  const meter = mk('span', 'seg-meter');
+  meter.setAttribute('role', 'img');
+  meter.setAttribute('aria-label', label || (filled + ' of ' + total));
+  if (!total) {
+    meter.appendChild(mk('span', 'seg-meter-none', '\u2014'));
+    return meter;
+  }
+  for (let i = 0; i < total; i++) {
+    const seg = mk('span', 'seg' + (i < filled ? ' seg-on' : ''));
+    if (i < filled && color) seg.style.background = color;
+    meter.appendChild(seg);
+  }
+  return meter;
+}
+
 /* Fold a rendered markdown body into collapsible sections.
  *
  * A policy is not read top to bottom: somebody arrives looking for one clause
@@ -175,9 +275,7 @@ export function makeCollapsible(body, container) {
       section.hidden = expanded;
     }
     heading.addEventListener('click', toggle);
-    heading.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
-    });
+    onActivate(heading, toggle);
     sections.push({ heading: heading, section: section });
   });
 
@@ -278,7 +376,8 @@ export function makeSortable(table) {
       });
       rows.forEach(function(row) { table.appendChild(row); });
       headers.forEach(function(other, i) {
-        other.setAttribute('aria-sort', i === index ? (ascending ? 'ascending' : 'descending') : 'none');
+        if (i !== index) { other.setAttribute('aria-sort', 'none'); return; }
+        other.setAttribute('aria-sort', ascending ? 'ascending' : 'descending');
       });
     }
 

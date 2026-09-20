@@ -347,8 +347,6 @@ body > header {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
-@keyframes fadeRight { from { opacity: 0; } to { opacity: 1; } }
-#right.right-fade-in { animation: fadeRight 0.2s ease; }
 /* Staggered card entry */
 @keyframes staggerUp {
   from { opacity: 0; transform: translateY(10px); }
@@ -1286,25 +1284,63 @@ th.sortable[aria-sort="descending"] .sort-btn::after { content: " \2193"; color:
 #tree .tree-item { padding-left: 12px; }
 
 /* ===== Domains, read like Compliance ===== */
-.domain-bar-row { grid-template-columns: 210px minmax(80px, 1fr) 56px 120px; }
-@media (max-width: 900px) { .domain-bar-row { grid-template-columns: 140px minmax(60px, 1fr) 56px auto; } }
-.domain-bar-name { display: flex; align-items: center; gap: var(--space-sm); }
-.domain-bar-name .doc-type-icon { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
-.domain-bar-counts { display: flex; gap: var(--space-sm); align-items: baseline; justify-content: flex-end; font-size: var(--text-xs); color: var(--fg3); white-space: nowrap; }
-.domain-bar-gaps { color: var(--sev-high); }
+/* The lens uses the width. The old rows were `.fw-bars`, borrowed from
+   Compliance, where 640px is right because the bars are a figure beside a
+   table — here they are the content, and half the screen sat empty. */
+.domain-rows { display: flex; flex-direction: column; }
+.domain-row {
+  display: grid;
+  /* A trailing 1fr absorbs the slack instead of the counts being flung at the
+     right edge: right-aligning them left a hand's width of nothing between the
+     meter and the numbers it describes. */
+  grid-template-columns: minmax(200px, 27ch) minmax(160px, 360px) 56px minmax(150px, 24ch) 1fr;
+  align-items: center;
+  gap: var(--space-lg);
+  padding: var(--space-md) var(--space-sm);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.domain-row:last-child { border-bottom: none; }
+.domain-row:hover { background: var(--bg2); }
+.domain-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--radius-sm); }
+.domain-row-name { display: flex; align-items: center; gap: var(--space-sm); font-size: var(--text-md); color: var(--fg); min-width: 0; }
+.domain-row-name .doc-type-icon { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.domain-row-ratio { font-family: var(--mono); font-size: var(--text-xs); color: var(--fg3); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.domain-row-name > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.domain-row-counts { display: flex; gap: var(--space-lg); align-items: baseline; font-size: var(--text-xs); color: var(--fg3); white-space: nowrap; }
+.domain-row-gaps { color: var(--sev-high); }
+.domain-row-empty { font-style: italic; }
+@media (max-width: 900px) {
+  .domain-row { grid-template-columns: minmax(120px, 1fr) minmax(80px, 1fr) 54px; }
+  .domain-row-counts { grid-column: 1 / -1; }
+}
+
 .domain-head { display: flex; align-items: center; gap: var(--space-md); }
 .domain-head h1 { margin: 0; }
 .domain-head-icon { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.domain-description { color: var(--fg2); font-size: var(--text-lg); line-height: 1.55; margin: var(--space-md) 0 var(--space-lg); max-width: 62ch; }
+/* The same meter the lens drew, so the reader who clicked because five marks
+   were empty recognises what they clicked. */
+.domain-summary {
+  display: flex; align-items: center; gap: var(--space-xl); flex-wrap: wrap;
+  padding: var(--space-lg) 0; margin-bottom: var(--space-lg);
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+.domain-summary .seg-meter { flex: 0 1 220px; }
+.domain-summary-facts { display: flex; gap: var(--space-xl); flex-wrap: wrap; font-size: var(--text-sm); color: var(--fg3); }
+
 .capability-table td:first-child { white-space: nowrap; }
 .capability-table .doc-type-icon { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -2px; margin-right: 5px; }
 .capability-name { font-size: var(--text-sm); color: var(--fg); }
 .capability-id { font-family: var(--mono); font-size: 10px; color: var(--fg3); margin-left: 18px; }
-.capability-desc { font-size: var(--text-xs); line-height: 1.55; }
-.capability-why { color: var(--fg3); margin-top: 3px; }
+.capability-desc { font-size: var(--text-xs); line-height: 1.55; white-space: normal; max-width: 52ch; }
+.capability-why { color: var(--fg3); margin-top: 4px; }
 .capability-doc { display: inline-block; font-family: var(--mono); font-size: 11px; color: var(--fg2); cursor: pointer; margin: 0 8px 2px 0; }
 .capability-doc:hover { color: var(--accent); }
 .capability-nothing { font-size: var(--text-xs); color: var(--fg3); font-style: italic; }
-.capability-blank td { opacity: 0.62; }
+/* The row is not dimmed. Fading it hid the description too, and that is the
+   row where knowing what the capability is matters most — it is what you would
+   be writing about. Only the status is set back. */
 
 /* ===== Header actions on a document =====
    The controls that act on the page, together, in the corner where the copy
@@ -1434,7 +1470,10 @@ th.sortable[aria-sort="descending"] .sort-btn::after { content: " \2193"; color:
    everywhere else in the console — high for gone, medium for going,
    accent for good — so nothing new has to be learned to read it.
    ============================================================ */
-.evidence-summary {
+/* The strip both pages open with: a headline ratio with its bar, and the
+   counters that break it down. One shape, so two pages do not read as two
+   products. */
+.stat-strip {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1445,9 +1484,9 @@ th.sortable[aria-sort="descending"] .sort-btn::after { content: " \2193"; color:
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
 }
-.evidence-headline { flex: 1 1 260px; min-width: 0; }
-.evidence-headline-ratio { display: flex; align-items: baseline; gap: var(--space-md); flex-wrap: wrap; }
-.evidence-headline-value {
+.stat-headline { flex: 1 1 260px; min-width: 0; }
+.stat-headline-ratio { display: flex; align-items: baseline; gap: var(--space-md); flex-wrap: wrap; }
+.stat-value {
   font-size: var(--text-3xl);
   font-weight: 600;
   color: var(--fg);
@@ -1455,11 +1494,11 @@ th.sortable[aria-sort="descending"] .sort-btn::after { content: " \2193"; color:
   font-variant-numeric: tabular-nums;
   line-height: 1.05;
 }
-.evidence-headline-label { font-size: var(--text-xs); color: var(--fg3); }
-/* Each counter is the filter it names, so it is a button — and a rule between
-   them, because a row of numbers with no separation reads as one number. */
-.evidence-counters { display: flex; flex-wrap: wrap; align-items: stretch; }
-.evidence-counter {
+.stat-label { font-size: var(--text-xs); color: var(--fg3); }
+/* A rule between the counters: a row of numbers with nothing between them
+   reads as one number. */
+.stat-counters { display: flex; flex-wrap: wrap; align-items: stretch; }
+.stat-counter {
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -1469,45 +1508,44 @@ th.sortable[aria-sort="descending"] .sort-btn::after { content: " \2193"; color:
   background: none;
   font-family: inherit;
   text-align: left;
-  cursor: pointer;
 }
-.evidence-counter:last-child { border-right: none; padding-right: 0; }
-.evidence-counter:first-child { padding-left: 0; }
-.evidence-counter:hover .evidence-counter-label { color: var(--fg); }
-.evidence-counter:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
-.evidence-counter-value {
+button.stat-counter { cursor: pointer; }
+button.stat-counter:hover .stat-counter-label { color: var(--fg); }
+button.stat-counter:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
+.stat-counter:last-child { border-right: none; padding-right: 0; }
+.stat-counter:first-child { padding-left: 0; }
+.stat-counter-value {
   font-size: var(--text-xl);
   font-weight: 600;
   color: var(--fg3);
   font-variant-numeric: tabular-nums;
   line-height: 1.05;
 }
-.evidence-counter-label { font-size: var(--text-xs); color: var(--fg3); white-space: nowrap; }
+.stat-counter-label { font-size: var(--text-xs); color: var(--fg3); white-space: nowrap; }
 
-/* The same strip, compact, on a standard's own tab. */
-.evidence-strip { max-width: 420px; margin-bottom: var(--space-lg); }
-.evidence-strip-ratio { display: flex; align-items: baseline; gap: var(--space-md); flex-wrap: wrap; }
-.evidence-strip-value {
-  font-size: var(--text-2xl);
-  font-weight: 600;
-  color: var(--fg);
-  font-variant-numeric: tabular-nums;
+/* Inside a tab, where the page title already carries the context. */
+.stat-strip-compact {
+  max-width: 460px;
+  padding: var(--space-lg);
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
 }
-.evidence-strip-label { font-size: var(--text-xs); color: var(--fg3); }
+.stat-strip-compact .stat-value { font-size: var(--text-2xl); letter-spacing: -0.4px; }
 
-/* Widths as hints, under automatic layout, with a floor the scroller picks up
-   below it. `table-layout: fixed` was the first attempt and it was wrong twice:
-   the declared widths summed over 100%, and a fixed cell does not grow for a
-   date it cannot fit — so the columns overlapped instead of pushing. */
-.evidence-table { width: 100%; min-width: 780px; }
-.evidence-table td { vertical-align: top; }
-.evidence-table .ev-standard { width: 12%; }
-.evidence-table .ev-req { width: 5%; }
-.evidence-table .ev-how { width: 25%; }
-.evidence-table .ev-artefact { width: 20%; }
-.evidence-table .ev-dates { width: 13%; }
-.evidence-table .ev-status { width: 10%; }
-.evidence-table .ev-collector { width: 12%; }
+/* One mark per capability. Countable at three to ten, which a percentage is
+   not, and an unwritten domain reads as marks rather than as an empty tube. */
+.seg-meter { display: flex; align-items: center; gap: 3px; min-width: 0; }
+.seg {
+  flex: 1 1 0;
+  min-width: 4px;
+  max-width: 26px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--bg3);
+}
+.seg-on { background: var(--fg3); }
+.seg-meter-none { font-family: var(--mono); font-size: var(--text-xs); color: var(--fg3); }
+
 .evidence-table td.ev-how {
   font-size: var(--text-xs);
   color: var(--fg2);

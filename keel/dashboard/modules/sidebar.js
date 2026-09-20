@@ -1,5 +1,5 @@
 import { mk, mkIcon } from './dom.js';
-import { state, docsOfType, docsWithFacet } from './state.js';
+import { state, docsOfType, docsWithFacet, coverageOf } from './state.js';
 import { go, getHash, splitHash } from './nav.js';
 import { typeColor, typePlural, fwLabel, groupedTypes, domainIcon, domainColor } from './constants.js';
 import { evidenceSummary } from './evidence.js';
@@ -101,12 +101,12 @@ function subtree(lens, hash) {
        a framework: it cuts across every one of them. */
     rows.push(mk('div', 'tree-group-label', 'The proof'));
     const proof = evidenceSummary();
-    rows.push(item('Evidence', 'compliance/evidence', {
+    const evidenceRow = item('Evidence', 'compliance/evidence', {
       icon: 'standard', active: hash === 'compliance/evidence',
       title: 'What the program can show is true, and what has gone stale',
-    }));
-    rows[rows.length - 1].appendChild(
-      mk('span', 'tree-count', proof.proven + ' / ' + proof.requirements));
+    });
+    evidenceRow.appendChild(mk('span', 'tree-count', proof.proven + ' / ' + proof.requirements));
+    rows.push(evidenceRow);
   } else if (lens === 'schedule') {
     /* The two clocks the lens keeps, so the tree is not empty here either. */
     const params = splitHash(getHash()).params;
@@ -117,10 +117,8 @@ function subtree(lens, hash) {
 }
 
 function frameworkCount(fw) {
-  const clauses = state.coverage[fw] || {};
-  const refs = Object.keys(clauses);
-  const mapped = refs.filter(function(r) { return clauses[r].coverage === 'mapped'; }).length;
-  return mapped + ' / ' + refs.length;
+  const cov = coverageOf(fw);
+  return cov.mapped + ' / ' + cov.total;
 }
 
 function renderSearchMatches(query) {

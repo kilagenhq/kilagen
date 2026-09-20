@@ -13,11 +13,14 @@ Invoked by the CLI; not runnable on its own:
     kilagen build
 """
 
+from __future__ import annotations
+
 import json
 import re
 import shutil
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
 from . import keel_lib
 from .generate_coverage import build_coverage, build_requirement_state, summarize
@@ -31,7 +34,7 @@ KEEL_SITE_ITEMS = ["templates", "adrs", "glossary.md", "design.md",
                    "compliance.md", "instantiation.md", "README.md"]
 
 
-def site_dir():
+def site_dir() -> Path:
     """Where the site is built — resolved at call time, never at import."""
     return keel_lib.REPO / "_site"
 
@@ -133,8 +136,10 @@ def _module_summary(text: str) -> str:
     return " ".join(first.split())
 
 
-def build_registry_json(config, documents, model, publish, coverage, requirements,
-                        schedule=None, frameworks=None) -> dict:
+def build_registry_json(config: dict, documents: list[dict], model: dict, publish: dict,
+                        coverage: dict, requirements: dict,
+                        schedule: list[dict] | None = None,
+                        frameworks: dict | None = None) -> dict:
     """Assemble the structure the dashboard reads.
 
     ``types`` travels with it so the dashboard renders the type registry rather
@@ -163,7 +168,7 @@ def build_registry_json(config, documents, model, publish, coverage, requirement
     return registry
 
 
-def build_site(registry: dict):
+def build_site(registry: dict) -> None:
     """Assemble the _site/ directory."""
     site = site_dir()
     if site.exists():

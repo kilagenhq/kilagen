@@ -60,28 +60,34 @@ window.addEventListener('hashchange', function() { route(getHash()); });
 
 document.querySelector('.app-title').addEventListener('click', function(e) { go('home', e); });
 
+const helpBtn = document.getElementById('help-btn');
+if (helpBtn) helpBtn.addEventListener('click', function(e) { go('reference', e); });
+
 /* ===== Dark mode =====
  * The class goes on <html>, not <body>, and that is not cosmetic: the palette
  * declares its internal tokens in terms of the public ones on the same
  * element, and a custom property is substituted where it is *declared*. With
  * the class one element lower, :root would keep resolving the light values
  * and half the page would stay light. */
-const helpBtn = document.getElementById('help-btn');
-if (helpBtn) helpBtn.addEventListener('click', function(e) { go('reference', e); });
-
 const darkBtn = document.getElementById('dark-toggle');
 const root = document.documentElement;
-(function() {
-  if (window.matchMedia('(prefers-color-scheme: dark)').matches) root.classList.add('dark');
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+
+/* The glyph is read back off the class rather than from whatever just
+   happened, so the button cannot end up describing a mode the page is not in. */
+function syncDarkGlyph() {
   darkBtn.textContent = root.classList.contains('dark') ? '☀' : '☾';
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
-    root.classList.toggle('dark', e.matches);
-    darkBtn.textContent = e.matches ? '☀' : '☾';
-  });
-})();
+}
+
+if (prefersDark.matches) root.classList.add('dark');
+syncDarkGlyph();
+prefersDark.addEventListener('change', function(e) {
+  root.classList.toggle('dark', e.matches);
+  syncDarkGlyph();
+});
 darkBtn.addEventListener('click', function() {
   root.classList.toggle('dark');
-  darkBtn.textContent = root.classList.contains('dark') ? '☀' : '☾';
+  syncDarkGlyph();
 });
 
 /* ===== Keyboard ===== */

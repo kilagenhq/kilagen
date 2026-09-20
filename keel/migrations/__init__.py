@@ -1,9 +1,8 @@
 """Ordered steps that bring a program's content up to a new schema version.
 
-There are none yet: schema 1 is the first contract, so every program is
-already at it. The machinery exists because ``kilagen check`` tells users
-to run ``kilagen update content`` when the versions disagree, and that instruction
-has to lead somewhere.
+Two exist so far, one per contract change: ``m002`` brings schema 1 to 2 and
+``m003`` brings 2 to 3. ``kilagen check`` tells users to run ``kilagen update
+content`` when the versions disagree, and this is where that instruction leads.
 
 To add one, drop a module named ``m<NNN>_<slug>.py`` here exposing:
 
@@ -23,8 +22,8 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 
 @dataclass(frozen=True)

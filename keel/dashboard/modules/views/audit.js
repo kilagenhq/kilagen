@@ -26,12 +26,6 @@ function howDemonstrated(req) {
   return req && req.how_demonstrated ? String(req.how_demonstrated).trim() : '';
 }
 
-function evidenceOf(fm, req) {
-  const items = [];
-  (req && req.evidence || []).forEach(function(item) { items.push(item); });
-  return items;
-}
-
 /* The requirement behind a reference, with the standard that holds it. */
 function requirementBlock(container, ref) {
   const entry = state.requirements[ref];
@@ -64,13 +58,15 @@ function requirementBlock(container, ref) {
   /* What an auditor asks in two moves: how do you show it, then show me. */
   const how = howDemonstrated(requirement);
   if (how) {
-    const line = mk('div', 'audit-evidence');
-    line.appendChild(mk('span', 'audit-evidence-label', 'How demonstrated'));
-    line.appendChild(mk('span', 'audit-evidence-note', how));
-    block.appendChild(line);
+    /* Named for what it is rather than `line`, which is also the module's own
+       meta-row helper two screens up. */
+    const howRow = mk('div', 'audit-evidence');
+    howRow.appendChild(mk('span', 'audit-evidence-label', 'How demonstrated'));
+    howRow.appendChild(mk('span', 'audit-evidence-note', how));
+    block.appendChild(howRow);
   }
 
-  const evidence = evidenceOf(standard, requirement);
+  const evidence = (requirement && requirement.evidence) || [];
   if (evidence.length) {
     const list = mk('div', 'audit-evidence');
     list.appendChild(mk('span', 'audit-evidence-label', 'Evidence'));

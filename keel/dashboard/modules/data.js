@@ -44,6 +44,9 @@ export function loadRegistry() {
     if (reg.tools && typeof reg.tools === 'object') state.tools = reg.tools;
     if (reg.collectors && typeof reg.collectors === 'object') state.collectors = reg.collectors;
 
+    /* A rebuilt document set must never be read through the index the previous
+       one left behind. */
+    resetDerived();
     state.fullDiscoveryDone = true;
   });
 }

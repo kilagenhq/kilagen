@@ -355,6 +355,16 @@ export function mountFilters(container, docs, opts) {
     });
   }
 
+  /* Back to the unfiltered set: the two places that offer it — the Clear all
+     token and the button in the empty state — have to leave the bar in exactly
+     the same condition, or one of them leaves a token behind. */
+  function clearAll() {
+    facets.forEach(function(f) { selection[f.key] = []; });
+    query = '';
+    input.value = '';
+    apply();
+  }
+
   function drawTokens() {
     tokenRow.textContent = '';
     let active = 0;
@@ -387,11 +397,7 @@ export function mountFilters(container, docs, opts) {
     }
     if (active > 1) {
       const clear = mk('button', 'filter-clear-all', 'Clear all');
-      clear.addEventListener('click', function() {
-        facets.forEach(function(f) { selection[f.key] = []; });
-        query = ''; input.value = '';
-        apply();
-      });
+      clear.addEventListener('click', clearAll);
       tokenRow.appendChild(clear);
     }
     return active;
@@ -413,11 +419,7 @@ export function mountFilters(container, docs, opts) {
         docs.length ? 'No ' + noun + ' match these filters' : 'No ' + noun + ' yet'));
       if (docs.length) {
         const btn = mk('button', 'filter-clear-all', 'Clear the filters');
-        btn.addEventListener('click', function() {
-          facets.forEach(function(f) { selection[f.key] = []; });
-          query = ''; input.value = '';
-          apply();
-        });
+        btn.addEventListener('click', clearAll);
         empty.appendChild(btn);
       }
       resultsEl.appendChild(empty);

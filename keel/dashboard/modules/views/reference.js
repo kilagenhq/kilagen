@@ -1,7 +1,6 @@
-import { mk } from '../dom.js';
+import { mk, appendAttribution } from '../dom.js';
 import { state } from '../state.js';
 import { go, setActiveView, setBread, mainEl, rightEl, showRightPanel } from '../nav.js';
-import { typeColor } from '../constants.js';
 
 /* Reference is documentation about **Kilagen**, and nothing else.
  *
@@ -56,7 +55,7 @@ const POINTERS = [
   ['tracker', 'The work', 'The ticket owns the lifecycle. Nothing here mirrors its state.'],
 ];
 
-function card(container, label, route, note, icon) {
+function card(container, label, route, note) {
   const el = mk('div', 'ref-card clickable');
   const head = mk('div', 'ref-card-head');
   head.appendChild(mk('span', 'ref-card-name', label));
@@ -120,15 +119,7 @@ export function renderReference() {
   kbd.appendChild(document.createTextNode(' anywhere for the shortcuts.'));
   rightEl.appendChild(kbd);
 
-  rightEl.appendChild(mk('h3', '', 'Framework'));
-  const link = mk('a', 'about-fw-link', 'Kilagen');
-  link.href = 'https://github.com/kilagenhq/kilagen';
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  const row = mk('div', 'meta-row');
-  row.appendChild(link);
-  row.appendChild(document.createTextNode(' · Apache-2.0'));
-  rightEl.appendChild(row);
+  appendAttribution(rightEl);
   rightEl.appendChild(mk('div', 'right-note-sm',
     'This site redistributes the framework’s schemas and reference documents, '
     + 'which is what the licence asks to be said.'));

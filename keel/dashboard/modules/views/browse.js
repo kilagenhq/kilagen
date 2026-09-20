@@ -1,5 +1,5 @@
 import { mk, mkIcon, mkEmpty, formatRoles, th, makeSortable } from '../dom.js';
-import { state, docsOfType, derivedState, isLiveException } from '../state.js';
+import { state, docsOfType, derivedState } from '../state.js';
 import { go, setActiveView, setBread, splitHash, setParams, getHash, mainEl, hideRightPanel } from '../nav.js';
 import { mountFilters } from '../filters.js';
 import { riskHeatmap } from '../heatmap.js';
@@ -144,16 +144,15 @@ function cell(row, value) {
    by making the <td> itself a flex container, which stops it being a table cell
    at all: the browser takes it out of the table box model and wraps it in an
    anonymous cell, so the column sat short of its own row and out of line with
-   the header. */
-function idCell(fm) {
-  const td = mk('td');
+   the header. Returning the span and letting `cell` wrap it is what keeps this
+   column the same kind of thing as every other one. */
+function idContent(fm) {
   const wrap = mk('span', 'browse-id');
   const icon = mkIcon(fm.type, 'doc-type-icon');
   icon.style.color = typeColor(fm.type);
   wrap.appendChild(icon);
   wrap.appendChild(mk('span', '', fm.id || ''));
-  td.appendChild(wrap);
-  return td;
+  return wrap;
 }
 
 function table(container, docs, columns) {
@@ -163,10 +162,7 @@ function table(container, docs, columns) {
   el.appendChild(head);
   docs.forEach(function(fm) {
     const row = mk('tr');
-    columns.forEach(function(c) {
-      if (c[1] === idCell) row.appendChild(idCell(fm));
-      else cell(row, c[1](fm));
-    });
+    columns.forEach(function(c) { cell(row, c[1](fm)); });
     row.addEventListener('click', function(e) { go('doc/' + fm.path, e); });
     el.appendChild(row);
   });
@@ -197,12 +193,12 @@ export function renderBrowse(type) {
       mainEl.appendChild(mkEmpty('file', 'Nothing of this type yet',
         'Documents appear here as soon as one exists in program/' + (info ? info.folder : type) + '/.'));
     } else {
-      const columns = [['Id', idCell], ['Title', function(fm) { return fm.title || ''; }]]
-        .concat(STATE_IS_DERIVED[type]
-          ? []
-          : [['Status', stateCell]])
-        .concat([['Owner', function(fm) { return formatRoles(fm.owner); }]])
-        .concat(EXTRA_COLUMNS[type] || []);
+      const columns = [['Id', idContent], ['Title', function(fm) { return fm.title || ''; }]];
+      /* `gap` and `exception` carry no status to print, so the column would be
+         an empty one on every row. */
+      if (!STATE_IS_DERIVED[type]) columns.push(['Status', stateCell]);
+      columns.push(['Owner', function(fm) { return formatRoles(fm.owner); }]);
+      (EXTRA_COLUMNS[type] || []).forEach(function(c) { columns.push(c); });
 
       /* Risk is the one type with a second honest shape: the matrix. It is a
          view of the same filtered set, not a seventh lens — the filters still
@@ -262,7 +258,7 @@ export function renderBrowse(type) {
   }
 
   const columns = [
-    ['Id', idCell],
+    ['Id', idContent],
     ['Type', function(fm) { return typeLabel(fm.type); }],
     ['Title', function(fm) { return fm.title || ''; }],
     ['Status', stateCell],
@@ -274,5 +270,4 @@ export function renderBrowse(type) {
     noun: 'documents',
     render: function(filtered, el) { table(el, filtered, columns); },
   });
-
 }

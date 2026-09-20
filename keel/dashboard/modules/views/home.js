@@ -1,5 +1,5 @@
-import { mk, mkMetaRow, th } from '../dom.js';
-import { state, isOpenGap, isLiveException, docsOfType } from '../state.js';
+import { mk, mkMetaRow, th, appendAttribution } from '../dom.js';
+import { state, isOpenGap, isLiveException, docsOfType, coverageOf } from '../state.js';
 import { go, setActiveView, mainEl, rightEl, showRightPanel } from '../nav.js';
 import { fwLabel, daysUntil, BINDING_NOTE } from '../constants.js';
 import { riskHeatmap } from '../heatmap.js';
@@ -50,9 +50,7 @@ function renderCoverage(container) {
   table.appendChild(head);
 
   frameworks.forEach(function(fw) {
-    const clauses = state.coverage[fw];
-    const refs = Object.keys(clauses);
-    const mapped = refs.filter(function(r) { return clauses[r].coverage === 'mapped'; }).length;
+    const cov = coverageOf(fw);
     const row = mk('tr');
     row.appendChild(mk('td', 'home-cov-name', fwLabel(fw)));
 
@@ -69,12 +67,12 @@ function renderCoverage(container) {
     const barCell = mk('td', 'home-cov-bar-cell');
     const bar = mk('div', 'home-cov-bar');
     const fill = mk('div', 'home-cov-fill');
-    fill.style.width = (refs.length ? Math.round(mapped / refs.length * 100) : 0) + '%';
+    fill.style.width = (cov.total ? Math.round(cov.mapped / cov.total * 100) : 0) + '%';
     bar.appendChild(fill);
     barCell.appendChild(bar);
     row.appendChild(barCell);
 
-    row.appendChild(mk('td', 'home-cov-num', mapped + ' / ' + refs.length));
+    row.appendChild(mk('td', 'home-cov-num', cov.mapped + ' / ' + cov.total));
     row.addEventListener('click', function(e) { go('compliance/' + fw, e); });
     table.appendChild(row);
   });
@@ -110,7 +108,7 @@ function renderOrganisation() {
   if (!org) {
     rightEl.appendChild(mk('div', 'right-note-sm',
       'Add an organization section to program/config.yml.'));
-    appendAttribution();
+    appendAttribution(rightEl);
     return;
   }
 
@@ -154,21 +152,7 @@ function renderOrganisation() {
   if (state.config.repo) rightEl.appendChild(mkMetaRow('Repository', state.config.repo));
   if (org.license) rightEl.appendChild(mkMetaRow('License', org.license));
   rightEl.appendChild(mkMetaRow('Source', 'program/config.yml'));
-  appendAttribution();
-}
-
-/* Upstream attribution, required by Apache-2.0 section 4(d): this site is a
-   redistribution of the framework's schemas and reference documents. */
-function appendAttribution() {
-  rightEl.appendChild(mk('h3', '', 'Framework'));
-  const link = mk('a', 'about-fw-link', 'Kilagen');
-  link.href = 'https://github.com/kilagenhq/kilagen';
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  const row = mk('div', 'meta-row');
-  row.appendChild(link);
-  row.appendChild(document.createTextNode(' · Apache-2.0'));
-  rightEl.appendChild(row);
+  appendAttribution(rightEl);
 }
 
 export function renderHome() {

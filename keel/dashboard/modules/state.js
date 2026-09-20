@@ -42,9 +42,17 @@ export function docsWithFacet(facet, value) {
     .filter(function(fm) { return fm && Array.isArray(fm[facet]) && fm[facet].indexOf(value) !== -1; });
 }
 
-export function typeInfo(name) {
-  for (let i = 0; i < state.types.length; i++) if (state.types[i].name === name) return state.types[i];
-  return null;
+/* Clauses with a requirement mapped to them, out of the clauses a framework
+   publishes. The sidebar, the landing page and the Compliance lens each print
+   this ratio, and computing it in three places is how three pages come to
+   disagree about the one number the program is entitled to compute. */
+export function coverageOf(fw) {
+  const clauses = state.coverage[fw] || {};
+  const refs = Object.keys(clauses);
+  return {
+    total: refs.length,
+    mapped: refs.filter(function(r) { return clauses[r].coverage === 'mapped'; }).length,
+  };
 }
 
 /* A gap is open until a write-once fact closes it. There is no status to read:
@@ -99,12 +107,8 @@ let supersedeIndex = null;
 let supersedeIndexFor = null;
 
 function buildSupersedeIndex() {
-  const paths = Object.keys(state.fmCache);
-  if (supersedeIndex && supersedeIndexFor === state.fmCache && supersedeIndex.size === undefined) {
-    return supersedeIndex;
-  }
   const index = {};
-  paths.forEach(function(path) {
+  Object.keys(state.fmCache).forEach(function(path) {
     const fm = state.fmCache[path];
     if (!fm || !fm.id) return;
     (fm.supersedes || []).forEach(function(oldId) {

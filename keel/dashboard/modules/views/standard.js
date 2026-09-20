@@ -1,4 +1,4 @@
-import { mk, mkEmpty, th, makeSortable, formatRoles } from '../dom.js';
+import { mk, mkEmpty, th, makeSortable, formatRoles, mkStatStrip } from '../dom.js';
 import { state, derivedState, isOpenGap, isLiveException } from '../state.js';
 import { go, setParams, splitHash, getHash } from '../nav.js';
 import { chip, docChip } from '../doclink.js';
@@ -32,8 +32,7 @@ import { evidenceTable } from './evidence.js';
  */
 
 const DEFAULT_TAB = 'requirements';
-
-function tabKeys() { return ['requirements', 'mappings', 'gaps', 'evidence']; }
+const TAB_KEYS = ['requirements', 'mappings', 'gaps', 'evidence'];
 
 /* ===== What each tab counts ===== */
 
@@ -327,16 +326,12 @@ function renderEvidence(container, fm) {
   }
 
   const counts = evidenceCounts(fm);
-  const strip = mk('div', 'evidence-strip');
-  const ratio = mk('div', 'evidence-strip-ratio');
-  ratio.appendChild(mk('span', 'evidence-strip-value', counts.proven + ' / ' + counts.total));
-  ratio.appendChild(mk('span', 'evidence-strip-label', 'requirements with evidence attached'));
-  strip.appendChild(ratio);
-  const bar = mk('div', 'fw-bar');
-  const fill = mk('div', 'fw-bar-fill');
-  fill.style.width = (counts.total ? Math.round(counts.proven / counts.total * 100) : 0) + '%';
-  bar.appendChild(fill);
-  strip.appendChild(bar);
+  const strip = mkStatStrip({
+    value: counts.proven + ' / ' + counts.total,
+    label: 'requirements with evidence attached',
+    fill: counts.total ? counts.proven / counts.total : 0,
+  });
+  strip.classList.add('stat-strip-compact');
   container.appendChild(strip);
 
   container.appendChild(mk('p', 'section-note',
@@ -392,7 +387,7 @@ function label(key) { return key.charAt(0).toUpperCase() + key.slice(1); }
  */
 export function renderStandardTabs(container, fm, path) {
   const params = splitHash(getHash()).params;
-  let current = tabKeys().indexOf(params.tab) !== -1 ? params.tab : DEFAULT_TAB;
+  let current = TAB_KEYS.indexOf(params.tab) !== -1 ? params.tab : DEFAULT_TAB;
 
   const bar = mk('div', 'doc-tabs');
   bar.setAttribute('role', 'tablist');
@@ -402,7 +397,7 @@ export function renderStandardTabs(container, fm, path) {
   panel.id = 'std-tabpanel';
 
   const buttons = {};
-  tabKeys().forEach(function(key) {
+  TAB_KEYS.forEach(function(key) {
     const btn = mk('button', 'doc-tab');
     btn.type = 'button';
     btn.id = 'std-tab-' + key;
@@ -420,7 +415,7 @@ export function renderStandardTabs(container, fm, path) {
 
   function select(key) {
     current = key;
-    tabKeys().forEach(function(other) {
+    TAB_KEYS.forEach(function(other) {
       const on = other === key;
       buttons[other].classList.toggle('active', on);
       buttons[other].setAttribute('aria-selected', on ? 'true' : 'false');
@@ -443,9 +438,8 @@ export function renderStandardTabs(container, fm, path) {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     e.preventDefault();
     e.stopPropagation();
-    const keys = tabKeys();
-    const at = keys.indexOf(current);
-    const next = keys[(at + (e.key === 'ArrowRight' ? 1 : keys.length - 1)) % keys.length];
+    const at = TAB_KEYS.indexOf(current);
+    const next = TAB_KEYS[(at + (e.key === 'ArrowRight' ? 1 : TAB_KEYS.length - 1)) % TAB_KEYS.length];
     select(next);
     buttons[next].focus();
   });

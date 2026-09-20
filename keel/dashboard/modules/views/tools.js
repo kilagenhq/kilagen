@@ -47,7 +47,8 @@ export function renderTools() {
 
   const byDomain = {};
   capabilities.forEach(function(id) {
-    (byDomain[domainOf(id)] = byDomain[domainOf(id)] || []).push(id);
+    const domain = domainOf(id);
+    (byDomain[domain] = byDomain[domain] || []).push(id);
   });
 
   Object.keys(byDomain).sort().forEach(function(domain) {

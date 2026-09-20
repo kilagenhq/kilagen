@@ -141,7 +141,7 @@ def apply(program: Path, dry_run: bool) -> list[str]:
     config = program / "config.yml"
     if config.is_file():
         text = config.read_text(encoding="utf-8")
-        new_text, framework = [], None
+        lines, framework = [], None
         for line in text.splitlines(keepends=True):
             match = re.match(r"^\s*-\s*id:\s*(\S+)", line)
             if match:
@@ -150,8 +150,8 @@ def apply(program: Path, dry_run: bool) -> list[str]:
                 replacement = "reference" if framework in REFERENCE_FRAMEWORKS else "voluntary"
                 line = re.sub(r"comply-or-explain", replacement, line)
                 changed.append(f"config.yml: {framework} binding comply-or-explain -> {replacement}")
-            new_text.append(line)
-        new_text = "".join(new_text)
+            lines.append(line)
+        new_text = "".join(lines)
         if new_text != text and not dry_run:
             config.write_text(new_text, encoding="utf-8")
 

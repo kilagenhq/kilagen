@@ -26,10 +26,17 @@ import importlib.util
 import re
 from datetime import date
 from pathlib import Path
+from types import ModuleType
 
-from .keel_lib import PROGRAM, scan_documents
+from . import keel_lib
+from .keel_lib import KEEL, scan_documents
 
-KEEL_COLLECTORS = Path(__file__).resolve().parent.parent / "collectors"
+# PROGRAM is read through the module rather than imported by name: a from-import
+# freezes the value at import time, which is the one thing that makes a lib
+# non-re-entrant. KEEL is the package's own directory and never moves, so it may
+# be bound directly.
+
+KEEL_COLLECTORS = KEEL / "collectors"
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -39,7 +46,7 @@ class CollectorError(Exception):
 
 def collector_path(name: str, root: Path | None = None) -> Path:
     """Where a collector lives: the instance's first, then the shipped one."""
-    root = root or PROGRAM.parent
+    root = root or keel_lib.PROGRAM.parent
     local = root / "collectors" / f"{name}.py"
     if local.is_file():
         return local
@@ -51,7 +58,7 @@ def collector_path(name: str, root: Path | None = None) -> Path:
         f"repository, or one shipped with the framework")
 
 
-def load(name: str, root: Path | None = None):
+def load(name: str, root: Path | None = None) -> ModuleType:
     """Import a collector module by name, without putting it on sys.path."""
     path = collector_path(name, root)
     spec = importlib.util.spec_from_file_location(f"kilagen_collector_{name.replace('-', '_')}", path)
@@ -175,7 +182,7 @@ def main(apply: bool = False) -> int:
             failures += 1
             continue
 
-        path = PROGRAM / doc["path"]
+        path = keel_lib.PROGRAM / doc["path"]
         text = path.read_text(encoding="utf-8")
         new_text, changed = _rewrite(text, name, fresh)
         if not changed:

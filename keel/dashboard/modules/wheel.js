@@ -1,4 +1,4 @@
-import { svgEl, mk } from './dom.js';
+import { svgEl, mk, onActivate } from './dom.js';
 
 /* How a framework's published structure is drawn.
  *
@@ -94,9 +94,7 @@ export function frameworkWheel(groups, statsOf, onSelect) {
     title.textContent = group.name + ' — ' + stats.mapped + ' of ' + stats.total + ' clauses mapped';
     slice.appendChild(title);
     slice.addEventListener('click', function() { onSelect(group.id); });
-    slice.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(group.id); }
-    });
+    onActivate(slice, function() { onSelect(group.id); });
     svg.appendChild(slice);
 
     /* The label sits on the band. Only the short id and the ratio fit at this
@@ -127,9 +125,7 @@ export function frameworkWheel(groups, statsOf, onSelect) {
     title.textContent = hub.name + ' — ' + stats.mapped + ' of ' + stats.total + ' clauses mapped';
     disc.appendChild(title);
     disc.addEventListener('click', function() { onSelect(hub.id); });
-    disc.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(hub.id); }
-    });
+    onActivate(disc, function() { onSelect(hub.id); });
     svg.appendChild(disc);
 
     const label = svgEl('text', { x: cx, y: cy - 4, 'class': 'fw-wheel-hub-label', 'text-anchor': 'middle' });
@@ -173,9 +169,7 @@ export function frameworkBars(groups, statsOf, onSelect) {
     row.appendChild(mk('span', 'fw-bar-ratio', stats.mapped + ' / ' + stats.total));
 
     row.addEventListener('click', function() { onSelect(group.id); });
-    row.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(group.id); }
-    });
+    onActivate(row, function() { onSelect(group.id); });
     list.appendChild(row);
   });
   return list;

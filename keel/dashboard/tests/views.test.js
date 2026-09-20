@@ -893,6 +893,9 @@ describe('degenerate data nothing should choke on', () => {
     state.config.frameworks = [{ id: 'ghost', binding: 'mandatory' }];
     renderCompliance('ghost');
     expect(main()).toContain('No framework coverage');
+    // Evidence does not depend on a framework being in scope, so the tab that
+    // reaches it must survive the empty state.
+    expect(main()).toContain('Evidence');
     expect(errors).toEqual([]);
   });
 
@@ -924,7 +927,9 @@ describe('degenerate data nothing should choke on', () => {
     const { renderDomain } = await import('../modules/views/domains.js');
     state.model.capabilities.push({ id: 'iam.orphan', name: 'Orphan capability', domain: 'iam', description: '' });
     renderDomain('iam');
-    expect(main()).toContain('nothing written');
+    // An invitation, not a defect report: nothing is broken about a capability
+    // nobody has got to yet.
+    expect(main()).toContain('not written about yet');
     expect(errors).toEqual([]);
   });
 
@@ -1085,7 +1090,7 @@ describe('Evidence, the other half of Compliance', () => {
     renderEvidenceLens();
     expect(main()).toContain('1 / 2');
     expect(main()).toContain('requirements with evidence attached');
-    const labels = [...document.querySelectorAll('.evidence-counter-label')].map((l) => l.textContent);
+    const labels = [...document.querySelectorAll('.stat-counter-label')].map((l) => l.textContent);
     expect(labels).toEqual(['unproven', 'stale', 'undated', 'due soon', 'no expiry set', 'fresh']);
     expect(errors).toEqual([]);
   });

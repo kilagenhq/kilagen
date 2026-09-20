@@ -28,7 +28,15 @@ export function resolveBase(p) {
   return p.indexOf('keel/') === 0 ? '../' : '../program/';
 }
 
-export function resolvePath(h) { const c = h.replace(/#.*$/, '').replace(/\?.*$/, ''); if (c.indexOf('..') !== -1) return ''; const p = c.split('/'), r = []; for (let i = 0; i < p.length; i++) { if (p[i] === '.' || p[i] === '') continue; r.push(p[i]); } return r.join('/'); }
+export function resolvePath(h) {
+  const clean = h.replace(/#.*$/, '').replace(/\?.*$/, '');
+  if (clean.indexOf('..') !== -1) return '';
+  const kept = [];
+  clean.split('/').forEach(function(seg) {
+    if (seg !== '.' && seg !== '') kept.push(seg);
+  });
+  return kept.join('/');
+}
 
 /* Resolve a relative markdown link (which may contain ../ and ./) against the
  * directory of basePath, returning a normalized repo-relative path with no '..'
@@ -52,13 +60,12 @@ export function resolveRelative(basePath, h) {
 export function hookLinks(c, goFn, basePath) {
   const links = c.querySelectorAll('a');
   for (let i = 0; i < links.length; i++) {
-    (function(a) {
-      const h = a.getAttribute('href') || '';
-      if (!h) return;
-      if (/^https?:\/\//.test(h) || /^mailto:/.test(h)) return;
-      if (/^[a-z]+:/i.test(h)) { a.addEventListener('click', function(e) { e.preventDefault(); }); a.removeAttribute('href'); return; }
-      a.addEventListener('click', function(e) { const r = basePath ? resolveRelative(basePath, h) : resolvePath(h); if (isSafePath(r)) { goFn('doc/' + r, e); } else { if (typeof console !== 'undefined') console.warn('Unresolvable doc link:', h, basePath ? '(from ' + basePath + ')' : ''); e.preventDefault(); } });
-    })(links[i]);
+    const a = links[i];
+    const h = a.getAttribute('href') || '';
+    if (!h) continue;
+    if (/^https?:\/\//.test(h) || /^mailto:/.test(h)) continue;
+    if (/^[a-z]+:/i.test(h)) { a.addEventListener('click', function(e) { e.preventDefault(); }); a.removeAttribute('href'); continue; }
+    a.addEventListener('click', function(e) { const r = basePath ? resolveRelative(basePath, h) : resolvePath(h); if (isSafePath(r)) { goFn('doc/' + r, e); } else { if (typeof console !== 'undefined') console.warn('Unresolvable doc link:', h, basePath ? '(from ' + basePath + ')' : ''); e.preventDefault(); } });
   }
 }
 

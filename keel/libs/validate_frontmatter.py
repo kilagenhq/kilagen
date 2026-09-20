@@ -59,6 +59,19 @@ def load_schema(name: str) -> dict:
         sys.exit(1)
 
 
+def _schema_errors(data, schema: dict, where: str) -> list[str]:
+    """Every violation of one schema by one file, as reportable lines.
+
+    Four files are checked this way — config, the vocabularies, the schedule
+    and each framework edition — and only the path in the message differs.
+    """
+    validator = Draft202012Validator(schema)
+    return [
+        f"  {where}: {'.'.join(str(p) for p in error.path) or '(file)'}: {error.message}"
+        for error in sorted(validator.iter_errors(data), key=lambda e: list(e.path))
+    ]
+
+
 def _branch_errors(error, fm: dict) -> list:
     """Narrow a top-level ``oneOf`` failure to the branch the document meant.
 
@@ -271,10 +284,7 @@ def validate_vocabularies() -> list[str]:
         data = keel_lib._load_yaml(path)
         if data is None:
             continue  # _load_yaml already warned
-        validator = Draft202012Validator(load_schema(schema_name))
-        for error in sorted(validator.iter_errors(data), key=lambda e: list(e.path)):
-            field = ".".join(str(p) for p in error.path) or "(file)"
-            errors.append(f"  program/{rel_name}: {field}: {error.message}")
+        errors.extend(_schema_errors(data, load_schema(schema_name), f"program/{rel_name}"))
     return errors
 
 
@@ -291,17 +301,13 @@ def validate_schedule(schema: dict) -> list[str]:
     data = keel_lib._load_yaml(path)
     if data is None:
         return []
-    errors: list[str] = []
-    validator = Draft202012Validator(schema)
-    for error in sorted(validator.iter_errors(data), key=lambda e: list(e.path)):
-        field = ".".join(str(p) for p in error.path) or "(file)"
-        errors.append(f"  program/schedule.yml: {field}: {error.message}")
+    errors = _schema_errors(data, schema, "program/schedule.yml")
     if errors:
         # The reference checks below would report noise on a file that does
         # not even have the right shape.
         return errors
 
-    known = {doc["id"] for doc in keel_lib.scan_documents() if doc.get("id")}
+    known = {doc["id"] for doc in scan_documents() if doc.get("id")}
     domains = {d["id"] for d in keel_lib.load_model()["domains"] if isinstance(d.get("id"), str)}
     seen: set[str] = set()
     for activity in data.get("activities") or []:
@@ -339,7 +345,7 @@ def validate_risk_severity() -> list[str]:
     if len(axis_lengths) > 1:
         errors.append("  model/risk-taxonomy.yml: likelihood and impact must have the "
                       "same number of points — the matrix is square")
-    for doc in keel_lib.scan_documents():
+    for doc in scan_documents():
         if doc.get("type") != "risk":
             continue
         likelihood = keel_lib.severity_point(doc.get("likelihood"), severity.get("likelihood"))
@@ -368,16 +374,13 @@ def validate_framework_vocab(schema: dict) -> list[str]:
     are reported — with the path saying which is which.
     """
     errors: list[str] = []
-    validator = Draft202012Validator(schema)
-    for fw_id, path in sorted(keel_lib.framework_files().items()):
+    for _, path in sorted(keel_lib.framework_files().items()):
         data = keel_lib._load_yaml(path)
         if data is None:
             continue
         shipped = path.parent == keel_lib.SHIPPED_FRAMEWORKS
         where = f"keel/content/frameworks/{path.name}" if shipped else f"program/model/frameworks/{path.name}"
-        for error in sorted(validator.iter_errors(data), key=lambda e: list(e.path)):
-            field = ".".join(str(p) for p in error.path) or "(file)"
-            errors.append(f"  {where}: {field}: {error.message}")
+        errors.extend(_schema_errors(data, schema, where))
     return errors
 
 
@@ -395,12 +398,7 @@ def validate_config(schema: dict) -> list[str]:
     data = keel_lib._load_yaml(path)
     if data is None:
         return ["  program/config.yml: is empty"]
-    errors = []
-    validator = Draft202012Validator(schema)
-    for error in sorted(validator.iter_errors(data), key=lambda e: list(e.path)):
-        field = ".".join(str(p) for p in error.path) or "(file)"
-        errors.append(f"  program/config.yml: {field}: {error.message}")
-    return errors
+    return _schema_errors(data, schema, "program/config.yml")
 
 
 def validate_file_coverage() -> list[str]:
@@ -426,7 +424,7 @@ def validate_frameworks_resolve() -> list[str]:
     """
     available = keel_lib.framework_files()
     errors: list[str] = []
-    for fw_id in keel_lib.config_framework_ids(keel_lib.load_config()):
+    for fw_id in config_framework_ids(load_config()):
         if fw_id in available:
             continue
         errors.append(

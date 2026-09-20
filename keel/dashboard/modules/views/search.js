@@ -18,7 +18,17 @@ function highlightText(text, query) {
 export function renderSearchResults(q) {
   setActiveView(''); mainEl.textContent = ''; hideRightPanel();
   mainEl.appendChild(mk('h1', '', 'Search: "' + q + '"'));
-  const results = []; Object.keys(state.fmCache).forEach(function(p) { const fm = state.fmCache[p]; const body = state.bodyCache[p] || ''; const haystack = (p + ' ' + (fm.id || '') + ' ' + (fm.title || '') + ' ' + (fm.description || '') + ' ' + body).toLowerCase(); if (haystack.indexOf(q) !== -1) results.push({ path: p, fm: fm, bodyMatch: body.toLowerCase().indexOf(q) !== -1 }); });
+  /* The body counts only when it has already been fetched: this searches what
+     the session has loaded, and never goes and gets the rest. */
+  const results = [];
+  Object.keys(state.fmCache).forEach(function(p) {
+    const fm = state.fmCache[p];
+    const body = state.bodyCache[p] || '';
+    const haystack = (p + ' ' + (fm.id || '') + ' ' + (fm.title || '') + ' '
+      + (fm.description || '') + ' ' + body).toLowerCase();
+    if (haystack.indexOf(q) === -1) return;
+    results.push({ path: p, fm: fm, bodyMatch: body.toLowerCase().indexOf(q) !== -1 });
+  });
   if (!results.length) { mainEl.appendChild(mkEmpty('search', 'No results found', 'Try a different search term or check spelling.')); return; }
   mainEl.appendChild(mk('p', '', results.length + ' results'));
   results.forEach(function(r) {
@@ -30,15 +40,18 @@ export function renderSearchResults(q) {
     pathEl.appendChild(highlightText(r.path, q));
     item.appendChild(pathEl);
     if (r.bodyMatch && state.bodyCache[r.path]) {
-      const body = state.bodyCache[r.path]; const idx = body.toLowerCase().indexOf(q); const start = Math.max(0, idx - 60); const end = Math.min(body.length, idx + q.length + 60);
+      const body = state.bodyCache[r.path];
+      const idx = body.toLowerCase().indexOf(q);
+      const start = Math.max(0, idx - 60);
+      const end = Math.min(body.length, idx + q.length + 60);
       const snippet = (start > 0 ? '...' : '') + body.substring(start, end).replace(/\n/g, ' ') + (end < body.length ? '...' : '');
       const descEl = mk('div', 'sr-desc sr-body-match');
       descEl.appendChild(highlightText(snippet, q));
       item.appendChild(descEl);
     } else if (r.fm.description) {
-      const descEl2 = mk('div', 'sr-desc');
-      descEl2.appendChild(highlightText(String(r.fm.description).trim().substring(0, 150), q));
-      item.appendChild(descEl2);
+      const descEl = mk('div', 'sr-desc');
+      descEl.appendChild(highlightText(String(r.fm.description).trim().substring(0, 150), q));
+      item.appendChild(descEl);
     }
     item.addEventListener('click', function(e) { go('doc/' + r.path, e); });
     mainEl.appendChild(item);

@@ -172,7 +172,6 @@ export const SEVERITY_COLORS = {
   critical: 'var(--sev-critical)', high: 'var(--sev-high)', medium: 'var(--sev-medium)',
   low: 'var(--sev-low)', negligible: 'var(--sev-info)',
 };
-export const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, negligible: 4 };
 
 export function today() { return new Date().toISOString().slice(0, 10); }
 

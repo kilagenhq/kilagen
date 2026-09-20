@@ -1,5 +1,5 @@
 import { mk, mkIcon, mkEmpty, mkMetaRow, mkCopyBtn, mkSourcePanel, formatRoles, makeCollapsible, dropRepeatedTitle } from '../dom.js';
-import { state, docById, isLiveException, supersededBy, statusOf } from '../state.js';
+import { state, isLiveException, supersededBy, statusOf } from '../state.js';
 import { go, setActiveView, setBread, mainEl, rightEl, showRightPanel } from '../nav.js';
 import { renderMd, safeHtmlNode } from '../parsers.js';
 import { safeFetch, hookLinks } from '../security.js';
@@ -14,6 +14,17 @@ import { typeColor, typeLabel, typePlural, statusColor, SEVERITY_COLORS, daysUnt
  * the grouping you see here is computed at render time and cannot contradict
  * the data — which is exactly what the grouped mapping used to allow.
  */
+
+/* The body, with the frontmatter block taken off the front.
+ *
+ * Deliberately not parsers.parseFM: that one parses the YAML, and this page
+ * already has the frontmatter from the registry. Both places that render a
+ * body were doing this by hand, which is two copies of an offset calculation.
+ */
+function stripFrontmatter(text) {
+  if (text.indexOf('---') !== 0) return text;
+  return text.substring(text.indexOf('---', 3) + 3);
+}
 
 function groupByPrefix(ids) {
   const groups = {};
@@ -52,21 +63,21 @@ function contestBlock(container, fm) {
   if (req && req.text) block.appendChild(mk('div', 'req-text', String(req.text).trim()));
   else block.appendChild(mk('div', 'req-text id-link-missing', 'This requirement does not resolve.'));
 
-  const state_ = mk('div', 'contest-state');
+  const stateLine = mk('div', 'contest-state');
   if (fm.type === 'gap') {
-    if (fm.remediated) state_.textContent = 'Closed: remediated on ' + fm.remediated + '.';
-    else if (fm.excepted_by) state_.textContent = 'Closed: authorized after the fact by ' + fm.excepted_by + '.';
-    else state_.textContent = 'Open. Nobody has approved this deviation.';
+    if (fm.remediated) stateLine.textContent = 'Closed: remediated on ' + fm.remediated + '.';
+    else if (fm.excepted_by) stateLine.textContent = 'Closed: authorized after the fact by ' + fm.excepted_by + '.';
+    else stateLine.textContent = 'Open. Nobody has approved this deviation.';
   } else {
-    if (fm.revoked) state_.textContent = 'Revoked on ' + fm.revoked + '.';
+    if (fm.revoked) stateLine.textContent = 'Revoked on ' + fm.revoked + '.';
     else {
       const days = daysUntil(fm.expires);
-      state_.textContent = isLiveException(fm)
+      stateLine.textContent = isLiveException(fm)
         ? 'Live until ' + fm.expires + (days !== null && days <= 60 ? ' — ' + days + ' days left.' : '.')
         : 'Expired on ' + fm.expires + '. This is an unapproved deviation again.';
     }
   }
-  block.appendChild(state_);
+  block.appendChild(stateLine);
 
   if (fm.tracker) {
     const work = mk('div', 'contest-work');
@@ -183,14 +194,12 @@ export function navigateDoc(path) {
      program document — so it renders as a plain page. */
   if (!fm) {
     safeFetch(path).then(function(text) {
-      const body = text.indexOf('---') === 0 ? text.substring(text.indexOf('---', 3) + 3) : text;
-      const node = safeHtmlNode(renderMd(body));
+      const node = safeHtmlNode(renderMd(stripFrontmatter(text)));
       hookLinks(node, go, path);
       const card = mk('div', 'doc-body');
       card.appendChild(node);
       makeCollapsible(node, card);
       mainEl.appendChild(card);
-      rightEl.appendChild(mk('h3', '', 'Source'));
       mkSourcePanel(rightEl, path);
     }).catch(function(err) {
       mainEl.appendChild(mkEmpty('file', 'Could not load this document', err.message));
@@ -250,8 +259,7 @@ export function navigateDoc(path) {
   mainEl.appendChild(bodyCard);
   safeFetch(path).then(function(text) {
     state.bodyCache[path] = text;
-    const body = text.indexOf('---') === 0 ? text.substring(text.indexOf('---', 3) + 3) : text;
-    const node = safeHtmlNode(renderMd(body));
+    const node = safeHtmlNode(renderMd(stripFrontmatter(text)));
     hookLinks(node, go, path);
     dropRepeatedTitle(node, fm.title);
     bodyCard.appendChild(node);
@@ -259,7 +267,6 @@ export function navigateDoc(path) {
   }).catch(function(err) {
     bodyCard.appendChild(mk('p', 'right-empty', 'Body unavailable: ' + err.message));
   });
-
 
   /* Last in the document, after the body. It went to the panel for a while and
      came back: at panel width the ids are too small to read, and a diagram

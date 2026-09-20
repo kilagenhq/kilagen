@@ -232,7 +232,7 @@ def apply(program: Path, dry_run: bool) -> list[str]:
                     changed.append(f"{where}: {field} removed ({doc_type} has its own clock)")
 
         # 1/2. Evidence moves to where it is asked for.
-        frontmatter, moved = _move_evidence(frontmatter, doc_type, where, changed)
+        frontmatter = _move_evidence(frontmatter, where, changed)
 
         # 9. A claim about a third party gets somewhere to put its date.
         if doc_type == "vendor":
@@ -244,8 +244,7 @@ def apply(program: Path, dry_run: bool) -> list[str]:
     return changed
 
 
-def _move_evidence(frontmatter: str, doc_type: str, where: Path,
-                   changed: list[str]) -> tuple[str, bool]:
+def _move_evidence(frontmatter: str, where: Path, changed: list[str]) -> str:
     """Requirement-level rename, then the document-level block.
 
     A document-level `evidence:` with exactly one entry and no `source_of_truth`
@@ -260,7 +259,7 @@ def _move_evidence(frontmatter: str, doc_type: str, where: Path,
 
     block = re.search(r"^evidence:\n((?:[ \t]+.*\n)+)", frontmatter, re.M)
     if not block:
-        return frontmatter, False
+        return frontmatter
 
     entries = re.findall(r"-\s*name:\s*(.+)\n\s*url:\s*(\S+)", block.group(1))
     if len(entries) == 1 and not re.search(r"^source_of_truth:", frontmatter, re.M):
@@ -269,12 +268,12 @@ def _move_evidence(frontmatter: str, doc_type: str, where: Path,
         frontmatter = frontmatter[:block.start()] + frontmatter[block.end():]
         frontmatter = frontmatter + f"source_of_truth: {url}\n"
         changed.append(f"{where}: the one evidence link ({name.strip()}) became source_of_truth")
-        return frontmatter, True
+        return frontmatter
 
     changed.append(f"{where}: NEEDS YOU — document-level evidence: cannot be placed "
                    "mechanically. Move each entry to the requirement it demonstrates, "
                    "or to source_of_truth. check will fail until you do.")
-    return frontmatter, False
+    return frontmatter
 
 
 def _date_certifications(frontmatter: str, where: Path, changed: list[str]) -> str:

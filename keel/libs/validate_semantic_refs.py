@@ -27,6 +27,8 @@ Exit codes:
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from . import keel_lib
 from .keel_lib import (
     BY_NAME,
@@ -298,8 +300,8 @@ def check_risk_taxonomy(documents: list[dict], model: dict) -> list[str]:
         category = doc.get("risk_category")
         if isinstance(category, dict):
             principle = categories.get(category.get("principle"))
-            level1 = (principle or {}).get("children", {}).get(category.get("category1")) if principle else None
-            level2 = (level1 or {}).get("children", {}) if isinstance(level1, dict) else {}
+            level1 = principle.get("children", {}).get(category.get("category1")) if principle else None
+            level2 = level1.get("children", {}) if isinstance(level1, dict) else {}
             if principle is None or level1 is None or category.get("category2") not in level2:
                 errors.append(
                     f"  {doc['path']}: risk_category does not resolve to a path in "

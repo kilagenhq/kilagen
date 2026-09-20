@@ -70,13 +70,6 @@ export function dueCell(iso) {
   return el;
 }
 
-export function whenLabel(iso) {
-  const days = daysUntil(iso);
-  if (days === null) return '';
-  if (days < 0) return (-days) + 'd ago';
-  return 'in ' + days + 'd';
-}
-
 /* What each kind of row is waiting on, as one date.
  *
  * A gap has no deadline of its own, so it gets the one the check already

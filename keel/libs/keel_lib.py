@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import os
 import re
-import subprocess
 import sys
 from datetime import date
+from fnmatch import fnmatch
 from pathlib import Path
 
 import yaml
@@ -241,19 +240,11 @@ def scan_documents() -> list[dict]:
         List of registry entries, sorted by path.
     """
     docs = []
-    if not PROGRAM.is_dir():
-        return docs
-    for doc_type in TYPES:
-        folder = PROGRAM / doc_type.folder
-        if not folder.is_dir():
+    for path in document_files():
+        fm = extract_frontmatter(path)
+        if not fm or "type" not in fm:
             continue
-        for path in sorted(folder.rglob("*.md")):
-            if path.name == "README.md":
-                continue
-            fm = extract_frontmatter(path)
-            if not fm or "type" not in fm:
-                continue
-            docs.append(_build_entry(path.relative_to(PROGRAM), fm))
+        docs.append(_build_entry(path.relative_to(PROGRAM), fm))
     docs.sort(key=lambda d: d["path"])
     return docs
 
@@ -581,12 +572,13 @@ def load_framework_meta(frameworks_dir: Path | None = None,
     able to see a group, a colour or a description, because none of them is
     allowed to influence what it computes.
     """
+    override_dir = frameworks_dir or MODEL / "frameworks"
     meta: dict[str, dict] = {}
     for fw_id, path in framework_files(frameworks_dir, shipped_dir).items():
         parsed = _parse_framework_file(path)
         if parsed:
             entry = dict(parsed["meta"])
-            entry["source"] = "override" if path.parent == (frameworks_dir or MODEL / "frameworks") else "shipped"
+            entry["source"] = "override" if path.parent == override_dir else "shipped"
             meta[fw_id] = entry
     return meta
 
@@ -684,8 +676,6 @@ def validator_for(relative: str) -> tuple[bool, str | None]:
     Returns ``(recognised, schema_name)``. A document in a type folder is
     covered by the frontmatter schema; everything else has to be in the table.
     """
-    from fnmatch import fnmatch
-
     for pattern, schema in PROGRAM_FILE_RULES:
         if fnmatch(relative, pattern):
             return True, schema

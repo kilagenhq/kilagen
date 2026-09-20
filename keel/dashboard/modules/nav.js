@@ -1,5 +1,4 @@
 import { mk } from './dom.js';
-import { hideTip } from './tooltip.js';
 import { state } from './state.js';
 
 export const mainEl = document.getElementById('main');
@@ -16,7 +15,6 @@ export function go(r, e) {
     return;
   }
   if (e && e.preventDefault) e.preventDefault();
-  hideTip();
   if (decodeURIComponent(location.hash.substring(1)) === r) { if (routeHandler) routeHandler(r); }
   else { location.hash = r; }
 }
@@ -85,8 +83,7 @@ export function showRightPanel() {
   document.body.classList.remove('no-right-panel');
 }
 
-export function fadeMain() { hideTip(); mainEl.classList.remove('fade-in'); void mainEl.offsetWidth; mainEl.classList.add('fade-in'); }
-export function fadeRight() { rightEl.classList.remove('right-fade-in'); void rightEl.offsetWidth; rightEl.classList.add('right-fade-in'); }
+export function fadeMain() { mainEl.classList.remove('fade-in'); void mainEl.offsetWidth; mainEl.classList.add('fade-in'); }
 
 export function setBread(parts) {
   // Breadcrumbs render as first element inside #main
