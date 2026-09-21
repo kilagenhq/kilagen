@@ -1672,3 +1672,11 @@ button.stat-counter:focus-visible { outline: 2px solid var(--accent); outline-of
 /* A facet bar with no search box: the clause table is already the framework's
    own list, and there is one thing to slice it by. */
 .filter-bar-inline { margin: var(--space-lg) 0 var(--space-md); }
+
+/* The audit pack states what a date means, in words: it is printed, so colour
+   cannot be the thing that carries it. */
+.audit-evidence-state { font-size: 10px; color: var(--fg3); font-style: italic; }
+.audit-evidence-state-bad { color: var(--sev-high); font-style: normal; font-weight: 600; }
+/* An absence, admitted. Not dimmed — it is one of the more important lines on
+   the page. */
+.audit-evidence-none { font-size: var(--text-xs); color: var(--fg2); }

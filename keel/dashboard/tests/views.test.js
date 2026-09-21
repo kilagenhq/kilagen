@@ -558,6 +558,47 @@ describe('The audit pack', () => {
     expect(errors).toEqual([]);
   });
 
+  it('says what a collected date means, rather than leaving the arithmetic', async () => {
+    const { renderAudit } = await import('../modules/views/audit.js');
+    renderAudit('pci_dss');
+    const text = main();
+    // The fixture attaches one artefact inside its renewal period and one a
+    // year past it. Both are shown; the second is shown as expired.
+    expect(text).toContain('Account inventory, this quarter');
+    expect(text).toContain('good until');
+    expect(text).toContain('fresh');
+    expect(text).toContain('stale');
+    expect(errors).toEqual([]);
+  });
+
+  it('shows stale evidence rather than hiding it', async () => {
+    const { renderAudit } = await import('../modules/views/audit.js');
+    renderAudit('pci_dss');
+    // Hiding it would overstate what the program can prove, which is the one
+    // thing this page exists not to do.
+    expect(main()).toContain('Account inventory, last year');
+    const bad = document.querySelectorAll('#main .audit-evidence-state-bad');
+    expect(bad.length).toBeGreaterThan(0);
+  });
+
+  it('admits a requirement with nothing attached, instead of leaving a blank', async () => {
+    const { renderAudit } = await import('../modules/views/audit.js');
+    const requirement = state.fmCache['standards/std-access-control.md'].requirements[0];
+    const kept = requirement.evidence;
+    delete requirement.evidence;
+    renderAudit('pci_dss');
+    expect(main()).toContain('No evidence attached');
+    requirement.evidence = kept;
+  });
+
+  it('opens with what this framework can be shown to be true', async () => {
+    const { renderAudit } = await import('../modules/views/audit.js');
+    renderAudit('pci_dss');
+    // Scoped to the clauses in this pack, not to the whole program.
+    expect(main()).toMatch(/1 requirements? answer this framework, 1 with evidence attached/);
+    expect(main()).toContain('past its renewal period or undated');
+  });
+
   it('leaves a closed gap out: the pack shows what stands, not what stood', async () => {
     const { renderAudit } = await import('../modules/views/audit.js');
     state.fmCache['gaps/2026/gap-shared-accounts.md'].remediated = '2026-03-01';

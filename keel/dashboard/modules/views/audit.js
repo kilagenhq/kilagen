@@ -3,6 +3,7 @@ import { safeUrl } from '../security.js';
 import { state, docById, isOpenGap, isLiveException } from '../state.js';
 import { go, setActiveView, setBread, mainEl, hideRightPanel } from '../nav.js';
 import { fwLabel, BINDING_NOTE, today } from '../constants.js';
+import { evidenceState, evidenceStateInfo, expiresOn } from '../evidence.js';
 
 /* The audit pack: one framework, one page, printable.
  *
@@ -25,6 +26,43 @@ function line(container, label, value) {
 
 function howDemonstrated(req) {
   return req && req.how_demonstrated ? String(req.how_demonstrated).trim() : '';
+}
+
+/* What this framework's own requirements can be shown to be true.
+ *
+ * Scoped to the clauses in this pack rather than to the whole program: the
+ * reader is holding one framework, and a number about a different question
+ * would be worse than no number. A requirement reached by two clauses is
+ * counted once.
+ */
+function provability(clauses) {
+  const seen = {};
+  Object.keys(clauses).forEach(function(ref) {
+    (clauses[ref].requirements || []).forEach(function(key) { seen[key] = true; });
+  });
+  const keys = Object.keys(seen);
+  if (!keys.length) return '';
+
+  let attached = 0;
+  let lapsed = 0;
+  keys.forEach(function(key) {
+    const entry = state.requirements[key];
+    const standard = entry && docById(entry.standard);
+    const requirement = standard && (standard.requirements || [])
+      .find(function(r) { return entry.ref && String(r.ref) === String(entry.ref); });
+    const evidence = (requirement && requirement.evidence) || [];
+    if (!evidence.length) return;
+    attached += 1;
+    if (evidence.some(function(item) {
+      const verdict = evidenceState(item);
+      return verdict === 'stale' || verdict === 'undated';
+    })) lapsed += 1;
+  });
+
+  return keys.length + ' requirements answer this framework, ' + attached
+    + ' with evidence attached'
+    + (lapsed ? ', ' + lapsed + ' of those past its renewal period or undated' : '')
+    + '.';
 }
 
 /* The requirement behind a reference, with the standard that holds it. */
@@ -68,26 +106,48 @@ function requirementBlock(container, ref) {
   }
 
   const evidence = (requirement && requirement.evidence) || [];
-  if (evidence.length) {
-    const list = mk('div', 'audit-evidence');
-    list.appendChild(mk('span', 'audit-evidence-label', 'Evidence'));
-    evidence.forEach(function(item) {
-      const href = safeUrl(item.url);
-      if (href) {
-        const link = mk('a', 'audit-evidence-link', item.name || item.url);
-        link.href = href;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        list.appendChild(link);
-      } else {
-        list.appendChild(mk('span', 'audit-evidence-note', item.name));
-      }
-      if (item.collected) {
-        list.appendChild(mk('span', 'audit-evidence-note', 'collected ' + item.collected));
-      }
-    });
+  const list = mk('div', 'audit-evidence');
+  list.appendChild(mk('span', 'audit-evidence-label', 'Evidence'));
+  if (!evidence.length) {
+    /* Said out loud rather than left blank. A requirement with nothing
+       attached and a requirement nobody rendered look identical when the
+       answer is an absence, and in a document somebody signs, the explicit
+       admission is the more credible of the two. It is the same refusal as
+       the caveat at the top: this page does not flatter the program. */
+    list.appendChild(mk('span', 'audit-evidence-none', 'No evidence attached.'));
     block.appendChild(list);
+    container.appendChild(block);
+    return;
   }
+  evidence.forEach(function(item) {
+    const href = safeUrl(item.url);
+    if (href) {
+      const link = mk('a', 'audit-evidence-link', item.name || item.url);
+      link.href = href;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      list.appendChild(link);
+    } else {
+      list.appendChild(mk('span', 'audit-evidence-note', item.name));
+    }
+    if (item.collected) {
+      list.appendChild(mk('span', 'audit-evidence-note', 'collected ' + item.collected));
+    }
+    /* The date alone makes the reader do the arithmetic. The page knows the
+       renewal period, so it can say what the date means — and it says it in
+       words, because a printed page has no colour to rely on. */
+    const expires = expiresOn(item);
+    if (expires) {
+      list.appendChild(mk('span', 'audit-evidence-note', 'good until ' + expires));
+    }
+    const info = evidenceStateInfo(evidenceState(item));
+    const state = mk('span', 'audit-evidence-state', info.label);
+    if (info.key === 'stale' || info.key === 'undated') {
+      state.classList.add('audit-evidence-state-bad');
+    }
+    list.appendChild(state);
+  });
+  block.appendChild(list);
   container.appendChild(block);
 }
 
@@ -145,6 +205,7 @@ export function renderAudit(fw) {
   line(meta, 'Framework', cfg.name || fwLabel(fw));
   if (cfg.binding) line(meta, 'Binding', cfg.binding + ' — ' + (BINDING_NOTE[cfg.binding] || ''));
   line(meta, 'Generated', today());
+  line(meta, 'Evidence', provability(clauses));
   line(meta, 'Source', 'This repository. Every clause below links to the document it came from.');
   header.appendChild(meta);
   mainEl.appendChild(header);
