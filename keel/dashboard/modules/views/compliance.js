@@ -4,7 +4,7 @@ import { go, setActiveView, setBread, setParams, splitHash, getHash, mainEl, rig
 import { frameworkWheel, frameworkBars, wheelCaption, barsCaption } from '../wheel.js';
 import { chip, docChip } from '../doclink.js';
 import { mkFacetPicker } from '../filters.js';
-import { evidenceState } from '../evidence.js';
+import { provenTally } from '../evidence.js';
 import { fwLabel, BINDING_NOTE } from '../constants.js';
 
 /* The auditor's lens: clause to requirement to what still stands against it.
@@ -163,21 +163,9 @@ function evidenceCell(keys) {
   const cell = mk('td', 'clause-ev');
   if (!keys.length) return cell;
 
-  let attached = 0;
-  let lapsed = 0;
-  keys.forEach(function(key) {
-    const entry = state.requirements[key];
-    const standard = entry && docById(entry.standard);
-    const requirement = standard && (standard.requirements || [])
-      .find(function(r) { return entry.ref && String(r.ref) === String(entry.ref); });
-    const evidence = (requirement && requirement.evidence) || [];
-    if (!evidence.length) return;
-    attached += 1;
-    if (evidence.some(function(item) {
-      const verdict = evidenceState(item);
-      return verdict === 'stale' || verdict === 'undated';
-    })) lapsed += 1;
-  });
+  const tally = provenTally(keys);
+  const attached = tally.attached;
+  const lapsed = tally.lapsed;
 
   const ratio = mk('span', 'clause-ev-ratio', attached + ' / ' + keys.length);
   if (!attached) ratio.classList.add('clause-ev-none');

@@ -2,7 +2,7 @@ import { mk, mkEmpty, formatRoles } from '../dom.js';
 import { state, docById, isOpenGap, isLiveException } from '../state.js';
 import { go, setActiveView, setBread, mainEl, hideRightPanel } from '../nav.js';
 import { fwLabel, BINDING_NOTE, today } from '../constants.js';
-import { evidenceState } from '../evidence.js';
+import { provenTally } from '../evidence.js';
 import { mkRecord, mkRecordHead, mkRecordRow, mkEvidenceEntry } from '../requirement.js';
 
 /* The audit pack: one framework, one page, printable.
@@ -43,21 +43,9 @@ function provability(clauses) {
   const keys = Object.keys(seen);
   if (!keys.length) return '';
 
-  let attached = 0;
-  let lapsed = 0;
-  keys.forEach(function(key) {
-    const entry = state.requirements[key];
-    const standard = entry && docById(entry.standard);
-    const requirement = standard && (standard.requirements || [])
-      .find(function(r) { return entry.ref && String(r.ref) === String(entry.ref); });
-    const evidence = (requirement && requirement.evidence) || [];
-    if (!evidence.length) return;
-    attached += 1;
-    if (evidence.some(function(item) {
-      const verdict = evidenceState(item);
-      return verdict === 'stale' || verdict === 'undated';
-    })) lapsed += 1;
-  });
+  const tally = provenTally(keys);
+  const attached = tally.attached;
+  const lapsed = tally.lapsed;
 
   return keys.length + ' requirements answer this framework, ' + attached
     + ' with evidence attached'

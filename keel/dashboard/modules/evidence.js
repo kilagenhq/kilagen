@@ -1,4 +1,4 @@
-import { state } from './state.js';
+import { state, docById } from './state.js';
 import { FRESHNESS_DAYS, today } from './constants.js';
 
 /* Evidence, read the same way everywhere.
@@ -201,4 +201,27 @@ export function requirementRowsOf(standardId, when) {
   return requirementRows(when).filter(function(row) {
     return row.standard && row.standard.id === standardId;
   });
+}
+
+/* How many of these requirement keys can be proven, and how many of those
+   proofs have lapsed. Compliance prints it as a cell and the audit pack as a
+   sentence; both used to walk it themselves, and a fix to one would not have
+   reached the other. */
+export function provenTally(keys) {
+  let attached = 0;
+  let lapsed = 0;
+  keys.forEach(function(key) {
+    const entry = state.requirements[key];
+    const standard = entry && docById(entry.standard);
+    const requirement = standard && (standard.requirements || [])
+      .find(function(r) { return entry.ref && String(r.ref) === String(entry.ref); });
+    const evidence = (requirement && requirement.evidence) || [];
+    if (!evidence.length) return;
+    attached += 1;
+    if (evidence.some(function(item) {
+      const verdict = evidenceState(item);
+      return verdict === 'stale' || verdict === 'undated';
+    })) lapsed += 1;
+  });
+  return { total: keys.length, attached: attached, lapsed: lapsed };
 }
