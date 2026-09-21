@@ -4,6 +4,8 @@ Git-native, AI-first framework to build and run a full security program — GRC 
 
 This repository is the **framework**. You do not run your security program from here: you instantiate it into your own repository, which gets a `program/` layer holding your organization's content.
 
+For what that looks like when it is done, see [`kilagenhq/example-acme`](https://github.com/kilagenhq/example-acme) — a worked program of 49 requirements, eleven gaps and the evidence behind them, with [its dashboard published here](https://kilagenhq.github.io/example-acme/).
+
 ---
 
 ## Using Kilagen
