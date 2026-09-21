@@ -113,6 +113,10 @@ const VIEWS = [
   ['Schedule', () => import('../modules/views/schedule.js').then((m) => m.renderSchedule())],
   ['Evidence', () => import('../modules/views/evidence.js').then((m) => m.renderEvidenceLens())],
   ['A standard and its tabs', () => import('../modules/views/doc.js').then((m) => m.navigateDoc('standards/std-access-control.md'))],
+  ['A standard, its requirements', () => {
+    location.hash = 'doc/standards/std-access-control.md?tab=requirements';
+    return import('../modules/views/doc.js').then((m) => m.navigateDoc('standards/std-access-control.md'));
+  }],
   ['A standard, mapping matrix', () => {
     location.hash = 'doc/standards/std-access-control.md?tab=mappings';
     return import('../modules/views/doc.js').then((m) => m.navigateDoc('standards/std-access-control.md'));
@@ -161,7 +165,7 @@ describe('the keyboard reaches everything the mouse does', () => {
 
   it('no view skips a heading level, whichever tab is open', async () => {
     const { navigateDoc } = await import('../modules/views/doc.js');
-    for (const tab of ['content', 'mappings', 'gaps', 'evidence']) {
+    for (const tab of ['content', 'requirements', 'mappings', 'gaps', 'evidence']) {
       ['main', 'right'].forEach((id) => { document.getElementById(id).textContent = ''; });
       location.hash = 'doc/standards/std-access-control.md?tab=' + tab;
       navigateDoc('standards/std-access-control.md');

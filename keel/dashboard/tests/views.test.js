@@ -133,6 +133,14 @@ beforeEach(async () => {
 });
 
 function main() { return document.getElementById('main').textContent; }
+/* Open the fixture's standard at one of its tabs. The requirement records live
+   under Requirements now, so a test about them has to say so. */
+async function openStandard(tab) {
+  const { navigateDoc } = await import('../modules/views/doc.js');
+  location.hash = 'doc/standards/std-access-control.md' + (tab ? '?tab=' + tab : '');
+  navigateDoc('standards/std-access-control.md');
+}
+
 /* The first clause row of the fixture's framework is unmapped, so a test about
    what a mapped row shows has to say which row it means. */
 function mappedRow() {
@@ -700,8 +708,7 @@ describe('Schedule', () => {
 
 describe('Document', () => {
   it('renders a standard with its addressable requirements', async () => {
-    const { navigateDoc } = await import('../modules/views/doc.js');
-    navigateDoc('standards/std-access-control.md');
+    await openStandard('requirements');
     // The reference is the marker; the full key is what a gap cites, so it is
     // reachable by click rather than repeated on every block.
     const ref = document.querySelector('#main .req-ref');
@@ -1032,39 +1039,40 @@ describe('degenerate data nothing should choke on', () => {
 });
 
 describe('A standard, four ways', () => {
-  it('opens on the document itself, and offers three views of it', async () => {
-    const { navigateDoc } = await import('../modules/views/doc.js');
-    navigateDoc('standards/std-access-control.md');
+  it('opens on the document itself, and offers four views of it', async () => {
+    await openStandard();
     const tabs = [...document.querySelectorAll('#main .doc-tab')].map((t) => t.textContent);
-    expect(tabs).toHaveLength(4);
-    expect(tabs[0]).toContain('Content');
-    expect(tabs[1]).toContain('Mappings');
-    expect(tabs[2]).toContain('Gaps');
-    expect(tabs[3]).toContain('Evidence');
-    expect(document.querySelector('#main .doc-tab.active').textContent).toContain('Content');
-    expect(main()).toContain('Every user has a unique account');
+    expect(tabs).toHaveLength(5);
+    expect(tabs[0]).toBe('Content');          // the prose carries no number
+    expect(tabs[1]).toContain('Requirements');
+    expect(tabs[2]).toContain('Mappings');
+    expect(tabs[3]).toContain('Gaps');
+    expect(tabs[4]).toContain('Evidence');
+    expect(document.querySelector('#main .doc-tab.active').textContent).toBe('Content');
     expect(errors).toEqual([]);
   });
 
-  it('puts the prose and the requirements in one place, in that order', async () => {
-    const { navigateDoc } = await import('../modules/views/doc.js');
-    navigateDoc('standards/std-access-control.md');
-    await Promise.resolve();
+  it('gives Content the document\u2019s own words, and nothing else', async () => {
+    await openStandard();
     const panel = document.querySelector('#main .doc-tabpanel');
-    // The body card comes first: purpose and scope are what the requirements
-    // below are scoped by.
     expect(panel.firstElementChild.className).toContain('doc-body');
-    expect(panel.textContent).toContain('Addressable requirements');
-    expect(panel.textContent).toContain('Every user has a unique account');
-    // And Connections travels with the document rather than sitting under
-    // every tab.
+    // Connections travels with the document rather than sitting under every tab.
     expect(panel.querySelector('.conn')).not.toBeNull();
+    // The records are a tab of their own now, so they are not here.
+    expect(panel.querySelector('.req-record')).toBeNull();
+  });
+
+  it('gives Requirements the addressable list, and nothing else', async () => {
+    await openStandard('requirements');
+    const panel = document.querySelector('#main .doc-tabpanel');
+    expect(panel.querySelectorAll('.req-record')).toHaveLength(2);
+    expect(panel.textContent).toContain('Every user has a unique account');
+    expect(panel.querySelector('.doc-body')).toBeNull();
+    expect(panel.querySelector('.conn')).toBeNull();
   });
 
   it('leaves the body behind when you switch to a view of it', async () => {
-    const { navigateDoc } = await import('../modules/views/doc.js');
-    location.hash = 'doc/standards/std-access-control.md?tab=mappings';
-    navigateDoc('standards/std-access-control.md');
+    await openStandard('mappings');
     const panel = document.querySelector('#main .doc-tabpanel');
     expect(panel.querySelector('.doc-body')).toBeNull();
     expect(panel.querySelector('.conn')).toBeNull();
@@ -1150,8 +1158,7 @@ describe('A standard, four ways', () => {
 
 describe('The requirement record', () => {
   it('names the framework once and puts its clauses beside it', async () => {
-    const { navigateDoc } = await import('../modules/views/doc.js');
-    navigateDoc('standards/std-access-control.md');
+    await openStandard('requirements');
     const maps = document.querySelector('#main .req-maps');
     // Seven pills each repeating "ISO/IEC 27001:2022" is the framework's name
     // said seven times and the clause said once.
@@ -1161,24 +1168,21 @@ describe('The requirement record', () => {
   });
 
   it('sends a clause to its framework, already cut to this standard', async () => {
-    const { navigateDoc } = await import('../modules/views/doc.js');
-    navigateDoc('standards/std-access-control.md');
+    await openStandard('requirements');
     document.querySelector('#main .req-clause.clickable').click();
     expect(decodeURIComponent(location.hash))
       .toBe('#compliance/pci_dss?standard=std-access-control');
   });
 
   it('labels every fact, so a reader can skip a category with their eye', async () => {
-    const { navigateDoc } = await import('../modules/views/doc.js');
-    navigateDoc('standards/std-access-control.md');
+    await openStandard('requirements');
     const record = document.querySelector('#main .req-record');
     const labels = [...record.querySelectorAll('.req-row-label')].map((e) => e.textContent);
     expect(labels).toEqual(['Demonstrated by', 'Evidence', 'Answers']);
   });
 
   it('says an artefact is there, when it was collected and how long that lasts', async () => {
-    const { navigateDoc } = await import('../modules/views/doc.js');
-    navigateDoc('standards/std-access-control.md');
+    await openStandard('requirements');
     const entry = document.querySelector('#main .req-ev');
     expect(entry.querySelector('.req-ev-name').textContent).toBe('Account inventory, this quarter');
     expect(entry.querySelector('.req-ev-state').textContent).toBe('fresh');
@@ -1189,15 +1193,13 @@ describe('The requirement record', () => {
   });
 
   it('admits a requirement nobody has attached anything to', async () => {
-    const { navigateDoc } = await import('../modules/views/doc.js');
-    navigateDoc('standards/std-access-control.md');
+    await openStandard('requirements');
     // 1.3 in the fixture has no evidence.
     expect(main()).toContain('Nothing attached yet');
   });
 
   it('keeps the full key on the marker, since that is what a gap cites', async () => {
-    const { navigateDoc } = await import('../modules/views/doc.js');
-    navigateDoc('standards/std-access-control.md');
+    await openStandard('requirements');
     const refs = [...document.querySelectorAll('#main .req-ref')];
     expect(refs.map((r) => r.textContent)).toEqual(['1.2', '1.3']);
     expect(refs.map((r) => r.title)).toEqual([

@@ -11,26 +11,24 @@ import { mkRecord, mkRecordHead, mkRecordRow, mkEvidenceEntry, mkMappingRows,
          clauseRoute } from '../requirement.js';
 import { evidenceTable } from './evidence.js';
 
-/* A standard, four ways.
+/* A standard, five ways.
  *
- * **Content is the document.** A standard is the one type whose substance is
- * split across two places — the prose lives in the markdown body, the
- * requirements live in the frontmatter — and for a long time the page showed
- * them as two stacked blocks that did not know about each other: a list of
- * requirements, and then, underneath and unrelated, the standard's own words.
- * Content is both, in the order they are read: purpose and scope first, then
- * what is required.
+ * A standard's substance is split across two places — the prose lives in the
+ * markdown body, the requirements live in the frontmatter — and for a long
+ * time the page showed them as two stacked blocks that did not know about each
+ * other: a chaotic list of requirements and then, underneath and unrelated,
+ * the standard's own words. They were merged into one tab to fix that, which
+ * was right while neither half had a shape. Now that a requirement is a record
+ * rather than a pile of chips it stands on its own, and the merged tab had
+ * become the longest page in the console.
  *
- * The other three are not the document, they are questions asked of it, and
- * each is a table that exists nowhere else:
+ * So: Content is the document's own words. Requirements is the addressable
+ * list. And three more are questions asked of that list, each a table that
+ * exists nowhere else:
  *
  *   Mappings   requirement x framework, the matrix
  *   Gaps       everything ever filed against it, with its state
  *   Evidence   what can be proven, and what has gone stale
- *
- * There used to be a fifth, `Requirements`, and it was the other three read
- * one requirement at a time — which is what Content already is, only without
- * the prose that gives them their scope.
  *
  * The chosen tab lives in the query string, so a standard opened at its
  * mapping matrix is a link somebody can paste into a ticket. Switching redraws
@@ -39,7 +37,7 @@ import { evidenceTable } from './evidence.js';
  */
 
 const DEFAULT_TAB = 'content';
-const TAB_KEYS = ['content', 'mappings', 'gaps', 'evidence'];
+const TAB_KEYS = ['content', 'requirements', 'mappings', 'gaps', 'evidence'];
 
 /* ===== What each tab counts ===== */
 
@@ -99,24 +97,25 @@ function evidenceCounts(fm) {
 /* ===== Requirements ===== */
 
 function renderContent(container, fm, path) {
-  /* The standard's own words first: purpose and scope are what the
-     requirements below are scoped by, and they are read in that order. */
   renderDocBody(container, path, fm.title);
+  /* Connections belongs to the document, so it lives with the document's own
+     words rather than under every tab. At panel width the ids are unreadable,
+     which is why it is here and not in the right-hand panel. */
+  renderConnections(container, fm);
+}
 
+function renderRequirements(container, fm) {
   const rows = requirementRowsOf(fm.id);
   if (!rows.length) {
     container.appendChild(mkEmpty('standard', 'This standard states no requirements',
       'A requirement is what a framework clause maps to and what a gap is filed '
       + 'against, so a standard without them cannot be measured or contested.'));
-    renderConnections(container, fm);
     return;
   }
 
-  /* Named for what distinguishes it from the body's own `## Requirements`,
-     which the shipped template reserves for context a requirement cannot
-     carry. These are the ones with an id — the template's own words for why
-     they live in the frontmatter are "that is what makes them addressable". */
-  container.appendChild(mk('h2', 'standard-requirements-head', 'Addressable requirements'));
+  /* The tab is called Requirements; this note is what distinguishes these from
+     the body's own `## Requirements`, which the shipped template reserves for
+     context a requirement cannot carry. */
   container.appendChild(mk('p', 'section-note',
     'Each one is addressable on its own: a framework clause maps to it, and a gap '
     + 'or an exception is filed against it by id.'));
@@ -154,11 +153,6 @@ function renderContent(container, fm, path) {
 
     container.appendChild(record);
   });
-
-  /* Connections belongs to the document, so it lives with it rather than
-     under every tab. At panel width the ids are unreadable, which is why it
-     is here and not in the right-hand panel. */
-  renderConnections(container, fm);
 }
 
 /* A gap or an exception beside the requirement it contests, coloured by which
@@ -343,6 +337,7 @@ function renderEvidence(container, fm) {
 
 const RENDERERS = {
   content: renderContent,
+  requirements: renderRequirements,
   mappings: renderMappings,
   gaps: renderGaps,
   evidence: renderEvidence,
@@ -352,11 +347,10 @@ const RENDERERS = {
    opening. `gaps` counts only what still stands, because that is what the
    word means — the table behind it shows the closed ones too. */
 function badgeOf(key, fm) {
-  if (key === 'content') {
-    /* The count is the requirements: the prose has no number worth
-       putting on a tab. */
-    return { text: String(requirementsOf(fm).length) };
-  }
+  /* The prose has no number worth putting on a tab, and a badge invented so
+     that every tab has one is a badge nobody can read. */
+  if (key === 'content') return null;
+  if (key === 'requirements') return { text: String(requirementsOf(fm).length) };
   if (key === 'mappings') return { text: String(clauseCount(fm)) };
   if (key === 'gaps') {
     const open = standing(fm);
@@ -398,9 +392,11 @@ export function renderStandardTabs(container, fm, path) {
     btn.setAttribute('aria-controls', 'std-tabpanel');
     btn.appendChild(mk('span', 'doc-tab-label', label(key)));
     const badge = badgeOf(key, fm);
-    const count = mk('span', 'doc-tab-count', badge.text);
-    if (badge.color) count.style.color = badge.color;
-    btn.appendChild(count);
+    if (badge) {
+      const count = mk('span', 'doc-tab-count', badge.text);
+      if (badge.color) count.style.color = badge.color;
+      btn.appendChild(count);
+    }
     btn.addEventListener('click', function() { select(key); });
     buttons[key] = btn;
     bar.appendChild(btn);
