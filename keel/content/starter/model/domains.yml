@@ -1,7 +1,8 @@
 # The domain vocabulary — the closed list the domains: facet is validated against.
 #
 # A domain is a label on a document, never a folder: a document may declare more
-# than one, because real work does. See keel/adrs/adr-folders-are-storage-not-ontology.md.
+# than one, because real work does. The reasoning ships with the framework:
+# see "Why Kilagen is this way" under Reference in the built site.
 
 domains:
   - id: grc

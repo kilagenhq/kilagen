@@ -41,6 +41,6 @@ The domains and their capabilities collapse from one file per domain into a sing
 ## Consequences
 
 - The dashboard loses its most colorful pages and stops being able to answer "how are we doing", which it was never able to answer truthfully.
-- Nobody has to maintain 43 maturity levels that rot.
+- Nobody has to maintain a maturity level per capability that rots.
 - A user who wants a maturity assessment can still run one; it just does not live here, and the repository does not pretend the answer is derivable from its own contents.
 - The Domains lens gets simpler and more useful, because it is now navigation rather than a scorecard with navigation attached.

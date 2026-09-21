@@ -4,12 +4,13 @@
 # One direction only: git to destination. A published page is a render of what
 # lives here, and edits belong in git. Comments coming back from a destination
 # are input for the owner, never merged as content.
-# See keel/adrs/adr-one-way-publishing.md.
+# See "Why Kilagen is this way" under Reference in the built site.
 #
 # This file governs EXTERNAL destinations only. 'publish: none' keeps a
 # document out of the wiki; it does not keep it out of the dashboard, which
 # publishes the whole program and is as public as the repository itself.
-# It is not a confidentiality control — see keel/adrs/adr-one-way-publishing.md.
+# It is not a confidentiality control: the built site is as public as wherever
+# it is deployed, and nothing under program/ is a confidentiality boundary.
 #
 # Nothing is published until a destination is declared below and a sync tool
 # consumes this file — 'kilagen check' validates the contract either way, so a

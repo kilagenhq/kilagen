@@ -27,6 +27,12 @@ kilagen init --name "Acme Corp"      # or --guided, to be asked
 | `--deployment` | `github` | CI configuration for that platform. `none` writes nothing — run the commands yourself, from any CI or none at all. |
 | `--agent` | `claude` | Agent skills rendered into the layout that tool expects. `none` writes nothing. |
 
+> `--force` overwrites. It proceeds when `program/` already exists, and it
+> replaces files this repository already has under the names the seed uses —
+> `.gitignore`, `.pre-commit-config.yaml`, `tests/`. Without it, `init` lists
+> what it would overwrite and refuses. It is the only flag here that can
+> destroy work you did not get from Kilagen.
+
 Then:
 
 ```bash
@@ -91,7 +97,7 @@ something a scheduled build does to you.
 ## Making it look like yours
 
 The dashboard ships Kilagen's palette. To use your own, write
-`program/branding.css` and redefine as few of these nine tokens as you like —
+`program/branding.css` and redefine as few of these eleven tokens as you like —
 `build` copies the file next to the stylesheet and loads it afterwards, so
 nothing is forked and nothing is lost on upgrade.
 
@@ -122,7 +128,7 @@ somebody cannot read.
 ## Migrating content
 
 `program/config.yml` carries a `schema_version` recording how far your content
-has been migrated. When a release expects a newer one, `validate` stops and
+has been migrated. When a release expects a newer one, `kilagen check` stops and
 tells you:
 
 ```

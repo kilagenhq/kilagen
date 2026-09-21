@@ -26,7 +26,7 @@ Open `http://localhost:8000/dashboard/`.
 
 ## Dependencies
 
-Runtime libs are managed via `package.json` so Dependabot can monitor CVEs. They are not committed to the repo, `kilagen build` installs them from npm and copies the UMD builds into `vendor/` where `index.html` loads them as plain `<script>` tags. No bundler, no build step for the JS itself.
+Runtime libs are pinned in `package.json` so Dependabot can monitor CVEs, and the built UMD files **are committed** under `vendor/`, where `index.html` loads them as plain `<script>` tags — a fresh clone works with no install. There is no bundler and no build step for the JS. Refresh them with `./scripts/vendor-libs.sh` after a version bump; CI fails if `vendor/` and `package.json` disagree.
 
 ## Tests
 
@@ -38,4 +38,4 @@ npm test
 
 ## Security
 
-The dashboard enforces a strict CSP (no inline scripts, no eval, no external sources), sanitizes all markdown output with DOMPurify, validates every fetched path and external URL, and parses YAML in failsafe mode. No state is stored client-side. Vendor libs are pinned, vendored at build time, and monitored by Dependabot.
+The dashboard enforces a strict CSP (no inline scripts, no eval, no external sources), sanitizes all markdown output with DOMPurify, validates every fetched path and external URL, and parses YAML in failsafe mode. No state is stored client-side. Vendor libs are pinned, committed under `vendor/`, and monitored by Dependabot.

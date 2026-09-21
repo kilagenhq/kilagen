@@ -19,7 +19,7 @@ Starter document — delete it, or replace it with a real shortfall.
 
 A gap is a deviation **nobody approved**. It stays open until one of two
 write-once facts closes it: `remediated:` with the date it was fixed, or
-`superseded_by:` naming the exception that authorized it after the fact. There
+`excepted_by:` naming the exception that authorized it after the fact. There
 is no status field, because the lifecycle of the remediation work belongs to
 your tracker — link it with `tracker:`.
 

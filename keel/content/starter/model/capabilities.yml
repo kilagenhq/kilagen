@@ -3,7 +3,8 @@
 # A capability is two things and nothing more: the checklist of what a security
 # program can build, and the facet that groups documents by domain. It carries no
 # assessment. What is actually deployed, on which systems, at what quality, is
-# measured in the estate — not here. See keel/adrs/adr-no-capability-assessment.md.
+# measured in the estate — not here. The reasoning ships with the framework:
+# see "Why Kilagen is this way" under Reference in the built site.
 #
 # Ids are namespaced <domain>.<capability>, which makes them unique across the
 # program by construction. Delete the ones that do not apply to you.

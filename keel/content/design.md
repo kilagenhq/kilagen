@@ -92,9 +92,10 @@ The repository is neutral and nobody navigates folders. Each lens is a computed 
 
 | Lens | Answers |
 |---|---|
-| Browse | What documents exist? |
+| Program | What documents exist? |
 | Domains | What have we written about IAM? |
 | Compliance | Clause → requirement → open gap or live exception. |
+| Evidence | What can this program prove, and what has gone stale. |
 | Schedule | What expires: reviews due, exceptions running out, gaps left unremediated. |
 | Doc | One document, what it relates to, and the verb on each link. |
 

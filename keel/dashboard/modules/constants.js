@@ -129,13 +129,12 @@ export const FRESHNESS_DAYS = {
  * another, and none of them means good or bad. */
 export const DOMAIN_ICONS = {
   grc: 'policy', iam: 'role', infra: 'system', appsec: 'standard',
-  secops: 'chart', ir: 'incident', offensive: 'threat',
-  'digital-assets': 'vendor', awareness: 'book', 'data-security': 'gap',
+  secops: 'chart', ir: 'incident', offensive: 'threat', awareness: 'book', 'data-security': 'gap',
 };
 
 const DOMAIN_HUES = {
   grc: 200, iam: 265, infra: 25, appsec: 150, secops: 320,
-  ir: 5, offensive: 45, 'digital-assets': 240, awareness: 100, 'data-security': 180,
+  ir: 5, offensive: 45, awareness: 100, 'data-security': 180,
 };
 
 /* What a type is for, where the answer is not obvious from its name.

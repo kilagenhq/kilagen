@@ -34,7 +34,7 @@ source: audit                          # audit | pentest | risk-assessment | …
 found: 2026-09-18
 tracker: https://…/browse/SEC-12       # optional; lifecycle lives there
 # remediated: 2026-11-02               # write-once closure facts
-# superseded_by: exc-legacy-vpn-mfa
+# excepted_by: exc-legacy-vpn-mfa
 ---
 ```
 
@@ -44,7 +44,7 @@ The triangle is now explicit and symmetric:
 - **Exception** (`exc-*`) — a deviation somebody with authority approved, with an expiry.
 - **Gap** (`gap-*`) — a deviation nobody approved, pending remediation or conversion into an exception.
 
-A gap is **open** when it carries neither `remediated:` nor `superseded_by:`. There is no status field to mirror. Closed gaps are kept forever: the history of what a requirement has failed at is audit evidence, and recurrence against the same requirement is a signal worth seeing.
+A gap is **open** when it carries neither `remediated:` nor `excepted_by:`. There is no status field to mirror. Closed gaps are kept forever: the history of what a requirement has failed at is audit evidence, and recurrence against the same requirement is a signal worth seeing.
 
 `check` requires `requirement:` to resolve to a requirement that exists. A shortfall with no written requirement behind it cannot be filed as a gap, which is deliberate: either the standard is missing and should be written, or the thing was a risk, not a gap.
 

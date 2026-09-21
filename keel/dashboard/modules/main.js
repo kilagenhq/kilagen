@@ -26,8 +26,9 @@ window.addEventListener('unhandledrejection', function(event) {
 });
 
 /* ===== Router =====
- * Five lenses plus the reference pages. Every route is <lens> or <lens>/<key>,
- * so adding a lens is one line and a document's URL is its path.
+ * Four lenses in the bar and the program on the mark, plus the detail routes
+ * (`doc/`, `domain/`, `audit/`) and the reference pages. A document's URL is
+ * its path, so a link into one is a link anybody can paste.
  */
 function route(hash) {
   const h = splitHash(hash || 'home').route || 'home';

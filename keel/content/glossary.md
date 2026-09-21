@@ -51,8 +51,8 @@ and who uses it is the estate's truth, not this repository's.
 filed against it.
 
 **Lens.** A computed projection of the same documents for one audience —
-Browse, Domains, Compliance, Schedule, Doc. The repository is neutral;
-nobody navigates folders.
+Program, Domains, Compliance (with Evidence), Schedule, Doc. The repository is
+neutral; nobody navigates folders.
 
 **Partition.** A year directory under a dated type (`gaps/2026/`). It splits
 storage, never the namespace: ids stay unique across the whole program.
@@ -81,7 +81,7 @@ or `reference` (guidance you assert nothing against).
 ## Acronyms
 
 **ADR** — Architecture Decision Record. The framework's own decisions about
-itself, shipped in `keel/adrs/`. A program's own decisions are `decision`
+itself, shipped with the framework and rendered under Reference. A program's own decisions are `decision`
 documents (`dec-`) in its repository.
 **CMDB** — Configuration Management Database; the inventory of what is deployed.
 **GRC** — Governance, Risk and Compliance.

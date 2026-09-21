@@ -43,7 +43,7 @@ nothing — each fails `kilagen check`.
 |---|---|---|---|
 | What it is | The norm | A deviation nobody approved | A deviation somebody approved |
 | Where it lives | Inside a standard | `gaps/<year>/gap-*.md` | `exceptions/<year>/exc-*.md` |
-| How it ends | Superseded | `remediated:` or `superseded_by:` | `expires:` or `revoked:` |
+| How it ends | Superseded | `remediated:` or `excepted_by:` | `expires:` or `revoked:` |
 | Who owns the work | — | The tracker, via `tracker:` | The approver, until the expiry |
 
 A shortfall with no written requirement behind it cannot be filed as a gap.
@@ -88,8 +88,11 @@ vocabulary is an error, and `kilagen check` lists the ids it does know.
 | `nist_csf` | NIST Cybersecurity Framework 2.0 | 22 categories |
 | `pci_dss` | PCI DSS v4.0 | 12 top-level requirements |
 | `iso_27001` | ISO/IEC 27001:2022 | 93 Annex A controls |
-| `soc2` | SOC 2 Trust Services Criteria | 33 Common Criteria + A1 + C1 |
+| `soc2` | SOC 2 Trust Services Criteria | 38 criteria: 33 Common Criteria plus A1 and C1 |
 | `iso_27017` | ISO/IEC 27017:2015 | the 7 cloud-specific CLD controls |
+| `pci_dss_4_0_1` | PCI DSS v4.0.1 | the 12 top-level requirements |
+| `cis_v8` | CIS Critical Security Controls v8 | the 18 top-level Controls |
+| `hipaa_security` | HIPAA Security Rule | the 22 standards of 45 CFR Part 164 Subpart C |
 | `iso_27018` | ISO/IEC 27018:2019 | 25 Annex A controls |
 
 Each file records its own granularity, because the denominator is half of any

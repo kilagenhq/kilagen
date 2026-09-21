@@ -37,7 +37,7 @@ kilagen build && kilagen serve            # read it as a site
 - **A requirement is addressable.** A standard's requirements are numbered, so
   a framework clause maps to `std-access-control#1.2` and a gap is filed
   against that same reference.
-- **A gap is open until a fact closes it.** `remediated:` or `superseded_by:`,
+- **A gap is open until a fact closes it.** `remediated:` or `excepted_by:`,
   both written once. There is no status field to keep in sync — the same is
   true of an exception, which is live until it is revoked or it expires.
 - **Nothing here is confidential.** The built site is as public as this

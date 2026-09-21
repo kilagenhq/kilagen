@@ -14,7 +14,7 @@ engines/        one is chosen: the agent integration to render
 
 Markdown lint, spell check and link check configuration, the pre-commit hooks,
 `.gitignore`, and the instance's content tests. Generic, but not shared with
-this repository: the ignore lists differ, and the index-staleness hook only
+this repository: the ignore lists differ, and the frontmatter hook only
 makes sense where a `program/` exists.
 
 ## deployments/

@@ -13,7 +13,7 @@
 # `tracker` is a link to wherever the work is managed. It is a pointer, never
 # a copy of the ticket's state: this repository does not mirror a tracker.
 #
-# Validated by keel/schemas/schedule.schema.json — `kilagen check` will tell
+# Validated by the schedule schema — `kilagen check` will tell
 # you about a typo in a role or a document id.
 
 activities: []

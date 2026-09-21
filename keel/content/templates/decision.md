@@ -10,7 +10,6 @@ owner: role-replace-me
 decided: 2026-01-01         # the day the decision was made
 immutable: true             # a decision is superseded, never edited
 # supersedes: [dec-replace-me]
-# superseded_by: dec-replace-me
 domains: []                  # ids from program/model/domains.yml — a document may declare several
 capabilities: []             # ids from program/model/capabilities.yml
 systems: []                  # ids from program/model/systems.yml

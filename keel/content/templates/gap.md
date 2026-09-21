@@ -35,7 +35,7 @@ The exposure it creates.
 ## Closing it
 
 A gap is open until one of two write-once facts closes it: `remediated:` with
-the date it was fixed, or `superseded_by:` naming the exception that
+the date it was fixed, or `excepted_by:` naming the exception that
 authorized it. There is no status field — the remediation work's lifecycle
 belongs to the tracker.
 

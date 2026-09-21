@@ -29,10 +29,14 @@ Day to day:
 | Command | What it does |
 |---|---|
 | `kilagen new <type> <slug>` | Writes a document from its template, in the folder of its type |
-| `kilagen check` | Frontmatter, layout, vocabularies and every cross-reference |
+| `kilagen check` | Frontmatter, layout, vocabularies, cross-references, evidence freshness and what is falling due |
 | `kilagen build` | Validate and build the dashboard |
 | `kilagen build && kilagen serve` | The same, then serve it at `localhost:8000` |
 | `kilagen check reviews` | What expires: reviews, exceptions, gaps left open |
+| `kilagen check evidence` | What each requirement can prove, and what has gone stale |
+| `kilagen update evidence` | Run the collectors and record where the proof now lives |
+
+`check` takes a target — `frontmatter`, `refs`, `evidence` or `reviews` — and runs all four without one. `evidence` and `reviews` report rather than fail, which is what makes them worth running; `--strict` is how a CI asks for the opposite. `serve` takes `--port`.
 
 Keeping up with new releases:
 
