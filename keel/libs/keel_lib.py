@@ -201,11 +201,16 @@ def extract_frontmatter(path: Path, *, raise_on_error: bool = False) -> dict | N
         frontmatter block.
     """
     try:
-        text = path.read_text(encoding="utf-8")
+        # utf-8-sig: a BOM is what Notepad and several Windows editors write,
+        # and it sits in front of the opening `---`. Without this the document
+        # has no frontmatter as far as every check is concerned, and nothing
+        # says why.
+        text = path.read_text(encoding="utf-8-sig")
     except UnicodeDecodeError:
         _warn(f"File is not valid UTF-8 (skipped): {path}")
         return None
     if not text.startswith("---"):
+        _warn(f"File does not open with a '---' frontmatter block (skipped): {path}")
         return None
     try:
         end = text.index("---", 3)
@@ -645,6 +650,14 @@ def scan_framework_mappings(documents: list[dict]) -> list[dict]:
             ref = str(req.get("ref", ""))
             frameworks = req.get("frameworks")
             if frameworks is None:
+                continue
+            if not ref:
+                # `<std>#` resolves to nothing in the requirement index, and a
+                # clause pointed at it renders "mapped" by a requirement that
+                # does not exist. Warn rather than emit it: the warning contract
+                # fails the run, which is the honest outcome.
+                _warn(f"{std_id}: a requirement maps frameworks but has no ref "
+                      f"— its clauses are not counted as mapped")
                 continue
             if not isinstance(frameworks, dict):
                 _warn(f"{std_id} req {ref}: 'frameworks' is "

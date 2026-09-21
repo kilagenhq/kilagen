@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from .keel_lib import scan_documents
+from .keel_lib import get_warnings, reset_warnings, scan_documents
 
 # How long a piece of evidence stays good, in the closed set schedule.yml
 # already uses for recurrence. One vocabulary of periodicity, not two.
@@ -39,7 +39,8 @@ FRESHNESS_DAYS = {
 def collect(documents: list[dict], today: str | None = None) -> dict[str, list[tuple]]:
     """Sort every requirement and certification into what is missing or old."""
     today = today or date.today().isoformat()
-    found: dict[str, list[tuple]] = {"unproven": [], "undated": [], "stale": [], "uncertified": []}
+    found: dict[str, list[tuple]] = {"unproven": [], "undated": [], "stale": [],
+                                    "unscheduled": [], "uncertified": []}
 
     for doc in documents:
         path = doc.get("path", "")
@@ -54,6 +55,11 @@ def collect(documents: list[dict], today: str | None = None) -> dict[str, list[t
                     continue
                 for item in evidence:
                     if not isinstance(item, dict):
+                        # An entry that is not a mapping cannot carry a url or
+                        # a date, so it proves nothing. Counting it as evidence
+                        # is how a requirement comes to look proven by a string.
+                        found["unproven"].append(
+                            (key, f"evidence entry is {type(item).__name__}, not a mapping", path))
                         continue
                     name = item.get("name", "")
                     collected = item.get("collected")
@@ -62,9 +68,21 @@ def collect(documents: list[dict], today: str | None = None) -> dict[str, list[t
                         continue
                     window = FRESHNESS_DAYS.get(item.get("freshness", ""))
                     if not window:
+                        # No renewal period, or one this vocabulary does not
+                        # know. Defaulting to a window would invent a fact; the
+                        # honest answer is that nothing can say when this
+                        # stopped being true. The dashboard already calls this
+                        # state 'unscheduled' — the check used to skip it.
+                        found["unscheduled"].append(
+                            (key, f"{name} (freshness: {item.get('freshness') or 'none'})", path))
                         continue
-                    expires = (date.fromisoformat(str(collected))
-                               + timedelta(days=window)).isoformat()
+                    try:
+                        opened = date.fromisoformat(str(collected))
+                    except ValueError:
+                        found["undated"].append(
+                            (key, f"{name} (collected: {collected!r} is not a date)", path))
+                        continue
+                    expires = (opened + timedelta(days=window)).isoformat()
                     if expires < today:
                         found["stale"].append((expires, f"{key} — {name}", path))
 
@@ -93,15 +111,26 @@ def main(strict: bool = False) -> int:
     That is not an exit code: ``cmd_check`` decides what a finding means, and
     without ``--strict`` it means a warning.
     """
+    reset_warnings()
     documents = scan_documents()
     found = collect(documents)
+    # A document that could not be read was dropped from `documents`, so every
+    # count below is of a smaller program than the one on disk. Saying PASSED
+    # on that is saying "proven" about requirements nobody looked at.
+    warnings = get_warnings()
     requirements = sum(len(d.get("requirements") or [])
                        for d in documents if d.get("type") == "standard")
     proven = requirements - len(found["unproven"])
     print(f"Checked {requirements} requirements ({proven} with evidence attached).")
 
-    attention = (found["unproven"] + found["undated"]
-                 + found["stale"] + found["uncertified"])
+    attention = (found["unproven"] + found["undated"] + found["stale"]
+                 + found["unscheduled"] + found["uncertified"])
+    if warnings:
+        print(f"\nFAILED — {len(warnings)} document(s) could not be read and were "
+              f"skipped, so this report is incomplete:")
+        for warning in warnings:
+            print(f"  {warning}")
+        return 1
     if not attention:
         print("\nPASSED — every requirement can be proven")
         return 0
@@ -116,6 +145,9 @@ def main(strict: bool = False) -> int:
     if found["undated"]:
         _report("Evidence with no collected date", found["undated"],
                 "Without a date nothing can tell you when it stopped being true.")
+    if found["unscheduled"]:
+        _report("Evidence with no renewal period", found["unscheduled"],
+                "It has a date and nothing to measure it against, so it can never go stale.")
     if found["uncertified"]:
         _report("Vendor certifications nobody dated", found["uncertified"],
                 "A claim about somebody else needs the day it was checked.")

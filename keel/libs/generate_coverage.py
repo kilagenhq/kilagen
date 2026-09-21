@@ -74,6 +74,11 @@ def build_coverage(config: dict, documents: list[dict], vocab: dict[str, list[st
     for fw_id in config_framework_ids(config):
         clauses = vocab.get(fw_id)
         if not clauses:
+            # Deliberate: coverage stays silent and `kilagen check` is what
+            # names an unresolvable id as an error. The case this does not
+            # cover — a vocabulary file that exists and fails to parse — warns
+            # through keel_lib, and build_site checks those warnings after
+            # loading rather than before.
             continue
         mapped = inbound.get(fw_id, {})
         entries: dict[str, dict] = {}
@@ -88,6 +93,7 @@ def build_coverage(config: dict, documents: list[dict], vocab: dict[str, list[st
             entries[ref] = {"coverage": "mapped", "requirements": requirements,
                             "gaps": gaps, "exceptions": exceptions}
         coverage[fw_id] = entries
+
     return coverage
 
 

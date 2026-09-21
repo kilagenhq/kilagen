@@ -171,6 +171,7 @@ def _rewrite(text: str, name: str, fresh: dict, occurrence: int = 0) -> tuple[st
 
         changed = False
         seen_collected = False
+        seen_url = False
         for i, line in enumerate(entry):
             # A file written on Windows has \r on every line, and `.*$` eats it.
             # Replacing a line without putting it back leaves one file with two
@@ -178,6 +179,7 @@ def _rewrite(text: str, name: str, fresh: dict, occurrence: int = 0) -> tuple[st
             # that looks like something happened to the whole block.
             eol = "\r" if line.endswith("\r") else ""
             if re.match(r"^\s*url:", line):
+                seen_url = True
                 replacement = re.sub(r"^(\s*url:\s*).*$",
                                      lambda m: m.group(1) + fresh["url"] + eol, line)
                 if replacement != line:
@@ -190,6 +192,11 @@ def _rewrite(text: str, name: str, fresh: dict, occurrence: int = 0) -> tuple[st
                 if replacement != line:
                     entry[i] = replacement
                     changed = True
+        if not seen_url:
+            # `url` is required by the schema, and this verb does not validate.
+            # Writing the date while dropping the url, then printing both, is
+            # the one outcome worse than refusing.
+            return text, False
         if not seen_collected:
             pad = " " * (indent + 2)
             tail = "\r" if entry and entry[-1].endswith("\r") else ""
@@ -248,7 +255,15 @@ def main(apply: bool = False) -> int:
             continue
 
         path = keel_lib.PROGRAM / doc["path"]
-        text = path.read_text(encoding="utf-8")
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError as err:
+            # Each write is atomic; the run is not. Without this the traceback
+            # replaces the summary, and the user is left with some entries
+            # recorded, some not, and no list of which.
+            print(f"  {where}\n    FAILED — could not read {doc['path']}: {err}")
+            failures += 1
+            continue
         new_text, changed = _rewrite(text, name, fresh, occurrence)
         if not changed:
             if _locate(text.split("\n"), name, occurrence) is None:
@@ -263,7 +278,11 @@ def main(apply: bool = False) -> int:
             continue
         print(f"  {where}\n    -> {fresh['url']}  collected {fresh['collected']}")
         if apply:
-            keel_lib.write_text_atomic(path, new_text)
+            try:
+                keel_lib.write_text_atomic(path, new_text)
+            except OSError as err:
+                print(f"    FAILED — could not write {doc['path']}: {err}")
+                failures += 1
 
     print()
     if failures:

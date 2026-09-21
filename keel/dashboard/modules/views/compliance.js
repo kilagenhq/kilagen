@@ -453,6 +453,23 @@ export function renderCompliance(framework) {
     return;
   }
 
+  /* A framework declared in config.yml with no coverage computed for it has a
+     vocabulary that did not resolve. This page iterates coverage, so without
+     this it would simply not be on it — and "absent" reads as "not in scope",
+     which is the one thing it is not. */
+  const missing = (state.config.frameworks || [])
+    .map(function(fw) { return fw && fw.id; })
+    .filter(function(id) { return id && frameworks.indexOf(id) === -1; });
+  if (missing.length) {
+    const warn = mk('div', 'empty-state');
+    warn.appendChild(mk('div', 'empty-state-title',
+      missing.length + ' framework(s) in scope with no clause vocabulary'));
+    warn.appendChild(mk('div', 'empty-state-desc',
+      missing.join(', ') + ' — declared in config.yml but nothing resolved for them, '
+      + 'so no coverage is computed and none is claimed. Run kilagen check.'));
+    mainEl.appendChild(warn);
+  }
+
   if (framework && state.coverage[framework]) renderDetail(framework);
   else renderDashboard(frameworks);
 }

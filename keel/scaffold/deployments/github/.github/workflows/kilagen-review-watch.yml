@@ -46,11 +46,24 @@ jobs:
           KILAGEN_SPEC: ${{ vars.KILAGEN_SPEC || 'kilagen<1' }}
         run: pip install --quiet "$KILAGEN_SPEC"
 
+      # Branch on the exit code, not on the prose. `check reviews` returns 0
+      # for nothing due and 1 for findings; anything else is a crash, and a
+      # crash has to fail the job. Piping into tee would hand the step tee's
+      # status instead — the default shell is `bash -e`, without pipefail — so
+      # the one thing that tells anybody a review has fallen due would go on
+      # reporting success after it stopped working.
       - name: Report what needs attention
         id: report
+        shell: bash
         run: |
-          kilagen check reviews | tee "$RUNNER_TEMP/review-watch.txt"
-          if grep -q "need attention" "$RUNNER_TEMP/review-watch.txt"; then
+          set -uo pipefail
+          kilagen check reviews > "$RUNNER_TEMP/review-watch.txt" && rc=0 || rc=$?
+          cat "$RUNNER_TEMP/review-watch.txt"
+          if [ "$rc" -gt 1 ]; then
+            echo "::error::kilagen check reviews failed (exit $rc)"
+            exit "$rc"
+          fi
+          if [ "$rc" -eq 1 ]; then
             echo "attention=true" >> "$GITHUB_OUTPUT"
           fi
 

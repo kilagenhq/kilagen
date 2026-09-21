@@ -147,6 +147,10 @@ def build_registry_json(config: dict, documents: list[dict], model: dict, publis
     """
     registry = {
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        # False when `kilagen build site` skipped the validators. The dashboard
+        # says so on every page: a build that did not check its content should
+        # not be able to look like one that did.
+        "validated": VALIDATED,
         "config": config,
         "types": [{"name": t.name, "prefix": t.prefix, "folder": t.folder,
                    "dated": t.dated, "immutable": t.immutable} for t in TYPES],
@@ -215,6 +219,11 @@ def build_site(registry: dict) -> None:
     (site / ".nojekyll").touch()
 
 
+# Set by cmd_build before main() runs. `kilagen build site` skips validation,
+# and the registry records that so the page can admit it.
+VALIDATED = True
+
+
 def main() -> int:
     data, warnings = scan_all(verbose=True)
     if warnings:
@@ -222,7 +231,19 @@ def main() -> int:
         return 1
 
     print("Computing framework coverage...", end=" ", flush=True)
-    coverage = build_coverage(data["config"], data["documents"], load_framework_vocab())
+    vocab = load_framework_vocab()
+    meta = load_framework_meta()
+    # Re-check: the gate above ran before these two, so a framework file that
+    # failed to parse warned into a counter nobody read again.
+    late = keel_lib.get_warnings()
+    if late:
+        print()
+        print(f"\nERROR: {len(late)} warning(s) loading the framework vocabularies "
+              f"— fix them before building.", file=sys.stderr)
+        for warning in late:
+            print(f"  {warning}", file=sys.stderr)
+        return 1
+    coverage = build_coverage(data["config"], data["documents"], vocab)
     requirements = build_requirement_state(data["documents"])
     counts = summarize(coverage)
     print(", ".join(f"{fw} {c['mapped']}/{c['clauses']} mapped" for fw, c in counts.items()) or "no frameworks")
@@ -230,7 +251,7 @@ def main() -> int:
     print("Building registry.json...", end=" ", flush=True)
     registry = build_registry_json(
         data["config"], data["documents"], data["model"], data["publish"],
-        coverage, requirements, data["schedule"], load_framework_meta(),
+        coverage, requirements, data["schedule"], meta,
     )
     print("done")
 

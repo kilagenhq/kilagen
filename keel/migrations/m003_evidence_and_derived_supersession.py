@@ -64,6 +64,7 @@ import re
 from pathlib import Path
 
 from ..libs.keel_lib import write_text_atomic
+from . import MigrationError
 
 FROM_VERSION = 2
 TO_VERSION = 3
@@ -134,7 +135,7 @@ def _reciprocal_supersedes(program: Path, dry_run: bool, changed: list[str]) -> 
     """
     declared: dict[str, list[str]] = {}
     for path in _documents(program):
-        split = _split(path.read_text(encoding="utf-8"))
+        split = _split(path.read_text(encoding="utf-8-sig"))
         if not split:
             continue
         frontmatter, _ = split
@@ -145,9 +146,11 @@ def _reciprocal_supersedes(program: Path, dry_run: bool, changed: list[str]) -> 
             declared.setdefault(target, []).append(_id_of(frontmatter))
 
     for path in _documents(program):
-        text = path.read_text(encoding="utf-8")
+        text = path.read_text(encoding="utf-8-sig")
         split = _split(text)
         if not split:
+            changed.append(f"{path.relative_to(program)}: SKIPPED — no parseable "
+                           f"frontmatter block, so nothing here was migrated")
             continue
         frontmatter, body = split
         doc_id = _id_of(frontmatter)
@@ -179,7 +182,7 @@ def apply(program: Path, dry_run: bool) -> list[str]:
     _reciprocal_supersedes(program, dry_run, changed)
 
     for path in _documents(program):
-        text = path.read_text(encoding="utf-8")
+        text = path.read_text(encoding="utf-8-sig")
         split = _split(text)
         if not split:
             continue
@@ -266,7 +269,21 @@ def _move_evidence(frontmatter: str, where: Path, changed: list[str]) -> str:
     if not block:
         return frontmatter
 
+    # Count the entries and match them with two different patterns, then
+    # insist the two agree. The match below needs `url:` on the line directly
+    # after `name:`; an entry carrying a `description:` in between is invisible
+    # to it. If one of several entries happened to match, the block was deleted
+    # whole and the migration reported it as the only one there was — which
+    # destroyed the other links and said the opposite in the diff summary.
+    names = re.findall(r"^[ \t]*-[ \t]*name:", block.group(1), re.M)
     entries = re.findall(r"-\s*name:\s*(.+)\n\s*url:\s*(\S+)", block.group(1))
+    if len(names) != len(entries):
+        raise MigrationError(
+            f"{where}: the document-level evidence: block has {len(names)} entries "
+            f"but only {len(entries)} are shaped `name:` then `url:`. Refusing to "
+            f"rewrite a block this migration cannot read in full — move each entry "
+            f"to the requirement it demonstrates by hand, then re-run."
+        )
     if len(entries) == 1 and not re.search(r"^source_of_truth:", frontmatter, re.M):
         name, url = entries[0]
         url = url.strip().strip("'\"")

@@ -118,7 +118,7 @@ def apply(program: Path, dry_run: bool) -> list[str]:
     # 1. Rewrite every file that mentions a renamed id, wherever it lives.
     if renamed:
         for path in sorted(program.rglob("*.md")) + sorted(program.rglob("*.yml")):
-            text = path.read_text(encoding="utf-8")
+            text = path.read_text(encoding="utf-8-sig")
             new_text = _rewrite_ids(text, renamed)
             if path.parent.name == OLD_FOLDER:
                 new_text = re.sub(r"^type:\s*adr\s*$", "type: decision",
@@ -148,7 +148,7 @@ def apply(program: Path, dry_run: bool) -> list[str]:
     # 3. The publishing contract is keyed by type.
     publish = program / "publish.yml"
     if publish.is_file():
-        text = publish.read_text(encoding="utf-8")
+        text = publish.read_text(encoding="utf-8-sig")
         new_text = re.sub(r"^(\s*)adr:", r"\1decision:", text, count=1, flags=re.M)
         if new_text != text:
             if not dry_run:
@@ -158,7 +158,7 @@ def apply(program: Path, dry_run: bool) -> list[str]:
     # 4. The binding scale.
     config = program / "config.yml"
     if config.is_file():
-        text = config.read_text(encoding="utf-8")
+        text = config.read_text(encoding="utf-8-sig")
         lines, framework = [], None
         for line in text.splitlines(keepends=True):
             match = re.match(r"^\s*-\s*id:\s*(\S+)", line)
@@ -175,9 +175,13 @@ def apply(program: Path, dry_run: bool) -> list[str]:
 
     # 5. Gaps and exceptions lose their declared status.
     for path in sorted(program.rglob("*.md")):
-        text = path.read_text(encoding="utf-8")
+        text = path.read_text(encoding="utf-8-sig")
         split = _split(text)
-        if not split or _type_of(split[0]) not in DERIVED_STATE_TYPES:
+        if not split:
+            changed.append(f"{path.relative_to(program)}: SKIPPED — no parseable "
+                           f"frontmatter block, so nothing here was migrated")
+            continue
+        if _type_of(split[0]) not in DERIVED_STATE_TYPES:
             continue
         new_text = _drop_status(text)
         if new_text == text:

@@ -18,7 +18,8 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from .keel_lib import is_open_gap, load_config, scan_documents
+from .keel_lib import (get_warnings, is_open_gap, load_config, reset_warnings,
+                       scan_documents)
 
 # A gap that has been open this long is not being worked on; it is either a
 # remediation that stalled or an exception nobody filed. Arbitrary but
@@ -31,12 +32,19 @@ def stale_gap_days(config: dict | None = None) -> int:
     """The instance's threshold, or ours. One reader, so the CLI and the
     dashboard cannot drift apart on what "stale" means."""
     if config is None:
-        try:
-            config = load_config()
-        except Exception:
-            config = {}
+        # No try: a config that cannot be read is reported by validate_config,
+        # and swallowing it here would quietly substitute our threshold for the
+        # one the instance set.
+        config = load_config() or {}
     value = (config or {}).get("stale_gap_days")
-    return int(value) if isinstance(value, int) and value > 0 else DEFAULT_STALE_GAP_DAYS
+    if value is None:
+        return DEFAULT_STALE_GAP_DAYS
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        # Falling back here would report against a period nobody chose, under
+        # a heading that reads as a fact.
+        raise ValueError(
+            f"config.yml: stale_gap_days must be a positive whole number, got {value!r}")
+    return int(value)
 
 
 def collect(documents: list[dict], today: str | None = None,
@@ -84,8 +92,12 @@ def main(strict: bool = False) -> int:
     That is not an exit code: `cmd_check` decides what a finding means, and
     without ``--strict`` it means a warning.
     """
+    reset_warnings()
     documents = scan_documents()
     found = collect(documents)
+    # A document that could not be read is not in `documents`, so nothing it
+    # says is overdue can be reported. The weekly watch runs only this check.
+    warnings = get_warnings()
     reviewable = sum(1 for d in documents if d.get("next_review"))
     print(f"Checked {len(documents)} documents ({reviewable} on a review cycle).")
 
@@ -93,6 +105,12 @@ def main(strict: bool = False) -> int:
         _report("Reviews due within 30 days", found["upcoming"])
 
     attention = found["overdue"] + found["expired"] + found["stale_gaps"]
+    if warnings:
+        print(f"\nFAILED — {len(warnings)} document(s) could not be read and were "
+              f"skipped, so this report is incomplete:")
+        for warning in warnings:
+            print(f"  {warning}")
+        return 1
     if not attention:
         print("\nPASSED — nothing overdue")
         return 0

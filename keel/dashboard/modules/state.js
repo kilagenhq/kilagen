@@ -19,6 +19,7 @@ export const state = window.__keelState = {
   // View state
   currentDoc: '',
   currentView: 'home',
+  validated: true,
   expandedSections: {},
   bodyCache: {},
   fullDiscoveryDone: false,

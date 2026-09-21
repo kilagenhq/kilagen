@@ -1,7 +1,7 @@
 #!/bin/bash
 # Set up the local development environment for working on Kilagen itself.
 # Run once after cloning: ./scripts/dev-setup.sh
-set -e
+set -euo pipefail
 
 echo "=== Checking prerequisites ==="
 

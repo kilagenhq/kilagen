@@ -284,6 +284,42 @@ class RealInstanceTests(unittest.TestCase):
             self.assertIn(pattern, ignored)
 
 
+# What a POSIX shell provides, plus the control words a script is written with.
+# Anything else a workflow step runs has to have been installed by an earlier
+# step, which is what the test below is for.
+SHELL_BUILTINS = {
+    "set", "cd", "echo", "exit", "if", "then", "else", "elif", "fi", "for",
+    "while", "do", "done", "case", "esac", "return", "export", "local", "read",
+    "printf", "cat", "test", "true", "false", "shift", "eval", "source", ".",
+    "[", "{", "}", "mkdir", "rm", "cp", "mv", "touch", "grep", "sed", "awk",
+    "sort", "head", "tail", "tee", "date", "find", "xargs", "wc", "diff",
+}
+
+
+def _commands_in(script: str) -> set[str]:
+    """The external commands a shell script invokes, best effort."""
+    found = set()
+    for line in script.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        for part in re.split(r"\|\||&&|\||;", line):
+            tokens = part.split()
+            if not tokens:
+                continue
+            word = tokens[0]
+            # VAR=value prefixes, redirections, and anything not a bare word.
+            # VAR=value prefixes, redirections, continuation fragments of a
+            # quoted argument (a jq filter spilling onto its own line), and
+            # anything that is not a bare command word.
+            if "=" in word or not re.match(r"^[A-Za-z_][A-Za-z0-9_.-]*$", word):
+                continue
+            if word in SHELL_BUILTINS:
+                continue
+            found.add(word)
+    return found
+
+
 class SeededWorkflowTests(unittest.TestCase):
     """The commands the seeded workflows run must exist and be installable.
 
@@ -334,12 +370,15 @@ class SeededWorkflowTests(unittest.TestCase):
                         if "kilagen" in script or "KILAGEN_SPEC" in (step.get("env") or {}):
                             installed.add("kilagen")
                         continue
-                    command = script.strip().split()[0]
-                    self.assertIn(
-                        command, installed,
-                        f"{path.name} / {step.get('name')}: '{command}' is run "
-                        f"but no earlier step installs it",
-                    )
+                    # Every command the step runs, not just the first token of
+                    # the script: a step that opens with `set -uo pipefail` or
+                    # an assignment used to hide everything after it.
+                    for command in _commands_in(script):
+                        self.assertIn(
+                            command, installed,
+                            f"{path.name} / {step.get('name')}: '{command}' is run "
+                            f"but no earlier step installs it",
+                        )
 
 
 class ShippedTemplateTests(unittest.TestCase):

@@ -25,6 +25,8 @@ from __future__ import annotations
 import json
 import sys
 
+import yaml
+
 from jsonschema import Draft202012Validator
 
 from . import keel_lib
@@ -405,7 +407,17 @@ def validate_config(schema: dict) -> list[str]:
         return []
     data = keel_lib._load_yaml(path)
     if data is None:
-        return ["  program/config.yml: is empty"]
+        # _load_yaml returns None for four different faults. Ask again, letting
+        # the error out, so the message names the one that happened instead of
+        # telling the user a malformed file is an empty one.
+        try:
+            text = path.read_text(encoding="utf-8-sig")
+            reason = "is empty" if not text.strip() else "did not parse"
+            if text.strip():
+                yaml.safe_load(text)
+        except Exception as exc:
+            reason = f"did not parse — {exc}"
+        return [f"  program/config.yml: {reason}"]
     return _schema_errors(data, schema, "program/config.yml")
 
 

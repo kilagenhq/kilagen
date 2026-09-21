@@ -231,6 +231,14 @@ if (missingLibraries.length) {
   document.title = state.config.name;
   const nameEl = document.querySelector('.app-title-name');
   if (nameEl) nameEl.textContent = state.config.name;
+  /* A build that skipped its own checks must not be able to look like one
+     that did. It sits above the content, on every view, until it is rebuilt. */
+  if (!state.validated) {
+    const banner = mk('div', 'unvalidated-banner');
+    banner.setAttribute('role', 'status');
+    banner.textContent = 'Built without validation — run kilagen build to check this content.';
+    document.body.insertBefore(banner, document.body.firstChild);
+  }
   rebuildSidebar();
   const h = getHash();
   if (h && h !== 'home') route(h); else renderHome();

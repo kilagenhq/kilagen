@@ -9,7 +9,7 @@
 # The files are copied verbatim on purpose. Each carries the copyright and
 # license notice its license requires us to keep, and this package
 # redistributes them; never minify or strip comments here.
-set -e
+set -euo pipefail
 
 DASHBOARD="keel/dashboard"
 VENDOR="$DASHBOARD/vendor"

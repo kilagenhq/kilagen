@@ -35,7 +35,16 @@ class CoveragePostureTests(unittest.TestCase):
         documents = keel_lib.scan_documents()
         coverage = build_coverage(keel_lib.load_config(), documents,
                                   keel_lib.load_framework_vocab())
+        declared = keel_lib.config_framework_ids(keel_lib.load_config())
         if not coverage:
+            # Skip only when nothing is in scope. When frameworks *are*
+            # declared and coverage came back empty, their vocabularies did not
+            # resolve — and a skip here would switch off the guard using the
+            # very failure it is meant to catch.
+            if declared:
+                self.fail(f"{len(declared)} framework(s) in scope but coverage is "
+                          f"empty — their vocabularies did not resolve: "
+                          f"{', '.join(sorted(declared))}")
             self.skipTest("no framework in scope has a clause vocabulary yet")
         for framework, clauses in coverage.items():
             for ref, entry in clauses.items():

@@ -194,7 +194,18 @@ def _read_manifest(target: Path) -> dict:
         raise CommandError(
             f"no {MANIFEST_NAME} in {target} — this is not a Kilagen instance"
         )
-    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    manifest = yaml.safe_load(path.read_text(encoding="utf-8"))
+    # An unreadable manifest is not an empty one. Treating it as {} makes every
+    # seeded file look new, and `update config --apply` then writes the shipped
+    # version over whatever the user had — which is precisely what the manifest
+    # exists to prevent.
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("files"), dict):
+        raise CommandError(
+            f"{path} is unreadable, so update cannot tell your edits from ours "
+            f"and refuses to write. Restore it from git, or re-run "
+            f"'kilagen init --force' deliberately."
+        )
+    return manifest
 
 
 # What a program starts measured against when nobody chooses: the two the
@@ -572,6 +583,11 @@ def cmd_build(args: argparse.Namespace) -> int:
     if args.target != "site":
         if _check_frontmatter() or _check_refs():
             return 1
+    else:
+        print("WARNING: building without validation. The site will be marked "
+              "'built without validation' and must not be published as it is.",
+              file=sys.stderr)
+    build_site.VALIDATED = args.target != "site"
     return build_site.main()
 
 
@@ -601,7 +617,7 @@ def cmd_upgrade(args: argparse.Namespace) -> int:
     """
     target = Path.cwd().resolve()
     manifest = _read_manifest(target)
-    recorded = manifest.get("files") or {}
+    recorded = manifest["files"]
     deployment = manifest.get("deployment", "github")
     agent = manifest.get("agent", "none")
 
@@ -780,8 +796,18 @@ def cmd_migrate(args: argparse.Namespace) -> int:
             )
         has_head = subprocess.run(["git", "rev-parse", "--verify", "-q", "HEAD"],
                                   capture_output=True).returncode == 0
-        dirty = subprocess.run(["git", "status", "--porcelain"],
-                               capture_output=True, text=True).stdout.strip()
+        status = subprocess.run(["git", "status", "--porcelain"],
+                                capture_output=True, text=True)
+        if status.returncode != 0:
+            # An empty stdout from a *failed* git status is not a clean tree.
+            # A held index.lock, a corrupt index or a dubious-ownership refusal
+            # all land here, and treating them as clean turns the guard off at
+            # exactly the moment something is already wrong.
+            raise CommandError(
+                "'git status' failed, so this migration's diff cannot be shown to "
+                f"be reviewable: {status.stderr.strip() or 'no output'}"
+            )
+        dirty = status.stdout.strip()
         if dirty and has_head:
             raise CommandError(
                 "the working tree has uncommitted changes; commit or stash them so "
@@ -789,11 +815,13 @@ def cmd_migrate(args: argparse.Namespace) -> int:
             )
 
     print(f"schema {declared} -> {SCHEMA_VERSION}\n")
+    skipped: list[str] = []
     for step in steps:
         try:
             changed = step.apply(keel_lib.PROGRAM, dry_run=not args.apply)
         except migrations.MigrationError as exc:
             raise CommandError(f"{step.name} refused to run: {exc}") from None
+        skipped += [line for line in changed if "SKIPPED" in line]
         print(f"  {step.name}")
         for line in changed:
             print(f"    {line}")
@@ -803,6 +831,15 @@ def cmd_migrate(args: argparse.Namespace) -> int:
     if not args.apply:
         print("\nNothing written. Re-run with --apply to migrate.")
         return 0
+
+    if skipped:
+        # Stamping the new version now would have the program claim a contract
+        # that some of its documents were never brought up to.
+        raise CommandError(
+            f"{len(skipped)} document(s) could not be migrated, so the schema "
+            f"version has not been stamped. Fix them and re-run:\n  "
+            + "\n  ".join(skipped)
+        )
 
     # Re-read: a migration may have rewritten config.yml itself, and stamping
     # the version onto the text read before it ran would silently undo that.

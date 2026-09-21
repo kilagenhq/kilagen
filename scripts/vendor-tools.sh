@@ -11,7 +11,7 @@
 # snapshot current, and `pip install -U kilagen` is how it reaches anybody.
 #
 #   KILAGEN_TOOLS_REF   a branch or tag of kilagenhq/tools (default: main)
-set -e
+set -euo pipefail
 
 REF="${KILAGEN_TOOLS_REF:-main}"
 SOURCE="${KILAGEN_TOOLS_REPO:-https://github.com/kilagenhq/tools.git}"

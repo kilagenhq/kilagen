@@ -36,6 +36,10 @@ export function loadRegistry() {
       if (Array.isArray(reg.config.frameworks)) state.config.frameworks = reg.config.frameworks;
     }
 
+    // False when `kilagen build site` skipped the validators. Carried through
+    // so the page can say so rather than looking like a checked build.
+    state.validated = reg.validated !== false;
+
     if (Array.isArray(reg.types)) state.types = reg.types;
 
     if (Array.isArray(reg.documents)) {

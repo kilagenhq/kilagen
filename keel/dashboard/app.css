@@ -1824,3 +1824,14 @@ a.req-ev-name:hover { color: var(--accent2); }
 .clause-ev-none { color: var(--fg3); }
 .clause-ev-label { display: block; font-size: 10px; color: var(--fg3); }
 .clause-ev-lapsed { display: block; font-size: 10px; color: var(--sev-high); font-weight: 600; }
+
+/* A site built with `kilagen build site` skipped the validators. It says so
+   here rather than only in a terminal nobody kept. */
+.unvalidated-banner {
+  padding: 6px var(--space-md);
+  background: var(--sev-high);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
