@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import os
 import subprocess
+import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -56,6 +58,77 @@ class CaseDriftTests(unittest.TestCase):
         self.assertEqual(drift, [], "\n".join(
             ["Git and the working tree disagree about these names. Fix with:",
              "  git mv -f <tracked> <what the disk says>", ""] + drift))
+
+
+class WheelContentsTests(unittest.TestCase):
+    """The artifact, not a proxy for it.
+
+    The two tests below read MANIFEST.in and SOURCES.txt, which are inputs to
+    the build rather than its output — `prune keel/collectors` on a later line
+    would defeat the first, and the second can only fire on a dirty local tree.
+    The failure that actually shipped was a directory missing from the wheel,
+    and nothing looked in a wheel.
+
+    Built through setuptools directly, so this needs no dependency the build
+    does not already have and never touches the network.
+    """
+
+    # Not runtime data: build inputs, test files, and what pip compiles.
+    EXCLUDED = (
+        "keel/dashboard/node_modules/", "keel/dashboard/tests/",
+        "keel/dashboard/package.json", "keel/dashboard/package-lock.json",
+        "keel/dashboard/jsconfig.json", "keel/dashboard/.node-version",
+    )
+    EXCLUDED_SUFFIXES = (".test.js", ".config.js")
+
+    @classmethod
+    def setUpClass(cls):
+        try:
+            from setuptools import build_meta
+        except ImportError:  # pragma: no cover - setuptools is a build require
+            raise unittest.SkipTest("setuptools is not importable")
+        cls._tmp = tempfile.TemporaryDirectory()
+        cwd = os.getcwd()
+        os.chdir(ROOT)
+        try:
+            name = build_meta.build_wheel(cls._tmp.name)
+        finally:
+            os.chdir(cwd)
+        with zipfile.ZipFile(Path(cls._tmp.name) / name) as wheel:
+            cls.names = set(wheel.namelist())
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def _expected(self) -> set[str]:
+        tracked = subprocess.run(
+            ["git", "ls-files", "-z", "keel"],
+            cwd=ROOT, capture_output=True, text=True, check=True,
+        ).stdout.split("\0")
+        return {
+            f"kilagen/{name[len('keel/'):]}"
+            for name in tracked
+            if name
+            and not name.startswith(self.EXCLUDED)
+            and not name.endswith(self.EXCLUDED_SUFFIXES)
+        }
+
+    def test_every_runtime_file_the_source_tree_has_is_in_the_wheel(self):
+        missing = sorted(self._expected() - self.names)
+        self.assertEqual(missing, [], "\n".join(
+            ["These files are in Git and not in the wheel, so an installed",
+             "instance cannot reach them. Check MANIFEST.in:", ""] + missing))
+
+    def test_the_wheel_carries_no_build_inputs(self):
+        strays = sorted(
+            name for name in self.names
+            if name.startswith("kilagen/")
+            and (name.startswith(tuple(f"kilagen/{e[len('keel/'):]}" for e in self.EXCLUDED))
+                 or name.endswith(self.EXCLUDED_SUFFIXES)
+                 or name.endswith((".pyc", ".pyo"))
+                 or "__pycache__" in name))
+        self.assertEqual(strays, [], "build inputs shipped to users")
 
 
 class DistributionTests(unittest.TestCase):

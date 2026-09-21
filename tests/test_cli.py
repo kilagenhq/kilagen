@@ -97,6 +97,62 @@ class InitTests(_ScaffoldFixture):
         self.assertFalse(any(f.startswith("program/") for f in self._manifest()["files"]))
 
 
+class InitOverwriteTests(_ScaffoldFixture):
+    """init is documented as something you run inside a repository you own.
+
+    The seed's base layer is ordinary repository furniture under names nobody
+    namespaced — .gitignore, .pre-commit-config.yaml, a tests/ directory — so
+    the names are very likely already taken.
+    """
+
+    def _fresh(self) -> Path:
+        """A second empty directory, with the same scaffold behind it."""
+        target = Path(self._tmp.name) / "second"
+        target.mkdir()
+        return target
+
+    def test_a_file_that_differs_refuses_and_is_left_alone(self):
+        target = self._fresh()
+        (target / "alpha.txt").write_text("mine\n")
+        os.chdir(target)
+        with self.assertRaises(cli.CommandError) as caught:
+            _quiet(cli.cmd_init,
+                   _args(name="T", deployment="plain", agent="none", force=False))
+        self.assertIn("alpha.txt", str(caught.exception))
+        self.assertEqual((target / "alpha.txt").read_text(), "mine\n")
+        self.assertFalse((target / "program").exists())
+
+    def test_force_overwrites_and_says_which(self):
+        target = self._fresh()
+        (target / "alpha.txt").write_text("mine\n")
+        os.chdir(target)
+        _, report = _quiet(cli.cmd_init,
+                           _args(name="T", deployment="plain", agent="none", force=True))
+        self.assertEqual((target / "alpha.txt").read_text(), "alpha v1\n")
+        self.assertIn("alpha.txt", report)
+
+    def test_a_file_that_already_matches_does_not_block(self):
+        # Re-running init in a repo already carrying the seed is not a clash.
+        target = self._fresh()
+        (target / "alpha.txt").write_text("alpha v1\n")
+        os.chdir(target)
+        _quiet(cli.cmd_init,
+               _args(name="T", deployment="plain", agent="none", force=False))
+        self.assertTrue((target / "program" / "config.yml").is_file())
+
+
+class ManifestTests(_ScaffoldFixture):
+    def test_an_unreadable_manifest_refuses_rather_than_reading_as_empty(self):
+        # Treating it as {} makes every seeded file look new, and --apply then
+        # writes the shipped version over whatever the user had.
+        (self.instance / cli.MANIFEST_NAME).write_text("# nothing but a comment\n")
+        (self.instance / "alpha.txt").write_text("mine\n")
+        with self.assertRaises(cli.CommandError) as caught:
+            _quiet(cli.cmd_upgrade, _args(apply=True))
+        self.assertIn("unreadable", str(caught.exception))
+        self.assertEqual((self.instance / "alpha.txt").read_text(), "mine\n")
+
+
 class UpgradeTests(_ScaffoldFixture):
     def test_untouched_file_is_updated(self):
         self._release("alpha.txt", "alpha v2\n")
@@ -136,6 +192,25 @@ class UpgradeTests(_ScaffoldFixture):
         (self.instance / "beta.txt").unlink()
         _quiet(cli.cmd_upgrade, _args(apply=True))
         self.assertFalse((self.instance / "beta.txt").exists())
+
+    def test_a_deletion_survives_a_later_release(self):
+        """A deletion must stay made across upgrades that rewrite the manifest.
+
+        The test above never reaches the code that decides this: with nothing
+        released, cmd_upgrade returns before the manifest is written. It takes
+        two upgrades — one that rewrites the manifest, and one after.
+        """
+        (self.instance / "beta.txt").unlink()
+        self._release("alpha.txt", "alpha v2\n")
+        _quiet(cli.cmd_upgrade, _args(apply=True))
+        self.assertIn("beta.txt", self._manifest()["files"],
+                      "the record of a deleted file is what separates "
+                      "'deleted on purpose' from 'never had it'")
+
+        self._release("alpha.txt", "alpha v3\n")
+        _quiet(cli.cmd_upgrade, _args(apply=True))
+        self.assertFalse((self.instance / "beta.txt").exists(),
+                         "a deleted file came back as 'new in this release'")
 
     def test_a_newer_instance_is_not_downgraded(self):
         # An older release would see every file as outdated and replace it

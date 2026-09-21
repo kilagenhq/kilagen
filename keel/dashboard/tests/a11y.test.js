@@ -6,6 +6,8 @@
  * themes, so a regression fails here instead of in a tender.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import axe from 'axe-core';
 import { state } from '../modules/state.js';
 
@@ -131,8 +133,44 @@ const VIEWS = [
      never drawn and both sweeps below pass without looking at them. */
   ['A document with related ids', () => import('../modules/views/doc.js').then((m) => m.navigateDoc('policies/pol-info-sec.md'))],
   ['A gap, against its requirement', () => import('../modules/views/doc.js').then((m) => m.navigateDoc('gaps/2026/gap-shared.md'))],
+  ['Glossary', () => import('../modules/views/glossary.js').then((m) => m.renderGlossary())],
+  ['Schemas', () => import('../modules/views/schemas.js').then((m) => m.renderSchemas())],
+  ['Templates', () => import('../modules/views/templates.js').then((m) => m.renderTemplates())],
+  ['Tools', () => import('../modules/views/tools.js').then((m) => m.renderTools())],
+  ['Reference', () => import('../modules/views/reference.js').then((m) => m.renderReference())],
+  ['Search results', () => import('../modules/views/search.js').then((m) => m.renderSearchResults('access'))],
   ['The sidebar', () => import('../modules/sidebar.js').then((m) => m.rebuildSidebar())],
 ];
+
+/* The sweeps above are invariant-shaped, and their input is a hand-typed list.
+   That is how six views — including one added the same day the click sweep was
+   written — came to be outside them. Derive the set of view modules from disk
+   and require every one of them to be exercised here, so a new view cannot
+   join the dashboard without being audited. */
+const VIEW_MODULES = fs.readdirSync(path.resolve(__dirname, '../modules/views'))
+  .filter((name) => name.endsWith('.js'))
+  .map((name) => name.replace(/\.js$/, ''));
+
+/* Reached through another view rather than directly. Declared, not assumed:
+   the point of the check below is that a view cannot go unaudited by nobody
+   noticing, and an unexplained exemption would be exactly that. */
+const COVERED_THROUGH = {
+  standard: 'doc.js — VIEWS opens a standard three ways, including two tabs',
+};
+
+describe('every view module is covered by these sweeps', () => {
+  it('none is missing from VIEWS', () => {
+    const exercised = VIEWS.map(([, render]) => render.toString()).join(' ');
+    const missing = VIEW_MODULES.filter((name) =>
+      !exercised.includes(`views/${name}.js`) && !COVERED_THROUGH[name]);
+    expect(missing).toEqual([]);
+  });
+
+  it('every declared exemption is a view that still exists', () => {
+    expect(Object.keys(COVERED_THROUGH).filter((n) => !VIEW_MODULES.includes(n)))
+      .toEqual([]);
+  });
+});
 
 describe('every view passes axe-core', () => {
   VIEWS.forEach(([name, render]) => {

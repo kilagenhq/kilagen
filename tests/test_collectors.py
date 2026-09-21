@@ -15,7 +15,21 @@ from pathlib import Path
 
 from kilagen.libs import build_site, collect_evidence, keel_lib
 
+import contextlib
+import io
+import tempfile
+from datetime import date
+
+import yaml
+
 from tests.support import ProgramTestCase
+
+
+def _quiet(fn, *args, **kwargs):
+    """Run something, swallowing the report it prints for the user."""
+    with contextlib.redirect_stdout(io.StringIO()) as out:
+        result = fn(*args, **kwargs)
+    return result, out.getvalue()
 
 SHIPPED = keel_lib.KEEL / "collectors"
 
@@ -143,6 +157,110 @@ class InventoryTests(ProgramTestCase):
             {"name": "Test"}, [], {}, {}, {}, {})
         self.assertIn("collectors", registry)
         self.assertIn("manual", registry["collectors"])
+
+
+class CollectorNameTests(unittest.TestCase):
+    """The one place a string from a document becomes a path that is executed.
+
+    `update evidence` deliberately does not run schema validation, so the
+    schema's pattern is not a gate on this path. The refusal has to live where
+    the path is built.
+    """
+
+    REFUSED = [
+        "../../../../tmp/payload", "/etc/passwd", "a/b", "..", ".",
+        "Manual", "manual.py", "-lead", "", "man ual", "man\nual",
+        "manual;rm", "man$ual", None, 3,
+    ]
+
+    def test_a_name_that_is_not_a_plain_slug_is_refused(self):
+        for name in self.REFUSED:
+            with self.subTest(name=name):
+                with self.assertRaises(collect_evidence.CollectorError):
+                    collect_evidence.collector_path(name)
+
+    def test_a_shipped_collector_still_resolves(self):
+        self.assertEqual(collect_evidence.collector_path("manual").name, "manual.py")
+
+    def test_a_symlink_out_of_the_directory_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "collectors").mkdir()
+            outside = root / "outside.py"
+            outside.write_text("def collect(config): return {}\n", encoding="utf-8")
+            try:
+                (root / "collectors" / "escape.py").symlink_to(outside)
+            except OSError:
+                self.skipTest("symlinks not available")
+            with self.assertRaises(collect_evidence.CollectorError) as caught:
+                collect_evidence.collector_path("escape", root)
+            self.assertIn("outside", str(caught.exception))
+
+
+class UpdateEvidenceTests(ProgramTestCase):
+    """`kilagen update evidence` over a document, not `_rewrite` in isolation."""
+
+    STANDARD = """\
+        ---
+        id: std-two-proofs
+        type: standard
+        title: Two Proofs
+        description: D
+        status: active
+        owner: role-owner
+        last_reviewed: 2026-01-01
+        next_review: 2030-01-01
+        requirements:
+        - ref: '1.1'
+          text: First
+          evidence:
+          - name: First artefact
+            url: https://old.example/one.pdf
+            collected: '2020-01-01'
+            freshness: annually
+            collector: manual
+        - ref: '1.2'
+          text: Second
+          evidence:
+          - name: Second artefact
+            url: https://old.example/two.pdf
+            collected: '2020-02-02'
+            freshness: annually
+            collector: manual
+        ---
+        """
+
+    def test_every_entry_naming_one_collector_is_refreshed(self):
+        # The second entry used to re-find the first, report "unchanged", and
+        # keep its stale date — while check evidence called it current.
+        self.write("standards/std-two-proofs.md", self.STANDARD)
+        _, report = _quiet(collect_evidence.main, apply=True)
+
+        text = (self.program / "standards" / "std-two-proofs.md").read_text()
+        requirements = yaml.safe_load(text.split("---")[1])["requirements"]
+        dates = [str(r["evidence"][0]["collected"]) for r in requirements]
+        self.assertEqual(dates, [date.today().isoformat()] * 2, report)
+
+        names = [r["evidence"][0]["name"] for r in requirements]
+        self.assertEqual(names, ["First artefact", "Second artefact"],
+                         "one entry's identity leaked into the other")
+
+    def test_the_collector_module_is_executed_once_per_run(self):
+        self.write("standards/std-two-proofs.md", self.STANDARD)
+        calls = []
+        real = collect_evidence.load
+
+        def counting(name, root=None, cache=None):
+            calls.append(name)
+            return real(name, root, cache)
+
+        collect_evidence.load = counting
+        try:
+            _quiet(collect_evidence.main, apply=False)
+        finally:
+            collect_evidence.load = real
+        self.assertEqual(len(calls), 2, "load is called per entry")
+        # ...but the module behind it is only executed once, via the cache.
 
 
 class RewriteTests(unittest.TestCase):

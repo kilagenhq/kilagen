@@ -137,6 +137,34 @@ class MigrationTwoTests(ProgramTestCase):
     def _apply(self, dry_run=False):
         return self.step.apply(self.program, dry_run=dry_run)
 
+    def test_it_refuses_rather_than_renaming_over_an_existing_document(self):
+        """Path.rename replaces silently on POSIX.
+
+        A user who read the changelog and hand-wrote the new document would
+        have lost it, with the move reported as a success.
+        """
+        (self.program / "decisions").mkdir(exist_ok=True)
+        self.write("decisions/dec-totp-second-factor.md", "mine, written by hand\n")
+        with self.assertRaises(migrations.MigrationError) as caught:
+            self._apply()
+        message = str(caught.exception)
+        self.assertIn("dec-totp-second-factor.md", message)
+
+    def test_a_refusal_leaves_the_tree_exactly_as_it_found_it(self):
+        # The refusal is before step one, so nothing may have been rewritten.
+        (self.program / "decisions").mkdir(exist_ok=True)
+        self.write("decisions/dec-totp-second-factor.md", "mine, written by hand\n")
+        incident_before = (self.program / "incidents/2026/inc-phishing.md").read_text()
+        with self.assertRaises(migrations.MigrationError):
+            self._apply()
+        self.assertEqual(
+            (self.program / "decisions/dec-totp-second-factor.md").read_text(),
+            "mine, written by hand\n")
+        self.assertTrue((self.program / "adrs/adr-totp-second-factor.md").is_file())
+        self.assertEqual(
+            (self.program / "incidents/2026/inc-phishing.md").read_text(),
+            incident_before, "step one ran before the refusal")
+
     def test_a_decision_moves_folder_file_id_and_type(self):
         self._apply()
         moved = self.program / "decisions" / "dec-totp-second-factor.md"
