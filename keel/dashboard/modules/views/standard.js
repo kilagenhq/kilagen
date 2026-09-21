@@ -6,7 +6,9 @@ import { safeUrl } from '../security.js';
 import { fwLabel } from '../constants.js';
 import { renderConnections } from '../connections.js';
 import { renderDocBody } from '../docbody.js';
-import { requirementRowsOf, proofRows, evidenceStateInfo } from '../evidence.js';
+import { requirementRowsOf, proofRows } from '../evidence.js';
+import { mkRecord, mkRecordHead, mkRecordRow, mkEvidenceEntry, mkMappingRows,
+         clauseRoute } from '../requirement.js';
 import { evidenceTable } from './evidence.js';
 
 /* A standard, four ways.
@@ -96,32 +98,6 @@ function evidenceCounts(fm) {
 
 /* ===== Requirements ===== */
 
-function evidenceLine(container, found) {
-  const item = found.item;
-  const row = mk('div', 'req-evidence');
-  row.appendChild(mk('span', 'req-evidence-label', 'Evidence'));
-  const href = safeUrl(item.url);
-  if (href) {
-    const link = mk('a', 'source-link', item.name || item.url);
-    link.href = href; link.target = '_blank'; link.rel = 'noopener noreferrer';
-    row.appendChild(link);
-  } else {
-    row.appendChild(mk('span', '', item.name || ''));
-  }
-  if (item.collected) row.appendChild(mk('span', 'req-evidence-age', 'collected ' + item.collected));
-  const info = evidenceStateInfo(found.state);
-  const pill = mk('span', 'pill evidence-pill', info.label);
-  pill.style.borderColor = info.color; pill.style.color = info.color;
-  if (found.expires) pill.title = 'Good until ' + found.expires;
-  row.appendChild(pill);
-  if (item.collector) {
-    const via = chip('via ' + item.collector, 'var(--fg3)', 'compliance/evidence?collector=' + encodeURIComponent(item.collector));
-    via.title = 'Refreshed by the ' + item.collector + ' collector';
-    row.appendChild(via);
-  }
-  container.appendChild(row);
-}
-
 function renderContent(container, fm, path) {
   /* The standard's own words first: purpose and scope are what the
      requirements below are scoped by, and they are read in that order. */
@@ -148,42 +124,35 @@ function renderContent(container, fm, path) {
   rows.forEach(function(row) {
     const req = row.req;
     const live = state.requirements[row.key] || { gaps: [], exceptions: [] };
-    const block = mk('div', 'req-block');
+    const record = mkRecord();
 
-    const head = mk('div', 'req-head');
-    head.appendChild(mk('code', 'req-ref', row.key));
-    (live.gaps || []).forEach(function(id) {
-      head.appendChild(gapChip(id, 'gap'));
-    });
-    (live.exceptions || []).forEach(function(id) {
-      head.appendChild(gapChip(id, 'exception'));
-    });
-    block.appendChild(head);
+    const badges = (live.gaps || []).map(function(id) { return gapChip(id, 'gap'); })
+      .concat((live.exceptions || []).map(function(id) { return gapChip(id, 'exception'); }));
+    record.appendChild(mkRecordHead(String(req.ref || ''), row.key, req.text, badges));
 
-    block.appendChild(mk('div', 'req-text', String(req.text || '').trim()));
     /* Two different things an auditor asks for separately: how you show it,
        and then show me. They used to share the name `evidence` and the audit
        page listed them together, half of them clickable. */
     if (req.how_demonstrated) {
-      const how = mk('div', 'req-evidence');
-      how.appendChild(mk('span', 'req-evidence-label', 'How demonstrated'));
-      how.appendChild(mk('span', '', String(req.how_demonstrated).trim()));
-      block.appendChild(how);
+      record.appendChild(mkRecordRow('Demonstrated by',
+        String(req.how_demonstrated).trim(), 'req-row-prose'));
     }
-    row.evidence.forEach(function(found) { evidenceLine(block, found); });
 
-    const frameworks = req.frameworks;
-    if (frameworks) {
-      const maps = mk('div', 'req-frameworks');
-      Object.keys(frameworks).sort().forEach(function(key) {
-        (frameworks[key] || []).forEach(function(clause) {
-          maps.appendChild(chip(fwLabel(key) + ' ' + clause, null,
-            'compliance/' + key + '?standard=' + encodeURIComponent(fm.id)));
-        });
-      });
-      block.appendChild(maps);
+    if (row.evidence.length) {
+      const list = mk('div', 'req-ev-list');
+      row.evidence.forEach(function(found) { list.appendChild(mkEvidenceEntry(found.item)); });
+      record.appendChild(mkRecordRow('Evidence', list));
+    } else {
+      record.appendChild(mkRecordRow('Evidence',
+        mk('span', 'req-ev-none', 'Nothing attached yet'), 'req-row-prose'));
     }
-    container.appendChild(block);
+
+    const maps = mkMappingRows(req.frameworks, function(framework, clause, e) {
+      go(clauseRoute(framework, fm.id), e);
+    });
+    if (maps) record.appendChild(mkRecordRow('Answers', maps));
+
+    container.appendChild(record);
   });
 
   /* Connections belongs to the document, so it lives with it rather than

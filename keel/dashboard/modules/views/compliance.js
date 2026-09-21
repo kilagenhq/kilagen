@@ -4,6 +4,7 @@ import { go, setActiveView, setBread, setParams, splitHash, getHash, mainEl, rig
 import { frameworkWheel, frameworkBars, wheelCaption, barsCaption } from '../wheel.js';
 import { chip, docChip } from '../doclink.js';
 import { mkFacetPicker } from '../filters.js';
+import { evidenceState } from '../evidence.js';
 import { fwLabel, BINDING_NOTE } from '../constants.js';
 
 /* The auditor's lens: clause to requirement to what still stands against it.
@@ -107,10 +108,92 @@ function renderDashboard(frameworks) {
 
 /* ===== Detail: one framework, in its own structure ===== */
 
+/* Requirement keys grouped under the standard that states them.
+ *
+ * A clause answered by six requirements of one standard drew six chips each
+ * repeating `std-secure-development`, which is the standard's name said six
+ * times and the reference said once. Same shape as the mappings on a
+ * requirement, read the other way round. */
+function requirementCell(keys) {
+  const cell = mk('td', 'clause-reqs');
+  if (!keys.length) {
+    cell.appendChild(mk('span', 'clause-none', 'unmapped'));
+    return cell;
+  }
+  const byStandard = {};
+  keys.forEach(function(key) {
+    const id = String(key).split('#')[0];
+    (byStandard[id] = byStandard[id] || []).push(key);
+  });
+  const wrap = mk('div', 'req-maps');
+  Object.keys(byStandard).sort().forEach(function(id) {
+    const fm = docById(id);
+    const row = mk('div', 'req-map');
+    const name = mk('span', 'req-map-fw', id);
+    if (fm) {
+      name.title = fm.title || '';
+      name.classList.add('clickable');
+      name.addEventListener('click', function(e) { go('doc/' + fm.path, e); });
+    }
+    row.appendChild(name);
+    const list = mk('span', 'req-map-clauses');
+    byStandard[id].forEach(function(key) {
+      const entry = state.requirements[key];
+      const el = mk('span', 'req-clause', String(key).split('#')[1] || key);
+      if (entry && entry.text) el.title = entry.text;
+      if (fm) {
+        el.classList.add('clickable');
+        el.addEventListener('click', function(e) { go('doc/' + fm.path, e); });
+      }
+      list.appendChild(el);
+    });
+    row.appendChild(list);
+    wrap.appendChild(row);
+  });
+  cell.appendChild(wrap);
+  return cell;
+}
+
+/* Whether the requirements behind a clause can be shown to be true.
+ *
+ * The auditor's second question, and until now it lived on another page: this
+ * table said which requirement answers a clause and went quiet about whether
+ * anybody can prove it. Two numbers and, when it matters, one word. */
+function evidenceCell(keys) {
+  const cell = mk('td', 'clause-ev');
+  if (!keys.length) return cell;
+
+  let attached = 0;
+  let lapsed = 0;
+  keys.forEach(function(key) {
+    const entry = state.requirements[key];
+    const standard = entry && docById(entry.standard);
+    const requirement = standard && (standard.requirements || [])
+      .find(function(r) { return entry.ref && String(r.ref) === String(entry.ref); });
+    const evidence = (requirement && requirement.evidence) || [];
+    if (!evidence.length) return;
+    attached += 1;
+    if (evidence.some(function(item) {
+      const verdict = evidenceState(item);
+      return verdict === 'stale' || verdict === 'undated';
+    })) lapsed += 1;
+  });
+
+  const ratio = mk('span', 'clause-ev-ratio', attached + ' / ' + keys.length);
+  if (!attached) ratio.classList.add('clause-ev-none');
+  cell.appendChild(ratio);
+  cell.appendChild(mk('span', 'clause-ev-label', 'proven'));
+  if (lapsed) {
+    cell.appendChild(mk('span', 'clause-ev-lapsed',
+      lapsed + (lapsed === 1 ? ' lapsed' : ' lapsed')));
+  }
+  return cell;
+}
+
 function clauseTable(container, refs, clauseNames) {
   const table = mk('table', 'compliance-table');
   const head = mk('tr');
-  ['Clause', 'Requirement', 'Open gaps', 'Live exceptions'].forEach(function(h) {
+  ['Clause', 'Requirement', 'Evidence', 'Open gaps', 'Live exceptions'].forEach(function(h) {
     head.appendChild(th(h));
   });
   table.appendChild(head);
@@ -126,25 +209,14 @@ function clauseTable(container, refs, clauseNames) {
     if (named && named.description) clauseCell.title = named.description;
     row.appendChild(clauseCell);
 
-    const reqCell = mk('td');
-    if (!entry.requirements.length) {
-      reqCell.appendChild(chip('unmapped', 'var(--fg3)'));
-    } else {
-      entry.requirements.forEach(function(key) {
-        const req = state.requirements[key];
-        const fm = docById(key.split('#')[0]);
-        const el = chip(key, 'var(--accent)', fm ? 'doc/' + fm.path : null);
-        if (req && req.text) el.title = req.text;
-        reqCell.appendChild(el);
-      });
-    }
-    row.appendChild(reqCell);
+    row.appendChild(requirementCell(entry.requirements || []));
+    row.appendChild(evidenceCell(entry.requirements || []));
 
-    const gapCell = mk('td');
+    const gapCell = mk('td', 'clause-contest');
     entry.gaps.forEach(function(id) { gapCell.appendChild(docChip(id, 'var(--sev-high)')); });
     row.appendChild(gapCell);
 
-    const excCell = mk('td');
+    const excCell = mk('td', 'clause-contest');
     entry.exceptions.forEach(function(id) { excCell.appendChild(docChip(id, 'var(--sev-medium)')); });
     row.appendChild(excCell);
 

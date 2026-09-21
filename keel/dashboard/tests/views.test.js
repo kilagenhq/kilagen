@@ -133,6 +133,12 @@ beforeEach(async () => {
 });
 
 function main() { return document.getElementById('main').textContent; }
+/* The first clause row of the fixture's framework is unmapped, so a test about
+   what a mapped row shows has to say which row it means. */
+function mappedRow() {
+  return [...document.querySelectorAll('#main .compliance-table tr')]
+    .find((r) => r.querySelector('.req-map-fw'));
+}
 function right() { return document.getElementById('right').textContent; }
 
 describe('the registry populates every lookup', () => {
@@ -427,10 +433,36 @@ describe('Compliance', () => {
     const { renderCompliance } = await import('../modules/views/compliance.js');
     renderCompliance('pci_dss');
     const text = main();
-    expect(text).toContain('std-access-control#1.2');
+    // The standard is named once and its references sit beside it, rather than
+    // one chip per requirement each repeating the standard's id.
+    // Clause 7 is unmapped and comes first; the mapped one is clause 8.
+    const cell = mappedRow().querySelector('.clause-reqs');
+    expect(cell.querySelector('.req-map-fw').textContent).toBe('std-access-control');
+    expect([...cell.querySelectorAll('.req-clause')].map((c) => c.textContent)).toEqual(['1.2']);
     expect(text).toContain('gap-shared-accounts');
     expect(text).toContain('exc-batch-account');
     expect(errors).toEqual([]);
+
+  });
+
+  it('says whether the requirements behind a clause can be proven', async () => {
+    const { renderCompliance } = await import('../modules/views/compliance.js');
+    renderCompliance('pci_dss');
+    const cell = mappedRow().querySelector('.clause-ev');
+    // One requirement answers clause 8, and it has evidence attached — one
+    // piece of which is a year past its annual renewal.
+    expect(cell.querySelector('.clause-ev-ratio').textContent).toBe('1 / 1');
+    expect(cell.textContent).toContain('proven');
+    expect(cell.querySelector('.clause-ev-lapsed').textContent).toContain('1 lapsed');
+  });
+
+  it('leaves the evidence column empty where no requirement maps', async () => {
+    const { renderCompliance } = await import('../modules/views/compliance.js');
+    renderCompliance('pci_dss');
+    // Clause 7 is unmapped: a ratio there would be a number about nothing.
+    const rows = [...document.querySelectorAll('#main .compliance-table tr')];
+    const unmapped = rows.find((r) => r.classList.contains('clause-unmapped'));
+    expect(unmapped.querySelector('.clause-ev').textContent).toBe('');
   });
 
   it('refuses to say a clause is met', async () => {
@@ -524,7 +556,8 @@ describe('The audit pack', () => {
     expect(text).toContain('Test Program — PCI DSS');
     expect(text).toContain('mandatory');
     expect(text).toContain('Identify Users');                 // the clause name
-    expect(text).toContain('std-access-control#1.2');         // the requirement
+    expect(document.querySelector('#main .audit-req .req-ref').title)
+      .toContain('std-access-control#1.2');                   // the requirement
     expect(text).toContain('Every user has a unique account'); // its text
     expect(text).toContain('Open gap');
     expect(text).toContain('gap-shared-accounts');
@@ -566,8 +599,9 @@ describe('The audit pack', () => {
     // year past it. Both are shown; the second is shown as expired.
     expect(text).toContain('Account inventory, this quarter');
     expect(text).toContain('good until');
-    expect(text).toContain('fresh');
-    expect(text).toContain('stale');
+    const states = [...document.querySelectorAll('#main .req-ev-state')].map((s) => s.textContent);
+    expect(states).toContain('fresh');
+    expect(states).toContain('stale');
     expect(errors).toEqual([]);
   });
 
@@ -577,8 +611,8 @@ describe('The audit pack', () => {
     // Hiding it would overstate what the program can prove, which is the one
     // thing this page exists not to do.
     expect(main()).toContain('Account inventory, last year');
-    const bad = document.querySelectorAll('#main .audit-evidence-state-bad');
-    expect(bad.length).toBeGreaterThan(0);
+    const states = [...document.querySelectorAll('#main .req-ev-state')].map((s) => s.textContent);
+    expect(states).toContain('stale');
   });
 
   it('admits a requirement with nothing attached, instead of leaving a blank', async () => {
@@ -668,7 +702,11 @@ describe('Document', () => {
   it('renders a standard with its addressable requirements', async () => {
     const { navigateDoc } = await import('../modules/views/doc.js');
     navigateDoc('standards/std-access-control.md');
-    expect(main()).toContain('std-access-control#1.2');
+    // The reference is the marker; the full key is what a gap cites, so it is
+    // reachable by click rather than repeated on every block.
+    const ref = document.querySelector('#main .req-ref');
+    expect(ref.textContent).toBe('1.2');
+    expect(ref.title).toContain('std-access-control#1.2');
     expect(main()).toContain('Every user has a unique account');
     expect(main()).toContain('gap: gap-shared-accounts');
     expect(errors).toEqual([]);
@@ -1110,6 +1148,66 @@ describe('A standard, four ways', () => {
   });
 });
 
+describe('The requirement record', () => {
+  it('names the framework once and puts its clauses beside it', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    navigateDoc('standards/std-access-control.md');
+    const maps = document.querySelector('#main .req-maps');
+    // Seven pills each repeating "ISO/IEC 27001:2022" is the framework's name
+    // said seven times and the clause said once.
+    const names = [...maps.querySelectorAll('.req-map-fw')].map((e) => e.textContent);
+    expect(names).toEqual(['PCI DSS v4.0']);
+    expect([...maps.querySelectorAll('.req-clause')].map((e) => e.textContent)).toEqual(['8']);
+  });
+
+  it('sends a clause to its framework, already cut to this standard', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    navigateDoc('standards/std-access-control.md');
+    document.querySelector('#main .req-clause.clickable').click();
+    expect(decodeURIComponent(location.hash))
+      .toBe('#compliance/pci_dss?standard=std-access-control');
+  });
+
+  it('labels every fact, so a reader can skip a category with their eye', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    navigateDoc('standards/std-access-control.md');
+    const record = document.querySelector('#main .req-record');
+    const labels = [...record.querySelectorAll('.req-row-label')].map((e) => e.textContent);
+    expect(labels).toEqual(['Demonstrated by', 'Evidence', 'Answers']);
+  });
+
+  it('says an artefact is there, when it was collected and how long that lasts', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    navigateDoc('standards/std-access-control.md');
+    const entry = document.querySelector('#main .req-ev');
+    expect(entry.querySelector('.req-ev-name').textContent).toBe('Account inventory, this quarter');
+    expect(entry.querySelector('.req-ev-state').textContent).toBe('fresh');
+    const facts = entry.querySelector('.req-ev-facts').textContent;
+    expect(facts).toContain('collected');
+    expect(facts).toContain('good until');
+    expect(facts).toContain('via manual');
+  });
+
+  it('admits a requirement nobody has attached anything to', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    navigateDoc('standards/std-access-control.md');
+    // 1.3 in the fixture has no evidence.
+    expect(main()).toContain('Nothing attached yet');
+  });
+
+  it('keeps the full key on the marker, since that is what a gap cites', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    navigateDoc('standards/std-access-control.md');
+    const refs = [...document.querySelectorAll('#main .req-ref')];
+    expect(refs.map((r) => r.textContent)).toEqual(['1.2', '1.3']);
+    expect(refs.map((r) => r.title)).toEqual([
+      'std-access-control#1.2 — click to copy',
+      'std-access-control#1.3 — click to copy',
+    ]);
+    expect(refs[0].getAttribute('aria-label')).toBe('Copy std-access-control#1.2');
+  });
+});
+
 describe('Slicing by standard', () => {
   it('offers the standard as a facet wherever the bar is drawn', async () => {
     const { renderBrowse } = await import('../modules/views/browse.js');
@@ -1134,7 +1232,7 @@ describe('Slicing by standard', () => {
     location.hash = 'compliance/pci_dss?standard=std-access-control';
     renderCompliance('pci_dss');
     // Clause 8 is reached through std-access-control#1.2; clause 7 is not reached at all.
-    expect(main()).toContain('std-access-control#1.2');
+    expect(main()).toContain('std-access-control');
     expect(main()).toContain('clauses are reached by the selected standard');
     const rows = [...document.querySelectorAll('#main .compliance-table tr')];
     expect(rows).toHaveLength(2); // the header and clause 8

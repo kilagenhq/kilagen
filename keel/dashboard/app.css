@@ -1673,10 +1673,148 @@ button.stat-counter:focus-visible { outline: 2px solid var(--accent); outline-of
    own list, and there is one thing to slice it by. */
 .filter-bar-inline { margin: var(--space-lg) 0 var(--space-md); }
 
-/* The audit pack states what a date means, in words: it is printed, so colour
-   cannot be the thing that carries it. */
-.audit-evidence-state { font-size: 10px; color: var(--fg3); font-style: italic; }
-.audit-evidence-state-bad { color: var(--sev-high); font-style: normal; font-weight: 600; }
-/* An absence, admitted. Not dimmed — it is one of the more important lines on
-   the page. */
-.audit-evidence-none { font-size: var(--text-xs); color: var(--fg2); }
+/* The audit pack draws the same requirement record the standard's page does,
+   so it needs only what is specific to a printed document: where the
+   requirement came from, on one line. */
+.audit-req-source { display: flex; flex-wrap: wrap; gap: var(--space-lg); align-items: baseline; font-size: var(--text-xs); color: var(--fg3); }
+.audit-req-standard { color: var(--fg2); }
+.audit-req-id { font-family: var(--mono); }
+
+/* ============================================================
+   THE REQUIREMENT RECORD
+   ------------------------------------------------------------
+   A requirement carries five kinds of fact, and all three views that
+   render one were stacking them as one undifferentiated column of
+   chips — which put the framework mappings, the least useful thing
+   while you are reading what the requirement says, at the largest
+   visual weight on the page.
+
+   The shape is the console's own key-and-value idiom, the one the
+   right-hand panel uses: a fixed label gutter, values against it. A
+   reader can skip a whole category with their eye.
+   ============================================================ */
+.req-record {
+  padding: var(--space-lg) 0 var(--space-xl);
+  border-top: 1px solid var(--border);
+}
+.req-record:first-of-type { border-top: none; }
+
+/* The head: reference in the gutter, the text as the headline. */
+/* The same gutter the rows use, so the headline and every value share one
+   left edge and the reference sits alone against it. */
+.req-head {
+  display: grid;
+  grid-template-columns: 124px 1fr;
+  align-items: baseline;
+  column-gap: var(--space-lg);
+  margin-bottom: var(--space-md);
+}
+/* The short reference is the marker; the full key `std-x#1.2` is what a gap
+   cites, and used to be printed on every block. It is one click now. */
+.req-ref {
+  grid-row: 1 / span 2;
+  justify-self: start;
+  padding: 2px var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg2);
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg2);
+  cursor: pointer;
+}
+.req-ref:hover { border-color: var(--accent); color: var(--accent); }
+.req-ref:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.req-ref.copied { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.req-ref.copied::after { content: ' copied'; font-size: 9px; }
+/* The requirement is what you came to read, so it is the one thing set at
+   reading size. Everything under it is apparatus. */
+.req-text {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: 1.5;
+  color: var(--fg);
+}
+.req-badges { grid-column: 2; display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-top: var(--space-sm); }
+
+/* A labelled row. The gutter matches the head's, so the labels and the
+   reference line up down the left edge. */
+.req-row {
+  display: grid;
+  grid-template-columns: 124px 1fr;
+  column-gap: var(--space-lg);
+  padding: 3px 0;
+}
+.req-row-label {
+  font-size: var(--text-xs);
+  color: var(--fg3);
+  padding-top: 2px;
+}
+.req-row-value { min-width: 0; font-size: var(--text-sm); color: var(--fg2); }
+.req-row-prose { line-height: 1.6; max-width: 68ch; }
+
+/* Mappings: the framework named once, its clauses beside it. */
+.req-maps { display: flex; flex-direction: column; gap: 2px; }
+.req-map { display: grid; grid-template-columns: minmax(0, 15rem) 1fr; column-gap: var(--space-md); align-items: baseline; }
+.req-map-fw { font-size: var(--text-xs); color: var(--fg3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.req-map-clauses { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+.req-clause {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--fg);
+  background: var(--bg3);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+}
+.req-clause.clickable { cursor: pointer; }
+.req-clause.clickable:hover { background: var(--accent-soft); color: var(--accent); }
+
+/* Evidence: what it is, then what is known about it. */
+.req-ev-list { display: flex; flex-direction: column; gap: var(--space-md); }
+.req-ev-head { display: flex; align-items: baseline; gap: var(--space-md); flex-wrap: wrap; }
+.req-ev-name { font-size: var(--text-sm); color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+a.req-ev-name:hover { color: var(--accent2); }
+.req-ev-state { font-size: var(--text-xs); }
+.req-ev-facts { display: flex; flex-wrap: wrap; gap: var(--space-lg); margin-top: 2px; font-family: var(--mono); font-size: var(--text-xs); color: var(--fg3); }
+.req-ev-none { color: var(--fg3); font-style: italic; }
+
+@media (max-width: 768px) {
+  .req-head, .req-row { grid-template-columns: 1fr; row-gap: 2px; }
+  .req-ref { grid-row: auto; margin-bottom: var(--space-sm); }
+  .req-badges { grid-column: 1; }
+  .req-map { grid-template-columns: 1fr; }
+}
+
+/* Every group of a framework renders its own table, and each one was sizing
+   its columns from its own content — so "Protect All Systems and Networks"
+   broke one word per line in one table while a longer name sat on one line in
+   the next. Declared widths make the whole page read as one table. */
+#main .compliance-table { table-layout: fixed; min-width: 760px; }
+#main .compliance-table th:nth-child(1), #main .compliance-table td:nth-child(1) { width: 24%; }
+#main .compliance-table th:nth-child(2), #main .compliance-table td:nth-child(2) { width: 30%; }
+#main .compliance-table th:nth-child(3), #main .compliance-table td:nth-child(3) { width: 14%; }
+#main .compliance-table th:nth-child(4), #main .compliance-table td:nth-child(4) { width: 16%; }
+#main .compliance-table th:nth-child(5), #main .compliance-table td:nth-child(5) { width: 16%; }
+#main .compliance-table td { vertical-align: top; }
+/* In a table cell there is no room for a name column and its references side
+   by side — the name took it all and the references wrapped one per line. In
+   a column this narrow, stacking them is the legible shape. */
+.clause-reqs .req-map { grid-template-columns: 1fr; row-gap: 2px; }
+.clause-reqs .req-maps { gap: var(--space-md); }
+.clause-reqs .req-map-fw { font-family: var(--mono); white-space: normal; overflow-wrap: anywhere; }
+.clause-reqs .req-map-clauses { padding-left: var(--space-lg); }
+.clause-reqs .req-map-fw.clickable { cursor: pointer; }
+.clause-reqs .req-map-fw.clickable:hover { color: var(--accent); }
+.clause-none { font-size: var(--text-xs); color: var(--fg3); font-style: italic; }
+.clause-contest { white-space: normal; }
+/* A gap id is longer than its column and was spilling over the next one. It
+   is mono and hyphenated, so it has natural places to break. */
+.clause-contest .pill { margin: 0 3px 3px 0; max-width: 100%; white-space: normal; overflow-wrap: break-word; }
+
+/* Can the requirements behind this clause be shown to be true. */
+.clause-ev { white-space: nowrap; }
+.clause-ev-ratio { font-family: var(--mono); font-size: var(--text-sm); color: var(--fg); font-variant-numeric: tabular-nums; }
+.clause-ev-none { color: var(--fg3); }
+.clause-ev-label { display: block; font-size: 10px; color: var(--fg3); }
+.clause-ev-lapsed { display: block; font-size: 10px; color: var(--sev-high); font-weight: 600; }

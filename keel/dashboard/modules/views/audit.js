@@ -1,9 +1,9 @@
-import { mk, mkEmpty } from '../dom.js';
-import { safeUrl } from '../security.js';
+import { mk, mkEmpty, formatRoles } from '../dom.js';
 import { state, docById, isOpenGap, isLiveException } from '../state.js';
 import { go, setActiveView, setBread, mainEl, hideRightPanel } from '../nav.js';
 import { fwLabel, BINDING_NOTE, today } from '../constants.js';
-import { evidenceState, evidenceStateInfo, expiresOn } from '../evidence.js';
+import { evidenceState } from '../evidence.js';
+import { mkRecord, mkRecordHead, mkRecordRow, mkEvidenceEntry } from '../requirement.js';
 
 /* The audit pack: one framework, one page, printable.
  *
@@ -65,90 +65,69 @@ function provability(clauses) {
     + '.';
 }
 
-/* The requirement behind a reference, with the standard that holds it. */
+/* The requirement behind a reference, with the standard that holds it.
+ *
+ * The same record the standard's own page draws. It used to be its own layout
+ * — a key, a paragraph, then a run-on line of middle-dot-joined metadata and
+ * two more unlabelled rows — and the two had drifted into disagreeing about
+ * everything. One shape, so a reader who has seen the page recognises the
+ * printout, and so a change to either lands in both.
+ */
 function requirementBlock(container, ref) {
   const entry = state.requirements[ref];
-  const block = mk('div', 'audit-req');
-  block.appendChild(mk('code', 'audit-req-ref', ref));
   if (!entry) {
-    block.appendChild(mk('div', 'audit-req-text id-link-missing',
-      'This requirement does not resolve.'));
-    container.appendChild(block);
+    const orphan = mkRecord();
+    orphan.appendChild(mkRecordHead(ref, ref, ''));
+    orphan.appendChild(mkRecordRow('Requirement',
+      mk('span', 'id-link-missing', 'This requirement does not resolve.')));
+    container.appendChild(orphan);
     return;
   }
-  block.appendChild(mk('div', 'audit-req-text', String(entry.text || '').trim()));
 
   const standard = docById(entry.standard);
-  const source = mk('div', 'audit-req-source');
-  source.appendChild(mk('span', '', 'From '));
-  source.appendChild(mk('span', 'audit-req-standard',
-    (standard && standard.title ? standard.title + ' · ' : '') + entry.standard));
-  if (standard && standard.owner) {
-    source.appendChild(mk('span', '', ' · owner ' + (Array.isArray(standard.owner)
-      ? standard.owner.join(', ') : standard.owner)));
-  }
-  if (standard && standard.last_reviewed) {
-    source.appendChild(mk('span', '', ' · last reviewed ' + standard.last_reviewed));
-  }
-  block.appendChild(source);
-
   const requirement = standard && (standard.requirements || [])
     .find(function(r) { return entry.ref && String(r.ref) === String(entry.ref); });
+
+  const record = mkRecord();
+  record.classList.add('audit-req');
+  record.appendChild(mkRecordHead(String(entry.ref || ref), ref, entry.text));
+
+  /* Which document this came from, and whether anybody has looked at it
+     lately — the two things an auditor asks before reading the requirement. */
+  const source = mk('div', 'audit-req-source');
+  const title = mk('span', 'audit-req-standard',
+    (standard && standard.title) ? standard.title : entry.standard);
+  source.appendChild(title);
+  source.appendChild(mk('code', 'audit-req-id', entry.standard));
+  if (standard && standard.owner) {
+    source.appendChild(mk('span', '', 'owner ' + formatRoles(standard.owner)));
+  }
+  if (standard && standard.last_reviewed) {
+    source.appendChild(mk('span', '', 'last reviewed ' + standard.last_reviewed));
+  }
+  record.appendChild(mkRecordRow('From', source));
+
   /* What an auditor asks in two moves: how do you show it, then show me. */
-  const how = howDemonstrated(requirement);
+  const how = requirement && requirement.how_demonstrated;
   if (how) {
-    /* Named for what it is rather than `line`, which is also the module's own
-       meta-row helper two screens up. */
-    const howRow = mk('div', 'audit-evidence');
-    howRow.appendChild(mk('span', 'audit-evidence-label', 'How demonstrated'));
-    howRow.appendChild(mk('span', 'audit-evidence-note', how));
-    block.appendChild(howRow);
+    record.appendChild(mkRecordRow('Demonstrated by', String(how).trim(), 'req-row-prose'));
   }
 
   const evidence = (requirement && requirement.evidence) || [];
-  const list = mk('div', 'audit-evidence');
-  list.appendChild(mk('span', 'audit-evidence-label', 'Evidence'));
   if (!evidence.length) {
     /* Said out loud rather than left blank. A requirement with nothing
        attached and a requirement nobody rendered look identical when the
        answer is an absence, and in a document somebody signs, the explicit
-       admission is the more credible of the two. It is the same refusal as
-       the caveat at the top: this page does not flatter the program. */
-    list.appendChild(mk('span', 'audit-evidence-none', 'No evidence attached.'));
-    block.appendChild(list);
-    container.appendChild(block);
-    return;
+       admission is the more credible of the two. */
+    record.appendChild(mkRecordRow('Evidence',
+      mk('span', 'req-ev-none', 'No evidence attached.'), 'req-row-prose'));
+  } else {
+    const list = mk('div', 'req-ev-list');
+    evidence.forEach(function(item) { list.appendChild(mkEvidenceEntry(item)); });
+    record.appendChild(mkRecordRow('Evidence', list));
   }
-  evidence.forEach(function(item) {
-    const href = safeUrl(item.url);
-    if (href) {
-      const link = mk('a', 'audit-evidence-link', item.name || item.url);
-      link.href = href;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      list.appendChild(link);
-    } else {
-      list.appendChild(mk('span', 'audit-evidence-note', item.name));
-    }
-    if (item.collected) {
-      list.appendChild(mk('span', 'audit-evidence-note', 'collected ' + item.collected));
-    }
-    /* The date alone makes the reader do the arithmetic. The page knows the
-       renewal period, so it can say what the date means — and it says it in
-       words, because a printed page has no colour to rely on. */
-    const expires = expiresOn(item);
-    if (expires) {
-      list.appendChild(mk('span', 'audit-evidence-note', 'good until ' + expires));
-    }
-    const info = evidenceStateInfo(evidenceState(item));
-    const state = mk('span', 'audit-evidence-state', info.label);
-    if (info.key === 'stale' || info.key === 'undated') {
-      state.classList.add('audit-evidence-state-bad');
-    }
-    list.appendChild(state);
-  });
-  block.appendChild(list);
-  container.appendChild(block);
+
+  container.appendChild(record);
 }
 
 function contestBlock(container, id, kind) {
