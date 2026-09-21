@@ -12,3 +12,15 @@ repos:
     rev: 63c8f8312b7559622c0d82815639671ae42132ac # v2.4.1
     hooks:
       - id: codespell
+
+  # Frontmatter, layout and the vocabularies, before a commit rather than after
+  # a push. Provided by the installed kilagen package, so there is no script to
+  # keep in sync here.
+  - repo: local
+    hooks:
+      - id: kilagen-frontmatter
+        name: Validate program/ frontmatter
+        entry: kilagen check frontmatter
+        language: system
+        pass_filenames: false
+        always_run: true

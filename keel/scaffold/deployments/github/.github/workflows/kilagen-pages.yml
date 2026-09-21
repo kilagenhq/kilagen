@@ -1,4 +1,4 @@
-# Build the site (validate, regenerate the indexes, build the dashboard) and deploy to GitHub Pages.
+# Build the site (validate, build the dashboard) and deploy to GitHub Pages.
 name: Deploy to GitHub Pages
 
 on:
