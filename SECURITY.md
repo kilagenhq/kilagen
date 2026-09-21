@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Report privately to **[security@kilagen.com](mailto:security@kilagen.com)**, or open a [private vulnerability report](https://github.com/kilagenhq/kilagen/security/advisories/new) on this repository. Please do not open a public issue for anything exploitable.
+Report privately to **[hello@kilagen.com](mailto:hello@kilagen.com)**, or open a [private vulnerability report](https://github.com/kilagenhq/kilagen/security/advisories/new) on this repository. Please do not open a public issue for anything exploitable.
 
 Include what you did, what happened, and the version (`kilagen --version`). A proof of concept helps; a working exploit is not required.
 

@@ -36,8 +36,13 @@ dependencies = [
 [project.scripts]
 kilagen = "kilagen.cli:main"
 
+# kilagen.com is registered but does not serve a site yet, so the repository
+# is the homepage: a dead link on the package page is worse than no domain.
 [project.urls]
-Homepage = "https://kilagen.com"
+Homepage = "https://github.com/kilagenhq/kilagen"
+Repository = "https://github.com/kilagenhq/kilagen"
+Changelog = "https://github.com/kilagenhq/kilagen/blob/main/CHANGELOG.md"
+Issues = "https://github.com/kilagenhq/kilagen/issues"
 
 # The directory keeps its architectural name (keel — the framework layer the
 # instance is built on) while the package is installed and imported under the

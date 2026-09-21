@@ -718,6 +718,21 @@ def cmd_new(args: argparse.Namespace) -> int:
             f"starting with a letter or digit"
         )
 
+    # Every id in the documentation is written with its prefix, so the first
+    # instinct is to pass the whole id as the slug. That used to write
+    # pol-pol-acceptable-use without a word. Absorbing the repeat silently
+    # would be the other way to handle it, and the wrong one: the id is the
+    # filename and the anchor other documents reference, so the one thing it
+    # must not be is something the tool decided on its own. Only this type's
+    # own prefix counts — "gap-management" is a perfectly good policy.
+    if args.slug.startswith(f"{doc_type.prefix}-"):
+        bare = args.slug[len(doc_type.prefix) + 1:]
+        raise CommandError(
+            f"'{args.slug}' already carries the '{doc_type.prefix}-' prefix that "
+            f"new adds — the id would be '{doc_type.prefix}-{args.slug}'."
+            + (f" Run: kilagen new {args.type} {bare}" if SLUG_RE.match(bare) else "")
+        )
+
     template = keel_lib.KEEL / "content" / "templates" / f"{doc_type.name}.md"
     if not template.is_file():
         raise CommandError(f"no template ships for '{doc_type.name}'")
@@ -893,7 +908,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("type", metavar="TYPE",
                    help="the document type: " + ", ".join(t.name for t in keel_lib.TYPES))
     p.add_argument("slug", metavar="SLUG",
-                   help="what it is about, in kebab-case: the id becomes <prefix>-<slug>")
+                   help="what it is about, in kebab-case and without the type "
+                        "prefix: the id becomes <prefix>-<slug>")
 
     p = sub.add_parser("check", help="run the program's checks")
     # Validated in cmd_check rather than with choices=, which renders the

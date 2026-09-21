@@ -325,6 +325,24 @@ class NewDocumentTests(unittest.TestCase):
         with self.assertRaises(cli.CommandError):
             self._new("policy", "Acceptable Use")
 
+    def test_a_slug_that_repeats_the_type_prefix_is_refused(self):
+        with self.assertRaises(cli.CommandError) as caught:
+            self._new("policy", "pol-acceptable-use")
+        self.assertIn("pol-pol-acceptable-use", str(caught.exception))
+        self.assertIn("kilagen new policy acceptable-use", str(caught.exception))
+        self.assertFalse((self.instance / "program" / "policies"
+                          / "pol-pol-acceptable-use.md").exists())
+
+    def test_a_slug_starting_with_another_types_prefix_is_kept(self):
+        """The guard is about this type's prefix, not any prefix.
+
+        A policy about gap management is pol-gap-management, and refusing it
+        would trade one wrong id for a command that cannot write a right one.
+        """
+        self._new("policy", "gap-management")
+        self.assertTrue((self.instance / "program" / "policies"
+                         / "pol-gap-management.md").is_file())
+
     def test_it_refuses_to_overwrite(self):
         self._new("policy", "acceptable-use")
         with self.assertRaises(cli.CommandError) as caught:

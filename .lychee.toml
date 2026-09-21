@@ -7,9 +7,10 @@ exclude = [
   "localhost",
   "127\\.0\\.0\\.1",
   "kilagen\\.com/schemas",  # Schema $id URLs — identifiers, not served endpoints
-  "kilagen/blob/main",     # GitHub links to this repo — may not exist until merged
+  "kilagen/(blob|tree)/main",  # GitHub links to this repo — may not exist until merged
   "drive\\.google\\.com",       # Google Drive — requires auth
   "docs\\.google\\.com",        # Google Docs — requires auth
+  "github\\.com/.*/security/advisories/new",  # Needs a signed-in account
   "file://.*",                   # Local file paths — not resolvable in CI
   "admin\\.google\\.com",       # Google Admin — requires auth
 ]

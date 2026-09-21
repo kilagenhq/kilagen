@@ -17,11 +17,6 @@ pip install kilagen
 kilagen init --name "Acme Corp"      # or --guided, to be asked
 ```
 
-> Not released yet. The name is reserved on PyPI but no working version is
-> published, so the line above installs a placeholder. Until the first release,
-> install from this repository:
-> `pip install git+https://github.com/kilagenhq/kilagen.git`
-
 `init` also takes `--deployment` (which CI to wire up, default `github`) and `--agent` (which agent integration to render, default `claude`). Both accept `none`. It records everything it copied, with a checksum per file, in `.kilagen-manifest.yml`.
 
 Day to day:
@@ -46,7 +41,7 @@ Keeping up with new releases:
 | `kilagen update config` | The configuration `init` copied into your repo. Reports by default, writes with `--apply`, and leaves anything you edited alone. Never touches `program/` |
 | `kilagen update content` | Your `program/` content, when a release changes what content must look like. Never touches the configuration |
 
-Full walkthrough in [`keel/content/instantiation.md`](keel/content/instantiation.md).
+Full walkthrough in [`keel/content/instantiation.md`](https://github.com/kilagenhq/kilagen/blob/main/keel/content/instantiation.md).
 
 ---
 
@@ -98,6 +93,6 @@ git tag v0.2.0 && git push --tags
 
 ---
 
-- What Kilagen is and why it is shaped this way → [`keel/content/design.md`](keel/content/design.md)
-- The decisions behind it → [`keel/content/adrs/`](keel/content/adrs/)
-- Standards, requirements and framework coverage → [`keel/content/compliance.md`](keel/content/compliance.md)
+- What Kilagen is and why it is shaped this way → [`keel/content/design.md`](https://github.com/kilagenhq/kilagen/blob/main/keel/content/design.md)
+- The decisions behind it → [`keel/content/adrs/`](https://github.com/kilagenhq/kilagen/tree/main/keel/content/adrs/)
+- Standards, requirements and framework coverage → [`keel/content/compliance.md`](https://github.com/kilagenhq/kilagen/blob/main/keel/content/compliance.md)

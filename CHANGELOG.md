@@ -4,7 +4,7 @@ Notable changes to the `kilagen` package.
 
 This project follows [semantic versioning](https://semver.org).
 
-## Unreleased
+## 0.1.0 — 2026-09-21
 
 ### Added
 
