@@ -126,6 +126,11 @@ const VIEWS = [
     return import('../modules/views/compliance.js').then((m) => m.renderCompliance('pci_dss'));
   }],
   ['One document', () => import('../modules/views/doc.js').then((m) => m.navigateDoc('standards/std-access-control.md'))],
+  /* A document with `related:`, and one with `requirement:`. Neither field is
+     on the standard above, so without these two the id links in the panel are
+     never drawn and both sweeps below pass without looking at them. */
+  ['A document with related ids', () => import('../modules/views/doc.js').then((m) => m.navigateDoc('policies/pol-info-sec.md'))],
+  ['A gap, against its requirement', () => import('../modules/views/doc.js').then((m) => m.navigateDoc('gaps/2026/gap-shared.md'))],
   ['The sidebar', () => import('../modules/sidebar.js').then((m) => m.rebuildSidebar())],
 ];
 
