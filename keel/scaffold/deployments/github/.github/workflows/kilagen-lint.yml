@@ -1,0 +1,70 @@
+# Lint markdown, spell-check, and validate this program's frontmatter schemas.
+name: Lint & validate
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.3.1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4.4.0
+        with:
+          node-version: "22"
+
+      # The major is pinned: a new one may require migrating this
+      # program's content, which must be a deliberate act rather than
+      # something a Monday morning CI run does. "kilagen update config"
+      # raises the pin when you choose to move.
+      #
+      # Set the KILAGEN_SPEC repository variable to override the source —
+      # a branch or commit of the framework, say, while a change to it is
+      # being reviewed. The ref then acts as the pin. It is passed through
+      # env rather than interpolated into the script: a ${{ }} expression
+      # inside run: is substituted before the shell sees it, so whoever can
+      # set the variable can run commands on the runner. Repository
+      # variables are also not masked in logs, so never put a credential in
+      # one — install from a private source with a token in `secrets`.
+      - name: Install dependencies
+        env:
+          KILAGEN_SPEC: ${{ vars.KILAGEN_SPEC || 'kilagen<1' }}
+        run: |
+          pip install --quiet "$KILAGEN_SPEC"
+          # Not a dependency of the package: kilagen validates this program's
+          # content, while codespell and markdownlint check its prose. Both
+          # are pinned to the versions .pre-commit-config.yaml uses, so a
+          # commit that passes locally passes here.
+          pip install --quiet codespell==2.4.1
+          npm install -g markdownlint-cli2@0.17.2
+
+      - name: Run markdownlint
+        run: markdownlint-cli2
+
+      - name: Run codespell
+        run: codespell --config .codespellrc .
+
+      - name: Validate frontmatter, layout, vocabularies and framework references
+        run: kilagen check frontmatter
+
+      # Checks on this program's own content, in tests/. They skip the areas
+      # that have no content yet, so they are useful from day one.
+      - name: Run program content tests
+        run: python -m unittest discover -s tests

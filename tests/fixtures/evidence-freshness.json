@@ -1,0 +1,597 @@
+{
+  "_": [
+    "One rule, stated in two languages, pinned to one table.",
+    "",
+    "`keel/libs/check_evidence.py` decides what a CI reports; ",
+    "`keel/dashboard/modules/evidence.js` decides what the Evidence page shows. ",
+    "Two implementations of one rule drift, and the way they drift is silent: ",
+    "the page says an artefact is good while the check says it expired. ",
+    "Both suites read this file and assert their own side of it, so a ",
+    "divergence fails a test instead of reaching a user.",
+    "",
+    "The vocabulary is deliberately the smaller one. The dashboard also ",
+    "distinguishes `due soon`, which is a warning a page can afford and a ",
+    "command cannot; it collapses to `current` here.",
+    "",
+    "Generated once from the Python implementation and checked against the ",
+    "JavaScript one; edit by hand, as a specification, not by regenerating."
+  ],
+  "today": "2026-09-20",
+  "verdicts": {
+    "undated": "no collected date: nothing can say when it stopped being true",
+    "no-window": "a date but no freshness: nobody declared an expiry",
+    "current": "collected + freshness is today or later",
+    "stale": "collected + freshness is behind us"
+  },
+  "cases": [
+    {
+      "collected": "2026-09-20",
+      "freshness": "monthly",
+      "verdict": "current",
+      "expires": "2026-10-21"
+    },
+    {
+      "collected": "2026-09-20",
+      "freshness": "quarterly",
+      "verdict": "current",
+      "expires": "2026-12-21"
+    },
+    {
+      "collected": "2026-09-20",
+      "freshness": "semi-annually",
+      "verdict": "current",
+      "expires": "2027-03-22"
+    },
+    {
+      "collected": "2026-09-20",
+      "freshness": "annually",
+      "verdict": "current",
+      "expires": "2027-09-21"
+    },
+    {
+      "collected": "2026-09-20",
+      "freshness": "every-2-years",
+      "verdict": "current",
+      "expires": "2028-09-20"
+    },
+    {
+      "collected": "2026-09-20",
+      "freshness": "every-3-years",
+      "verdict": "current",
+      "expires": "2029-09-20"
+    },
+    {
+      "collected": "2026-09-20",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2026-09-20",
+      "freshness": "weekly",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2026-09-19",
+      "freshness": "monthly",
+      "verdict": "current",
+      "expires": "2026-10-20"
+    },
+    {
+      "collected": "2026-09-19",
+      "freshness": "quarterly",
+      "verdict": "current",
+      "expires": "2026-12-20"
+    },
+    {
+      "collected": "2026-09-19",
+      "freshness": "semi-annually",
+      "verdict": "current",
+      "expires": "2027-03-21"
+    },
+    {
+      "collected": "2026-09-19",
+      "freshness": "annually",
+      "verdict": "current",
+      "expires": "2027-09-20"
+    },
+    {
+      "collected": "2026-09-19",
+      "freshness": "every-2-years",
+      "verdict": "current",
+      "expires": "2028-09-19"
+    },
+    {
+      "collected": "2026-09-19",
+      "freshness": "every-3-years",
+      "verdict": "current",
+      "expires": "2029-09-19"
+    },
+    {
+      "collected": "2026-09-19",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2026-09-19",
+      "freshness": "weekly",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2026-06-20",
+      "freshness": "monthly",
+      "verdict": "stale",
+      "expires": "2026-07-21"
+    },
+    {
+      "collected": "2026-06-20",
+      "freshness": "quarterly",
+      "verdict": "current",
+      "expires": "2026-09-20"
+    },
+    {
+      "collected": "2026-06-20",
+      "freshness": "semi-annually",
+      "verdict": "current",
+      "expires": "2026-12-20"
+    },
+    {
+      "collected": "2026-06-20",
+      "freshness": "annually",
+      "verdict": "current",
+      "expires": "2027-06-21"
+    },
+    {
+      "collected": "2026-06-20",
+      "freshness": "every-2-years",
+      "verdict": "current",
+      "expires": "2028-06-20"
+    },
+    {
+      "collected": "2026-06-20",
+      "freshness": "every-3-years",
+      "verdict": "current",
+      "expires": "2029-06-20"
+    },
+    {
+      "collected": "2026-06-20",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2026-06-20",
+      "freshness": "weekly",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2026-06-21",
+      "freshness": "monthly",
+      "verdict": "stale",
+      "expires": "2026-07-22"
+    },
+    {
+      "collected": "2026-06-21",
+      "freshness": "quarterly",
+      "verdict": "current",
+      "expires": "2026-09-21"
+    },
+    {
+      "collected": "2026-06-21",
+      "freshness": "semi-annually",
+      "verdict": "current",
+      "expires": "2026-12-21"
+    },
+    {
+      "collected": "2026-06-21",
+      "freshness": "annually",
+      "verdict": "current",
+      "expires": "2027-06-22"
+    },
+    {
+      "collected": "2026-06-21",
+      "freshness": "every-2-years",
+      "verdict": "current",
+      "expires": "2028-06-21"
+    },
+    {
+      "collected": "2026-06-21",
+      "freshness": "every-3-years",
+      "verdict": "current",
+      "expires": "2029-06-21"
+    },
+    {
+      "collected": "2026-06-21",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2026-06-21",
+      "freshness": "weekly",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2026-06-19",
+      "freshness": "monthly",
+      "verdict": "stale",
+      "expires": "2026-07-20"
+    },
+    {
+      "collected": "2026-06-19",
+      "freshness": "quarterly",
+      "verdict": "stale",
+      "expires": "2026-09-19"
+    },
+    {
+      "collected": "2026-06-19",
+      "freshness": "semi-annually",
+      "verdict": "current",
+      "expires": "2026-12-19"
+    },
+    {
+      "collected": "2026-06-19",
+      "freshness": "annually",
+      "verdict": "current",
+      "expires": "2027-06-20"
+    },
+    {
+      "collected": "2026-06-19",
+      "freshness": "every-2-years",
+      "verdict": "current",
+      "expires": "2028-06-19"
+    },
+    {
+      "collected": "2026-06-19",
+      "freshness": "every-3-years",
+      "verdict": "current",
+      "expires": "2029-06-19"
+    },
+    {
+      "collected": "2026-06-19",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2026-06-19",
+      "freshness": "weekly",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2025-09-20",
+      "freshness": "monthly",
+      "verdict": "stale",
+      "expires": "2025-10-21"
+    },
+    {
+      "collected": "2025-09-20",
+      "freshness": "quarterly",
+      "verdict": "stale",
+      "expires": "2025-12-21"
+    },
+    {
+      "collected": "2025-09-20",
+      "freshness": "semi-annually",
+      "verdict": "stale",
+      "expires": "2026-03-22"
+    },
+    {
+      "collected": "2025-09-20",
+      "freshness": "annually",
+      "verdict": "current",
+      "expires": "2026-09-21"
+    },
+    {
+      "collected": "2025-09-20",
+      "freshness": "every-2-years",
+      "verdict": "current",
+      "expires": "2027-09-21"
+    },
+    {
+      "collected": "2025-09-20",
+      "freshness": "every-3-years",
+      "verdict": "current",
+      "expires": "2028-09-20"
+    },
+    {
+      "collected": "2025-09-20",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2025-09-20",
+      "freshness": "weekly",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2025-09-21",
+      "freshness": "monthly",
+      "verdict": "stale",
+      "expires": "2025-10-22"
+    },
+    {
+      "collected": "2025-09-21",
+      "freshness": "quarterly",
+      "verdict": "stale",
+      "expires": "2025-12-22"
+    },
+    {
+      "collected": "2025-09-21",
+      "freshness": "semi-annually",
+      "verdict": "stale",
+      "expires": "2026-03-23"
+    },
+    {
+      "collected": "2025-09-21",
+      "freshness": "annually",
+      "verdict": "current",
+      "expires": "2026-09-22"
+    },
+    {
+      "collected": "2025-09-21",
+      "freshness": "every-2-years",
+      "verdict": "current",
+      "expires": "2027-09-22"
+    },
+    {
+      "collected": "2025-09-21",
+      "freshness": "every-3-years",
+      "verdict": "current",
+      "expires": "2028-09-21"
+    },
+    {
+      "collected": "2025-09-21",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2025-09-21",
+      "freshness": "weekly",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2024-02-29",
+      "freshness": "monthly",
+      "verdict": "stale",
+      "expires": "2024-03-31"
+    },
+    {
+      "collected": "2024-02-29",
+      "freshness": "quarterly",
+      "verdict": "stale",
+      "expires": "2024-05-31"
+    },
+    {
+      "collected": "2024-02-29",
+      "freshness": "semi-annually",
+      "verdict": "stale",
+      "expires": "2024-08-30"
+    },
+    {
+      "collected": "2024-02-29",
+      "freshness": "annually",
+      "verdict": "stale",
+      "expires": "2025-03-01"
+    },
+    {
+      "collected": "2024-02-29",
+      "freshness": "every-2-years",
+      "verdict": "stale",
+      "expires": "2026-03-01"
+    },
+    {
+      "collected": "2024-02-29",
+      "freshness": "every-3-years",
+      "verdict": "current",
+      "expires": "2027-03-01"
+    },
+    {
+      "collected": "2024-02-29",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2024-02-29",
+      "freshness": "weekly",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2026-08-21",
+      "freshness": "monthly",
+      "verdict": "current",
+      "expires": "2026-09-21"
+    },
+    {
+      "collected": "2026-08-21",
+      "freshness": "quarterly",
+      "verdict": "current",
+      "expires": "2026-11-21"
+    },
+    {
+      "collected": "2026-08-21",
+      "freshness": "semi-annually",
+      "verdict": "current",
+      "expires": "2027-02-20"
+    },
+    {
+      "collected": "2026-08-21",
+      "freshness": "annually",
+      "verdict": "current",
+      "expires": "2027-08-22"
+    },
+    {
+      "collected": "2026-08-21",
+      "freshness": "every-2-years",
+      "verdict": "current",
+      "expires": "2028-08-21"
+    },
+    {
+      "collected": "2026-08-21",
+      "freshness": "every-3-years",
+      "verdict": "current",
+      "expires": "2029-08-21"
+    },
+    {
+      "collected": "2026-08-21",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2026-08-21",
+      "freshness": "weekly",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2026-08-20",
+      "freshness": "monthly",
+      "verdict": "current",
+      "expires": "2026-09-20"
+    },
+    {
+      "collected": "2026-08-20",
+      "freshness": "quarterly",
+      "verdict": "current",
+      "expires": "2026-11-20"
+    },
+    {
+      "collected": "2026-08-20",
+      "freshness": "semi-annually",
+      "verdict": "current",
+      "expires": "2027-02-19"
+    },
+    {
+      "collected": "2026-08-20",
+      "freshness": "annually",
+      "verdict": "current",
+      "expires": "2027-08-21"
+    },
+    {
+      "collected": "2026-08-20",
+      "freshness": "every-2-years",
+      "verdict": "current",
+      "expires": "2028-08-20"
+    },
+    {
+      "collected": "2026-08-20",
+      "freshness": "every-3-years",
+      "verdict": "current",
+      "expires": "2029-08-20"
+    },
+    {
+      "collected": "2026-08-20",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2026-08-20",
+      "freshness": "weekly",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2023-09-20",
+      "freshness": "monthly",
+      "verdict": "stale",
+      "expires": "2023-10-21"
+    },
+    {
+      "collected": "2023-09-20",
+      "freshness": "quarterly",
+      "verdict": "stale",
+      "expires": "2023-12-21"
+    },
+    {
+      "collected": "2023-09-20",
+      "freshness": "semi-annually",
+      "verdict": "stale",
+      "expires": "2024-03-21"
+    },
+    {
+      "collected": "2023-09-20",
+      "freshness": "annually",
+      "verdict": "stale",
+      "expires": "2024-09-20"
+    },
+    {
+      "collected": "2023-09-20",
+      "freshness": "every-2-years",
+      "verdict": "stale",
+      "expires": "2025-09-20"
+    },
+    {
+      "collected": "2023-09-20",
+      "freshness": "every-3-years",
+      "verdict": "current",
+      "expires": "2026-09-20"
+    },
+    {
+      "collected": "2023-09-20",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2023-09-20",
+      "freshness": "weekly",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2026-01-01",
+      "freshness": "monthly",
+      "verdict": "stale",
+      "expires": "2026-02-01"
+    },
+    {
+      "collected": "2026-01-01",
+      "freshness": "quarterly",
+      "verdict": "stale",
+      "expires": "2026-04-03"
+    },
+    {
+      "collected": "2026-01-01",
+      "freshness": "semi-annually",
+      "verdict": "stale",
+      "expires": "2026-07-03"
+    },
+    {
+      "collected": "2026-01-01",
+      "freshness": "annually",
+      "verdict": "current",
+      "expires": "2027-01-02"
+    },
+    {
+      "collected": "2026-01-01",
+      "freshness": "every-2-years",
+      "verdict": "current",
+      "expires": "2028-01-02"
+    },
+    {
+      "collected": "2026-01-01",
+      "freshness": "every-3-years",
+      "verdict": "current",
+      "expires": "2029-01-01"
+    },
+    {
+      "collected": "2026-01-01",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "collected": "2026-01-01",
+      "freshness": "weekly",
+      "verdict": "no-window",
+      "expires": null
+    },
+    {
+      "freshness": "quarterly",
+      "verdict": "undated",
+      "expires": null
+    }
+  ]
+}

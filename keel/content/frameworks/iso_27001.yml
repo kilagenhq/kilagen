@@ -1,0 +1,228 @@
+# ISO/IEC 27001:2022 Annex A — shipped with kilagen.
+#
+# Reference-not-copy: each control carries its published reference and title,
+# because the title is what makes the reference readable. No control text is
+# reproduced — that is behind `resources`, at ISO's own URL.
+#
+# All 93 Annex A controls, in the four 2022 themes. The whole set is listed on
+# purpose: a partial list would flatter coverage by shrinking the denominator.
+#
+# The id is the edition. A 2027 revision is a new id, not an edit of this file.
+
+name: ISO/IEC 27001:2022
+description: >
+  The international standard for an information security management system.
+  Annex A is its reference set of 93 controls, reorganised in the 2022 edition
+  into four themes; an organisation selects from it and justifies what it
+  leaves out in a Statement of Applicability.
+granularity: All 93 Annex A controls of the 2022 edition.
+
+resources:
+  - name: ISO/IEC 27001:2022
+    url: https://www.iso.org/standard/27001
+  - name: ISO/IEC 27002:2022 — implementation guidance for the same controls
+    url: https://www.iso.org/standard/75652.html
+
+groups:
+  - id: "A.5"
+    name: Organizational controls
+    description: Governance, policy, supplier relationships, incident management and compliance — the widest of the four themes.
+    clauses:
+      - ref: "A.5.1"
+        name: Policies for information security
+      - ref: "A.5.2"
+        name: Information security roles and responsibilities
+      - ref: "A.5.3"
+        name: Segregation of duties
+      - ref: "A.5.4"
+        name: Management responsibilities
+      - ref: "A.5.5"
+        name: Contact with authorities
+      - ref: "A.5.6"
+        name: Contact with special interest groups
+      - ref: "A.5.7"
+        name: Threat intelligence
+      - ref: "A.5.8"
+        name: Information security in project management
+      - ref: "A.5.9"
+        name: Inventory of information and other associated assets
+      - ref: "A.5.10"
+        name: Acceptable use of information and other associated assets
+      - ref: "A.5.11"
+        name: Return of assets
+      - ref: "A.5.12"
+        name: Classification of information
+      - ref: "A.5.13"
+        name: Labelling of information
+      - ref: "A.5.14"
+        name: Information transfer
+      - ref: "A.5.15"
+        name: Access control
+      - ref: "A.5.16"
+        name: Identity management
+      - ref: "A.5.17"
+        name: Authentication information
+      - ref: "A.5.18"
+        name: Access rights
+      - ref: "A.5.19"
+        name: Information security in supplier relationships
+      - ref: "A.5.20"
+        name: Addressing information security within supplier agreements
+      - ref: "A.5.21"
+        name: Managing information security in the ICT supply chain
+      - ref: "A.5.22"
+        name: Monitoring, review and change management of supplier services
+      - ref: "A.5.23"
+        name: Information security for use of cloud services
+      - ref: "A.5.24"
+        name: Information security incident management planning and preparation
+      - ref: "A.5.25"
+        name: Assessment and decision on information security events
+      - ref: "A.5.26"
+        name: Response to information security incidents
+      - ref: "A.5.27"
+        name: Learning from information security incidents
+      - ref: "A.5.28"
+        name: Collection of evidence
+      - ref: "A.5.29"
+        name: Information security during disruption
+      - ref: "A.5.30"
+        name: ICT readiness for business continuity
+      - ref: "A.5.31"
+        name: Legal, statutory, regulatory and contractual requirements
+      - ref: "A.5.32"
+        name: Intellectual property rights
+      - ref: "A.5.33"
+        name: Protection of records
+      - ref: "A.5.34"
+        name: Privacy and protection of PII
+      - ref: "A.5.35"
+        name: Independent review of information security
+      - ref: "A.5.36"
+        name: Compliance with policies, rules and standards for information security
+      - ref: "A.5.37"
+        name: Documented operating procedures
+  - id: "A.6"
+    name: People controls
+    description: What the organisation asks of the people who work for it, from screening to event reporting.
+    clauses:
+      - ref: "A.6.1"
+        name: Screening
+      - ref: "A.6.2"
+        name: Terms and conditions of employment
+      - ref: "A.6.3"
+        name: Information security awareness, education and training
+      - ref: "A.6.4"
+        name: Disciplinary process
+      - ref: "A.6.5"
+        name: Responsibilities after termination or change of employment
+      - ref: "A.6.6"
+        name: Confidentiality or non-disclosure agreements
+      - ref: "A.6.7"
+        name: Remote working
+      - ref: "A.6.8"
+        name: Information security event reporting
+  - id: "A.7"
+    name: Physical controls
+    description: Perimeters, equipment, media and the physical environment.
+    clauses:
+      - ref: "A.7.1"
+        name: Physical security perimeters
+      - ref: "A.7.2"
+        name: Physical entry
+      - ref: "A.7.3"
+        name: Securing offices, rooms and facilities
+      - ref: "A.7.4"
+        name: Physical security monitoring
+      - ref: "A.7.5"
+        name: Protecting against physical and environmental threats
+      - ref: "A.7.6"
+        name: Working in secure areas
+      - ref: "A.7.7"
+        name: Clear desk and clear screen
+      - ref: "A.7.8"
+        name: Equipment siting and protection
+      - ref: "A.7.9"
+        name: Security of assets off-premises
+      - ref: "A.7.10"
+        name: Storage media
+      - ref: "A.7.11"
+        name: Supporting utilities
+      - ref: "A.7.12"
+        name: Cabling security
+      - ref: "A.7.13"
+        name: Equipment maintenance
+      - ref: "A.7.14"
+        name: Secure disposal or re-use of equipment
+  - id: "A.8"
+    name: Technological controls
+    description: The technical half — access, cryptography, logging, networks, development and change.
+    clauses:
+      - ref: "A.8.1"
+        name: User end point devices
+      - ref: "A.8.2"
+        name: Privileged access rights
+      - ref: "A.8.3"
+        name: Information access restriction
+      - ref: "A.8.4"
+        name: Access to source code
+      - ref: "A.8.5"
+        name: Secure authentication
+      - ref: "A.8.6"
+        name: Capacity management
+      - ref: "A.8.7"
+        name: Protection against malware
+      - ref: "A.8.8"
+        name: Management of technical vulnerabilities
+      - ref: "A.8.9"
+        name: Configuration management
+      - ref: "A.8.10"
+        name: Information deletion
+      - ref: "A.8.11"
+        name: Data masking
+      - ref: "A.8.12"
+        name: Data leakage prevention
+      - ref: "A.8.13"
+        name: Information backup
+      - ref: "A.8.14"
+        name: Redundancy of information processing facilities
+      - ref: "A.8.15"
+        name: Logging
+      - ref: "A.8.16"
+        name: Monitoring activities
+      - ref: "A.8.17"
+        name: Clock synchronization
+      - ref: "A.8.18"
+        name: Use of privileged utility programs
+      - ref: "A.8.19"
+        name: Installation of software on operational systems
+      - ref: "A.8.20"
+        name: Networks security
+      - ref: "A.8.21"
+        name: Security of network services
+      - ref: "A.8.22"
+        name: Segregation of networks
+      - ref: "A.8.23"
+        name: Web filtering
+      - ref: "A.8.24"
+        name: Use of cryptography
+      - ref: "A.8.25"
+        name: Secure development life cycle
+      - ref: "A.8.26"
+        name: Application security requirements
+      - ref: "A.8.27"
+        name: Secure system architecture and engineering principles
+      - ref: "A.8.28"
+        name: Secure coding
+      - ref: "A.8.29"
+        name: Security testing in development and acceptance
+      - ref: "A.8.30"
+        name: Outsourced development
+      - ref: "A.8.31"
+        name: Separation of development, test and production environments
+      - ref: "A.8.32"
+        name: Change management
+      - ref: "A.8.33"
+        name: Test information
+      - ref: "A.8.34"
+        name: Protection of information systems during audit testing

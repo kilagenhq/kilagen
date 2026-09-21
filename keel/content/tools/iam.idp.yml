@@ -1,0 +1,33 @@
+# The shape of a tool inventory file, and the only one shipped so far.
+#
+# It exists to show the form. The inventory itself lives in kilagenhq/tools and
+# is vendored into a release by scripts/vendor-tools.sh — and that repository
+# does not open until its governance is written down: who approves a vendor's
+# pull request about their own product, what the inclusion criterion is, and
+# whether money can buy a place here. See its CONTRIBUTING.md.
+#
+# The note says what a tool is, never how good it is. Nothing here is a
+# recommendation, nothing here is exhaustive, and none of it says what you run.
+capability: iam.idp
+updated: "2026-09-19"
+tools:
+  - name: Keycloak
+    url: https://www.keycloak.org/
+    license: open-source
+    note: Identity and access management server; OIDC, SAML and user federation.
+  - name: Microsoft Entra ID
+    url: https://www.microsoft.com/security/business/identity-access/microsoft-entra-id
+    license: proprietary
+    note: Microsoft's cloud identity provider, bundled with Microsoft 365.
+  - name: Okta Workforce Identity
+    url: https://www.okta.com/workforce-identity/
+    license: proprietary
+    note: Cloud identity provider for workforce single sign-on and lifecycle.
+  - name: Ping Identity
+    url: https://www.pingidentity.com/
+    license: proprietary
+    note: Identity platform sold for hybrid and on-premises estates.
+  - name: Zitadel
+    url: https://zitadel.com/
+    license: open-source
+    note: Identity provider offered self-hosted or as a managed service.

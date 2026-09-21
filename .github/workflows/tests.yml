@@ -1,0 +1,70 @@
+# Framework CI: the test suites
+name: Tests
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # requires-python has a floor and no ceiling, so every release from
+      # 3.10 up is claimed — and a version the package promises is a version
+      # this has to have executed.
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.3.1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "${{ matrix.python-version }}"
+
+      # Editable rather than plain: the tests import kilagen the way an
+      # instance does, so they exercise the real package layout.
+      - name: Install dependencies
+        run: |
+          pip install --quiet -r scripts/requirements.txt
+          pip install --quiet -e .
+
+      - name: Run tooling tests
+        run: python -m unittest discover -s tests -v
+
+  dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.3.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4.4.0
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+        working-directory: keel/dashboard
+
+      - name: Run dashboard tests
+        run: npm test
+        working-directory: keel/dashboard
+
+      # The vendored libraries are committed, so a version bump in package.json
+      # without a refresh would ship a stale library to every instance.
+      - name: Check vendored libraries match package.json
+        run: |
+          ./scripts/vendor-libs.sh
+          git diff --exit-code keel/dashboard/vendor/ \
+            || { echo "vendor/ is stale. Run: ./scripts/vendor-libs.sh"; exit 1; }

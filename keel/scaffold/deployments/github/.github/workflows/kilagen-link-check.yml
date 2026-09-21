@@ -1,0 +1,32 @@
+# Check all internal and external markdown links using lychee.
+name: Link check
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1" # Every Monday at 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: link-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  link-check:
+    # Runs on a GitHub-hosted runner to avoid SSRF risk: lychee fetches every
+    # URL in markdown files, which could target internal services or cloud
+    # metadata endpoints reachable from a self-hosted runner.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.3.1
+
+      - name: Run lychee
+        uses: lycheeverse/lychee-action@8646ba30535128ac92d33dfc9133794bfdd9b411 # v2.8.0
+        with:
+          args: --config .lychee.toml "**/*.md" --no-progress
+          fail: true

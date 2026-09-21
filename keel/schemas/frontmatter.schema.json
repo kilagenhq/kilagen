@@ -1,0 +1,1002 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kilagen.com/schemas/frontmatter.schema.json",
+  "title": "Kilagen Frontmatter",
+  "description": "Validates the YAML frontmatter of every document in program/. A folder names the document type; every classification is a facet validated against program/model/.",
+  "$defs": {
+    "iso_date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "ISO 8601 date (YYYY-MM-DD)"
+    },
+    "doc_id": {
+      "type": "string",
+      "pattern": "^(pol|std|pro|rb|pb|gl|role|vnd|thr|tm|da|bp|rsk|exc|gap|dec|inc)-[a-z0-9][a-z0-9-]*$",
+      "description": "Lowercase kebab-case id carrying its type prefix. Equal to the filename without .md."
+    },
+    "role_ref": {
+      "type": "string",
+      "pattern": "^role-[a-z0-9][a-z0-9-]*$",
+      "description": "Reference to a role document in program/roles/"
+    },
+    "role_ref_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/role_ref"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "facet_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*(\\.[a-z0-9][a-z0-9-]*)*$",
+      "description": "An id from a closed vocabulary in program/model/"
+    },
+    "facet_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/facet_id"
+      },
+      "uniqueItems": true
+    },
+    "related_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/doc_id"
+      },
+      "uniqueItems": true,
+      "description": "Flat list of document ids. The target's type is derived from its prefix; grouping is a render-time concern."
+    },
+    "status_enum": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "retired"
+      ],
+      "description": "The status of the document itself. Never a mirror of a tracker's state, and never `superseded`: being superseded is derived from another document declaring `supersedes`."
+    },
+    "severity_enum": {
+      "type": "string",
+      "enum": [
+        "negligible",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "tracker_url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://",
+      "description": "Link to the tracker item that owns this work's lifecycle. A pointer, never a copy."
+    },
+    "requirement_ref": {
+      "type": "string",
+      "pattern": "^std-[a-z0-9][a-z0-9-]*#[0-9]+(\\.[0-9]+)*$",
+      "description": "A requirement inside a standard, as <standard-id>#<ref> (e.g. std-access-control#3.2)"
+    },
+    "evidence_array": {
+      "type": "array",
+      "description": "Named links to the material that demonstrates a requirement. Held outside the repository; binaries are never committed. This belongs to a requirement, never to a document: nobody asks for 'the evidence of the Access Control Standard', they ask for the evidence that entitlements are certified.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://"
+          },
+          "collected": {
+            "$ref": "#/$defs/iso_date",
+            "description": "The day this artefact was produced or refreshed. Evidence has an implicit expiry and this is what lets check say so."
+          },
+          "freshness": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "quarterly",
+              "semi-annually",
+              "annually",
+              "every-2-years",
+              "every-3-years"
+            ],
+            "description": "How often the artefact has to be renewed. The same closed set as schedule.yml, so there is one vocabulary of periodicity and not two."
+          },
+          "collector": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "Name of the collector that refreshes this entry: collectors/<name>.py in the instance, or one shipped with the framework. A collector returns a url and a date and never writes the artefact into the repository."
+          }
+        },
+        "required": [
+          "name",
+          "url"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "publish_field": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "none",
+            "all"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*$"
+          },
+          "uniqueItems": true
+        }
+      ],
+      "description": "Override of the per-type default in publish.yml. Destinations are validated against the ones it declares."
+    },
+    "frameworks_object": {
+      "type": "object",
+      "description": "Document-level framework tags. Standards do not use this — they map per requirement.",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*$": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "risk_category_object": {
+      "type": "object",
+      "properties": {
+        "principle": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "category1": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "category2": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        }
+      },
+      "required": [
+        "principle",
+        "category1",
+        "category2"
+      ],
+      "additionalProperties": false
+    },
+    "requirements_array": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The numbered requirements this standard imposes. Framework mappings live here, per requirement, which is what makes coverage auditable.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)*$"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "frameworks": {
+            "$ref": "#/$defs/frameworks_object"
+          },
+          "how_demonstrated": {
+            "type": "string",
+            "description": "How compliance with this requirement is demonstrated, in one sentence. The method, not the proof: the proof is `evidence`."
+          },
+          "evidence": {
+            "$ref": "#/$defs/evidence_array"
+          }
+        },
+        "required": [
+          "ref",
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "common": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/doc_id"
+        },
+        "type": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owner": {
+          "$ref": "#/$defs/role_ref"
+        },
+        "version": {
+          "type": "string",
+          "description": "Document version for the audit trail"
+        },
+        "domains": {
+          "$ref": "#/$defs/facet_array"
+        },
+        "capabilities": {
+          "$ref": "#/$defs/facet_array"
+        },
+        "systems": {
+          "$ref": "#/$defs/facet_array"
+        },
+        "related": {
+          "$ref": "#/$defs/related_array"
+        },
+        "publish": {
+          "$ref": "#/$defs/publish_field"
+        },
+        "supersedes": {
+          "$ref": "#/$defs/related_array"
+        },
+        "source_of_truth": {
+          "$ref": "#/$defs/source_of_truth"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "title",
+        "description",
+        "owner"
+      ]
+    },
+    "declared_status": {
+      "type": "object",
+      "description": "Where the document's own lifecycle is declared. gap and exception have none: their state is computed from remediated/superseded_by and revoked/expires, and a second source could only contradict it.",
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/status_enum"
+        }
+      },
+      "required": [
+        "status"
+      ]
+    },
+    "reviewed": {
+      "type": "object",
+      "properties": {
+        "last_reviewed": {
+          "$ref": "#/$defs/iso_date"
+        },
+        "next_review": {
+          "$ref": "#/$defs/iso_date"
+        }
+      },
+      "required": [
+        "last_reviewed",
+        "next_review"
+      ]
+    },
+    "immutable": {
+      "type": "object",
+      "description": "Immutable types record when the event happened instead of when the document was last read.",
+      "properties": {
+        "immutable": {
+          "const": true
+        }
+      }
+    },
+    "cia_object": {
+      "type": "object",
+      "description": "What the organisation entrusts to this supplier, rated on the same scale as everything else. It is an assessment, and it stays inside the boundary only because a vnd-* document has an owner and a next_review — the annual reassessment touches it again. The same three values loose in a YAML nobody reviews would be outside it.",
+      "properties": {
+        "confidentiality": {
+          "$ref": "#/$defs/severity_enum"
+        },
+        "integrity": {
+          "$ref": "#/$defs/severity_enum"
+        },
+        "availability": {
+          "$ref": "#/$defs/severity_enum"
+        }
+      },
+      "required": [
+        "confidentiality",
+        "integrity",
+        "availability"
+      ],
+      "additionalProperties": false
+    },
+    "source_of_truth": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://",
+      "description": "The system that owns this fact. When it is set the document is a record, not the original: whatever is at the far end wins, and this copy exists so the program can reference it."
+    },
+    "certifications_array": {
+      "type": "array",
+      "description": "Certifications the vendor holds. A claim about somebody else, so it carries the day it was verified and, where there is one, the report behind it.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "verified": {
+            "$ref": "#/$defs/iso_date",
+            "description": "The day the claim was checked against the vendor's own report. Optional in the schema so a migration never has to invent a date; `check` warns about a certification nobody has dated."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "allOf": [
+    {
+      "$ref": "#/$defs/common"
+    }
+  ],
+  "oneOf": [
+    {
+      "title": "policy",
+      "description": "pol-* documents, stored in program/policies/",
+      "properties": {
+        "type": {
+          "const": "policy"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^pol-[a-z0-9][a-z0-9-]*$"
+        },
+        "approved_by": {
+          "$ref": "#/$defs/role_ref_array"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/declared_status"
+        },
+        {
+          "$ref": "#/$defs/reviewed"
+        }
+      ]
+    },
+    {
+      "title": "standard",
+      "description": "std-* documents, stored in program/standards/",
+      "properties": {
+        "type": {
+          "const": "standard"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^std-[a-z0-9][a-z0-9-]*$"
+        },
+        "requirements": {
+          "$ref": "#/$defs/requirements_array"
+        },
+        "approved_by": {
+          "$ref": "#/$defs/role_ref_array"
+        }
+      },
+      "required": [
+        "type",
+        "requirements"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/declared_status"
+        },
+        {
+          "$ref": "#/$defs/reviewed"
+        }
+      ]
+    },
+    {
+      "title": "process",
+      "description": "pro-* documents, stored in program/processes/",
+      "properties": {
+        "type": {
+          "const": "process"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^pro-[a-z0-9][a-z0-9-]*$"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/declared_status"
+        },
+        {
+          "$ref": "#/$defs/reviewed"
+        }
+      ]
+    },
+    {
+      "title": "runbook",
+      "description": "rb-* documents, stored in program/runbooks/",
+      "properties": {
+        "type": {
+          "const": "runbook"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^rb-[a-z0-9][a-z0-9-]*$"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/declared_status"
+        },
+        {
+          "$ref": "#/$defs/reviewed"
+        }
+      ]
+    },
+    {
+      "title": "playbook",
+      "description": "pb-* documents, stored in program/playbooks/",
+      "properties": {
+        "type": {
+          "const": "playbook"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^pb-[a-z0-9][a-z0-9-]*$"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/declared_status"
+        },
+        {
+          "$ref": "#/$defs/reviewed"
+        }
+      ]
+    },
+    {
+      "title": "guideline",
+      "description": "gl-* documents, stored in program/guidelines/",
+      "properties": {
+        "type": {
+          "const": "guideline"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^gl-[a-z0-9][a-z0-9-]*$"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/declared_status"
+        },
+        {
+          "$ref": "#/$defs/reviewed"
+        }
+      ]
+    },
+    {
+      "title": "role",
+      "description": "role-* documents, stored in program/roles/",
+      "properties": {
+        "type": {
+          "const": "role"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^role-[a-z0-9][a-z0-9-]*$"
+        },
+        "role_type": {
+          "type": "string",
+          "enum": [
+            "individual",
+            "committee",
+            "external"
+          ]
+        },
+        "reports_to": {
+          "$ref": "#/$defs/role_ref"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/declared_status"
+        },
+        {
+          "$ref": "#/$defs/reviewed"
+        }
+      ]
+    },
+    {
+      "title": "vendor",
+      "description": "vnd-* documents, stored in program/vendors/",
+      "properties": {
+        "type": {
+          "const": "vendor"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^vnd-[a-z0-9][a-z0-9-]*$"
+        },
+        "vendor_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Legal or trading name of the supplier"
+        },
+        "tier": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "important",
+            "standard"
+          ]
+        },
+        "criticality": {
+          "$ref": "#/$defs/severity_enum",
+          "description": "How much it would hurt to lose this supplier. Third-party risk is the assessment a security program genuinely owns; an internal system's criticality belongs to the estate."
+        },
+        "cia": {
+          "$ref": "#/$defs/cia_object"
+        },
+        "rto": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Recovery time objective the supplier commits to, e.g. '4h'."
+        },
+        "rpo": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Recovery point objective the supplier commits to, e.g. '1h'."
+        },
+        "certifications": {
+          "$ref": "#/$defs/certifications_array"
+        },
+        "data_scope": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Kinds of data the vendor processes"
+        }
+      },
+      "required": [
+        "type",
+        "vendor_name",
+        "tier"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/declared_status"
+        },
+        {
+          "$ref": "#/$defs/reviewed"
+        }
+      ]
+    },
+    {
+      "title": "threat",
+      "description": "thr-* documents, stored in program/threats/",
+      "properties": {
+        "type": {
+          "const": "threat"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^thr-[a-z0-9][a-z0-9-]*$"
+        },
+        "severity": {
+          "$ref": "#/$defs/severity_enum"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Rank within the threat profile — 1 is the highest"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/declared_status"
+        },
+        {
+          "$ref": "#/$defs/reviewed"
+        }
+      ]
+    },
+    {
+      "title": "threat-model",
+      "description": "tm-* documents, stored in program/threat-models/",
+      "properties": {
+        "type": {
+          "const": "threat-model"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^tm-[a-z0-9][a-z0-9-]*$"
+        },
+        "methodology": {
+          "type": "string",
+          "enum": [
+            "stride",
+            "pasta",
+            "linddun",
+            "attack-tree",
+            "other"
+          ]
+        },
+        "scope": {
+          "type": "string",
+          "description": "What the model covers, in one line"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/declared_status"
+        },
+        {
+          "$ref": "#/$defs/reviewed"
+        }
+      ]
+    },
+    {
+      "title": "data-asset",
+      "description": "da-* documents, stored in program/data-assets/",
+      "properties": {
+        "type": {
+          "const": "data-asset"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^da-[a-z0-9][a-z0-9-]*$"
+        },
+        "classification": {
+          "type": "string",
+          "enum": [
+            "public",
+            "internal",
+            "confidential",
+            "restricted"
+          ]
+        },
+        "pii": {
+          "type": "boolean"
+        },
+        "retention_years": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "retention_justification": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "classification"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/declared_status"
+        },
+        {
+          "$ref": "#/$defs/reviewed"
+        }
+      ]
+    },
+    {
+      "title": "business-process",
+      "description": "bp-* documents, stored in program/business-processes/",
+      "properties": {
+        "type": {
+          "const": "business-process"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^bp-[a-z0-9][a-z0-9-]*$"
+        },
+        "business_function": {
+          "type": "string"
+        },
+        "criticality": {
+          "$ref": "#/$defs/severity_enum"
+        },
+        "rto": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Recovery time objective"
+        },
+        "rpo": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Recovery point objective"
+        }
+      },
+      "required": [
+        "type",
+        "business_function"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/declared_status"
+        },
+        {
+          "$ref": "#/$defs/reviewed"
+        }
+      ]
+    },
+    {
+      "title": "risk",
+      "description": "rsk-* documents, stored in program/risks/",
+      "properties": {
+        "type": {
+          "const": "risk"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^rsk-[a-z0-9][a-z0-9-]*$"
+        },
+        "risk_category": {
+          "$ref": "#/$defs/risk_category_object"
+        },
+        "root_causes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          }
+        },
+        "severity": {
+          "$ref": "#/$defs/severity_enum"
+        },
+        "likelihood": {
+          "$ref": "#/$defs/severity_enum"
+        },
+        "impact": {
+          "$ref": "#/$defs/severity_enum"
+        },
+        "treatment": {
+          "type": "string",
+          "enum": [
+            "mitigate",
+            "avoid",
+            "transfer",
+            "accept",
+            "tbd"
+          ]
+        },
+        "tracker": {
+          "$ref": "#/$defs/tracker_url"
+        }
+      },
+      "required": [
+        "type",
+        "severity"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/declared_status"
+        },
+        {
+          "$ref": "#/$defs/reviewed"
+        }
+      ]
+    },
+    {
+      "title": "exception",
+      "description": "exc-* documents, stored in program/exceptions/",
+      "properties": {
+        "type": {
+          "const": "exception"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^exc-[a-z0-9][a-z0-9-]*$"
+        },
+        "requirement": {
+          "$ref": "#/$defs/requirement_ref"
+        },
+        "approved_by": {
+          "$ref": "#/$defs/role_ref_array"
+        },
+        "expires": {
+          "$ref": "#/$defs/iso_date"
+        },
+        "risk_severity": {
+          "$ref": "#/$defs/severity_enum"
+        },
+        "compensating_controls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "revoked": {
+          "$ref": "#/$defs/iso_date",
+          "description": "Write-once: the day approval was withdrawn"
+        }
+      },
+      "required": [
+        "type",
+        "requirement",
+        "approved_by",
+        "expires"
+      ]
+    },
+    {
+      "title": "gap",
+      "description": "gap-* documents, stored in program/gaps/",
+      "properties": {
+        "type": {
+          "const": "gap"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^gap-[a-z0-9][a-z0-9-]*$"
+        },
+        "requirement": {
+          "$ref": "#/$defs/requirement_ref"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "audit",
+            "pentest",
+            "risk-assessment",
+            "bug-bounty",
+            "threat-model",
+            "internal"
+          ]
+        },
+        "found": {
+          "$ref": "#/$defs/iso_date"
+        },
+        "severity": {
+          "$ref": "#/$defs/severity_enum"
+        },
+        "tracker": {
+          "$ref": "#/$defs/tracker_url"
+        },
+        "remediated": {
+          "$ref": "#/$defs/iso_date",
+          "description": "Write-once: the day the shortfall was closed. Never a mirrored status."
+        },
+        "excepted_by": {
+          "$ref": "#/$defs/doc_id",
+          "description": "The approved exception that closes this gap. Write-once, and the other way a gap ends besides `remediated`. It used to be `superseded_by`, which also meant 'a newer version replaced this document' — one field, two meanings."
+        },
+        "source_url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://",
+          "description": "The report, ticket or scan that found this. `source` says what kind of exercise it was; this says which one."
+        }
+      },
+      "required": [
+        "type",
+        "requirement",
+        "source",
+        "found"
+      ]
+    },
+    {
+      "title": "decision",
+      "description": "dec-* documents, stored in program/decisions/",
+      "properties": {
+        "type": {
+          "const": "decision"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^dec-[a-z0-9][a-z0-9-]*$"
+        },
+        "decided": {
+          "$ref": "#/$defs/iso_date"
+        }
+      },
+      "required": [
+        "type",
+        "decided"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/declared_status"
+        },
+        {
+          "$ref": "#/$defs/immutable"
+        }
+      ]
+    },
+    {
+      "title": "incident",
+      "description": "inc-* documents, stored in program/incidents/",
+      "properties": {
+        "type": {
+          "const": "incident"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^inc-[a-z0-9][a-z0-9-]*$"
+        },
+        "occurred": {
+          "$ref": "#/$defs/iso_date"
+        },
+        "severity": {
+          "$ref": "#/$defs/severity_enum"
+        },
+        "resolved": {
+          "$ref": "#/$defs/iso_date"
+        }
+      },
+      "required": [
+        "type",
+        "occurred",
+        "severity"
+      ],
+      "allOf": [
+        {
+          "$ref": "#/$defs/declared_status"
+        },
+        {
+          "$ref": "#/$defs/immutable"
+        }
+      ]
+    }
+  ],
+  "unevaluatedProperties": false
+}

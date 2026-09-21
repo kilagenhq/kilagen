@@ -1,0 +1,83 @@
+# PCI DSS v4.0.1 — shipped with kilagen.
+#
+# Reference-not-copy: the requirement number and its published title, plus a
+# one-line description in our own words. The normative text is behind
+# `resources`, at the PCI SSC's own URL.
+#
+# The id is the edition. This is the successor to `pci_dss` (v4.0), which the
+# PCI SSC retired on 31 December 2024; v4.0 stays shipped because a coverage
+# figure computed against it must not move under whoever published it.
+#
+# The twelve top-level requirement titles are unchanged from v4.0. What changed
+# is beneath them — dated future-requirements became effective, and a number of
+# sub-requirements were clarified — which is exactly the level this file does
+# not pin, and exactly why the edition still needs its own id.
+
+name: PCI DSS v4.0.1
+description: >
+  The Payment Card Industry Data Security Standard. It applies to any
+  organisation that stores, processes or transmits cardholder data, and it is
+  contractual rather than legal — the card brands and acquirers require it.
+granularity: The twelve top-level requirements of v4.0.1. Map at sub-requirement level (8.3.1) by overriding this file with the full set.
+
+resources:
+  - name: PCI DSS v4.0.1 document library
+    url: https://www.pcisecuritystandards.org/document_library/
+  - name: PCI Security Standards Council
+    url: https://www.pcisecuritystandards.org/
+
+groups:
+  - id: "network"
+    name: Build and Maintain a Secure Network and Systems
+    clauses:
+      - ref: "1"
+        name: Install and Maintain Network Security Controls
+        description: Segment the cardholder data environment and control what may reach it.
+      - ref: "2"
+        name: Apply Secure Configurations to All System Components
+        description: No vendor defaults, and a documented configuration standard per component type.
+  - id: "data"
+    name: Protect Account Data
+    clauses:
+      - ref: "3"
+        name: Protect Stored Account Data
+        description: Keep as little account data as possible, and render what is kept unreadable.
+      - ref: "4"
+        name: Protect Cardholder Data with Strong Cryptography During Transmission Over Open, Public Networks
+        description: Encrypt cardholder data whenever it crosses a network you do not control.
+  - id: "vuln"
+    name: Maintain a Vulnerability Management Program
+    clauses:
+      - ref: "5"
+        name: Protect All Systems and Networks from Malicious Software
+        description: Anti-malware where it is warranted, kept current and verifiable.
+      - ref: "6"
+        name: Develop and Maintain Secure Systems and Software
+        description: Patching, secure development, and change control over the payment software.
+  - id: "access"
+    name: Implement Strong Access Control Measures
+    clauses:
+      - ref: "7"
+        name: Restrict Access to System Components and Cardholder Data by Business Need to Know
+        description: Least privilege, decided by role rather than by request.
+      - ref: "8"
+        name: Identify Users and Authenticate Access to System Components
+        description: A unique identity per person and authentication strong enough for what it reaches.
+      - ref: "9"
+        name: Restrict Physical Access to Cardholder Data
+        description: Physical controls over facilities, media and devices that touch account data.
+  - id: "monitor"
+    name: Regularly Monitor and Test Networks
+    clauses:
+      - ref: "10"
+        name: Log and Monitor All Access to System Components and Cardholder Data
+        description: Audit logs that exist, are protected, and are actually reviewed.
+      - ref: "11"
+        name: Test Security of Systems and Networks Regularly
+        description: Scanning, penetration testing and detection of unauthorised change.
+  - id: "policy"
+    name: Maintain an Information Security Policy
+    clauses:
+      - ref: "12"
+        name: Support Information Security with Organizational Policies and Programs
+        description: The governance half — policy, risk assessment, training, third parties and incident response.

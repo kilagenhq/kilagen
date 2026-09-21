@@ -1,0 +1,47 @@
+# Validate that every reference in the program resolves — facets, relations, roles, requirements.
+name: Semantic references
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: semantic-refs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semantic-refs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.3.1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.12"
+
+      # The major is pinned: a new one may require migrating this
+      # program's content, which must be a deliberate act rather than
+      # something a Monday morning CI run does. "kilagen update config"
+      # raises the pin when you choose to move.
+      #
+      # Set the KILAGEN_SPEC repository variable to override the source —
+      # a branch or commit of the framework, say, while a change to it is
+      # being reviewed. The ref then acts as the pin. It is passed through
+      # env rather than interpolated into the script: a ${{ }} expression
+      # inside run: is substituted before the shell sees it, so whoever can
+      # set the variable can run commands on the runner. Repository
+      # variables are also not masked in logs, so never put a credential in
+      # one — install from a private source with a token in `secrets`.
+      - name: Install dependencies
+        env:
+          KILAGEN_SPEC: ${{ vars.KILAGEN_SPEC || 'kilagen<1' }}
+        run: pip install --quiet "$KILAGEN_SPEC"
+
+      - name: Validate cross-references
+        run: kilagen check refs

@@ -1,0 +1,29 @@
+# What travels inside the package. An instance has none of these files on
+# disk — it reaches them through the install — so anything missing here is
+# missing at runtime.
+#
+# Hidden files matter: the instance seed is almost entirely dotfiles, and
+# setuptools' package-data globs skip them. graft does not.
+
+graft keel/ai
+graft keel/collectors
+graft keel/content
+graft keel/schemas
+graft keel/scaffold
+graft keel/dashboard
+
+# The dashboard ships as the plain files the browser loads. Its build inputs
+# and test suite do not: vendor/ is the built output and is required, while
+# node_modules/ is how vendor/ gets built and would add thousands of files.
+prune keel/dashboard/node_modules
+prune keel/dashboard/tests
+exclude keel/dashboard/package.json
+exclude keel/dashboard/package-lock.json
+exclude keel/dashboard/jsconfig.json
+exclude keel/dashboard/.node-version
+recursive-exclude keel/dashboard *.test.js
+recursive-exclude keel/dashboard *.config.js
+
+global-exclude .DS_Store
+global-exclude __pycache__
+global-exclude *.py[co]

@@ -1,0 +1,40 @@
+# lychee link-checker configuration.
+# See https://github.com/lycheeverse/lychee for options.
+
+# Exclude URLs behind authentication or that block CI bots.
+exclude = [
+  ".*\\.atlassian\\.net",        # Jira — requires auth
+  "localhost",
+  "127\\.0\\.0\\.1",
+  "kilagen\\.com/schemas",  # Schema $id URLs — identifiers, not served endpoints
+  "kilagen/(blob|tree)/main",  # GitHub links to this repo — may not exist until merged
+  "drive\\.google\\.com",       # Google Drive — requires auth
+  "docs\\.google\\.com",        # Google Docs — requires auth
+  "github\\.com/.*/security/advisories/new",  # Needs a signed-in account
+  "file://.*",                   # Local file paths — not resolvable in CI
+  "admin\\.google\\.com",       # Google Admin — requires auth
+]
+
+# Skip build output (stale copies of source markdown) and the instance seed
+# (templates with placeholder/instance-relative paths, not real links).
+# node_modules is absent in the link-check job but present on a developer's
+# machine, so without it here the local run reports other projects' dead
+# links and the real ones get lost in the noise.
+exclude_path = ["_site", "keel/scaffold", "keel/dashboard/node_modules"]
+
+# Do not check mailto: links.
+include_mail = false
+
+# Accept server-side rejections where the resource still exists: 403 (forbidden
+# to bots), 429 (rate-limited), 415 (server rejects the checker's Accept header —
+# e.g. blog.rsisecurity.com returns 415 to lychee but 200 in a browser).
+accept = [200, 403, 415, 429]
+
+# Timeout per request in seconds.
+timeout = 15
+
+# Max concurrent requests.
+max_concurrency = 8
+
+# Do not follow redirects to avoid false positives from URL shorteners.
+max_redirects = 5

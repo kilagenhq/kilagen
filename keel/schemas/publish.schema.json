@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kilagen.com/schemas/publish.schema.json",
+  "title": "Kilagen publishing contract",
+  "description": "program/publish.yml — where documents are published and which types go there by default. Publishing flows one way, out of git; a destination never writes back.",
+  "type": "object",
+  "properties": {
+    "destinations": {
+      "type": "object",
+      "description": "The destinations a document's publish: field may name.",
+      "patternProperties": {
+        "^[a-z][a-z0-9_-]*$": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "defaults": {
+      "type": "object",
+      "description": "Per document type, where it is published unless the document overrides. An empty list means never, unless a document opts in.",
+      "patternProperties": {
+        "^[a-z][a-z0-9-]*$": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["destinations", "defaults"],
+  "additionalProperties": false
+}

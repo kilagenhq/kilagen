@@ -1,0 +1,3 @@
+[codespell]
+skip = .git,node_modules,*/vendor/*,*.json,*.yml,_site
+ignore-words-list = cas,nd,alledges,hsi,coo,provids

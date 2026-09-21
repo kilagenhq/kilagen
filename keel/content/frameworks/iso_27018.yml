@@ -1,0 +1,139 @@
+# ISO/IEC 27018:2019 — shipped with kilagen.
+#
+# Reference-not-copy: control reference and published title only. The control
+# and guidance text is behind `resources`, at ISO's own URL.
+#
+# The denominator is Annex A, the standard's own normative extended control
+# set for a public cloud PII processor — 25 controls. The privacy-principle
+# sections that carry no additional control (A.1 General, A.4 Collection
+# limitation, A.7 Accuracy and quality, A.9 Individual participation and
+# access) are deliberately absent: a clause nobody can map to is not a clause,
+# it is a permanent zero in the coverage figure.
+#
+# Like ISO/IEC 27017 this is an extension standard, and the half of it that
+# augments ISO/IEC 27002 controls is covered through iso_27001 rather than
+# duplicated here.
+
+name: ISO/IEC 27018:2019
+description: >
+  The code of practice for protecting personally identifiable information in
+  a public cloud, for the provider acting as a PII processor. Its extra
+  controls are the ones that only exist because the data belongs to somebody
+  else: disclosure notification, sub-processor transparency, return and
+  disposal.
+granularity: "Annex A, the public cloud PII processor extended control set — 25 controls in eight principle groups."
+
+resources:
+  - name: ISO/IEC 27018:2019
+    url: https://www.iso.org/standard/76559.html
+  - name: ISO/IEC 29100 — the privacy framework whose principles group these controls
+    url: https://www.iso.org/standard/85938.html
+
+groups:
+  - id: "A.2"
+    name: "Consent and choice"
+    description: "What the processor may and may not do with PII without the customer's say-so."
+    clauses:
+      - ref: "A.2.1"
+        name: "Obligation to co-operate regarding PII principals' rights"
+        description: "Helping the customer answer a data subject who exercises a right."
+  - id: "A.3"
+    name: "Purpose legitimacy and specification"
+    description: "Processing only for the purpose the customer set."
+    clauses:
+      - ref: "A.3.1"
+        name: "Public cloud PII processor's purpose"
+        description: "PII is processed only as the customer instructed."
+      - ref: "A.3.2"
+        name: "Public cloud PII processor's commercial use"
+        description: "No using the customer's PII for the provider's own marketing or advertising."
+  - id: "A.5"
+    name: "Data minimization"
+    description: "Holding no more than the processing needs."
+    clauses:
+      - ref: "A.5.1"
+        name: "Secure erasure of temporary files"
+        description: "Temporary files created during processing are erased, not left behind."
+  - id: "A.6"
+    name: "Use, retention and disclosure limitation"
+    description: "What happens when somebody outside asks for the data."
+    clauses:
+      - ref: "A.6.1"
+        name: "PII disclosure notification"
+        description: "Telling the customer about a request for disclosure, unless the law forbids it."
+      - ref: "A.6.2"
+        name: "Recording of PII disclosures"
+        description: "Keeping a record of what was disclosed, to whom and when."
+  - id: "A.8"
+    name: "Openness, transparency and notice"
+    description: "Being visible about who else touches the data."
+    clauses:
+      - ref: "A.8.1"
+        name: "Disclosure of sub-contracted PII processing"
+        description: "Naming the sub-processors before they are used."
+  - id: "A.10"
+    name: "Accountability"
+    description: "Owning the consequences, including when something goes wrong."
+    clauses:
+      - ref: "A.10.1"
+        name: "Notification of a data breach involving PII"
+        description: "Telling the customer about a breach, promptly and with what it needs."
+      - ref: "A.10.2"
+        name: "Retention period for administrative security policies and guidelines"
+        description: "Keeping the governing documents for as long as they are needed as evidence."
+      - ref: "A.10.3"
+        name: "PII return, transfer and disposal"
+        description: "What the customer gets back, and what is destroyed, at the end."
+  - id: "A.11"
+    name: "Information security"
+    description: "The largest group \u2014 the operational controls specific to processing someone else's PII."
+    clauses:
+      - ref: "A.11.1"
+        name: "Confidentiality or non-disclosure agreements"
+        description: "Binding the people who can reach PII."
+      - ref: "A.11.2"
+        name: "Restriction of the creation of hardcopy material"
+        description: "Paper copies of PII are the exception, not the default."
+      - ref: "A.11.3"
+        name: "Control and logging of data restoration"
+        description: "A restore is an access to PII and is recorded as one."
+      - ref: "A.11.4"
+        name: "Protecting data on storage media leaving the premises"
+        description: "Media that leaves the site is protected before it goes."
+      - ref: "A.11.5"
+        name: "Use of unencrypted portable storage media and devices"
+        description: "Portable media carrying PII is encrypted."
+      - ref: "A.11.6"
+        name: "Encryption of PII transmitted over public data-transmission networks"
+        description: "PII crossing a public network is encrypted in transit."
+      - ref: "A.11.7"
+        name: "Secure disposal of hardcopy materials"
+        description: "Paper carrying PII is destroyed, not discarded."
+      - ref: "A.11.8"
+        name: "Unique use of user IDs"
+        description: "One identity per person, never shared."
+      - ref: "A.11.9"
+        name: "Records of authorized users"
+        description: "An up-to-date record of who may reach PII."
+      - ref: "A.11.10"
+        name: "User ID management"
+        description: "A de-activated or expired user ID is never reissued to somebody else."
+      - ref: "A.11.11"
+        name: "Contract measures"
+        description: "The contract states the minimum technical and organisational measures."
+      - ref: "A.11.12"
+        name: "Sub-contracted PII processing"
+        description: "A sub-processor is bound to the same measures as the processor."
+      - ref: "A.11.13"
+        name: "Access to data on pre-used data storage space"
+        description: "Reassigned storage never shows the previous tenant's data."
+  - id: "A.12"
+    name: "Privacy compliance"
+    description: "Where the data physically is, and where it may go."
+    clauses:
+      - ref: "A.12.1"
+        name: "Geographical location of PII"
+        description: "Telling the customer which countries the PII may be stored in."
+      - ref: "A.12.2"
+        name: "Intended destination of PII"
+        description: "Where PII is transmitted to, and on what basis."

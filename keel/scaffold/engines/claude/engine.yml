@@ -1,0 +1,4 @@
+# Claude Code discovers skills at .claude/skills/<name>/SKILL.md, so the
+# vendor-neutral skills in the package are rendered into that layout.
+name: Claude Code
+skills_dir: .claude/skills

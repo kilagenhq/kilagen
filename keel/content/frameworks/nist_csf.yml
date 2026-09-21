@@ -1,0 +1,123 @@
+# NIST Cybersecurity Framework 2.0 — shipped with kilagen.
+#
+# Reference-not-copy. A clause carries its published identifier and name,
+# because the name is what makes the identifier legible; the description is
+# written by us, briefly and generically. The normative text is never here —
+# it is behind `resources`, at NIST's own URL.
+#
+# The id is the edition. If NIST publishes a 3.0, that is a new id, not an
+# edit of this file: coverage figures computed against an edition must not
+# move underneath the people who published them.
+
+name: NIST Cybersecurity Framework 2.0
+description: >
+  A voluntary framework of cybersecurity outcomes, organised as six functions.
+  It is written to be used by any organisation, of any size, in any sector,
+  and it says what should be achieved rather than how — which is why it maps
+  cleanly onto a program's own requirements.
+granularity: CSF 2.0 Categories — 22 clauses. Map at subcategory level (GV.OC-01) by overriding this file.
+
+resources:
+  - name: NIST CSF 2.0 (NIST CSWP 29)
+    url: https://nvlpubs.nist.gov/nistpubs/CSWP/NIST.CSWP.29.pdf
+  - name: NIST Cybersecurity Framework home
+    url: https://www.nist.gov/cyberframework
+
+groups:
+  - id: GV
+    name: Govern
+    description: How the organisation decides what it wants, who is accountable, and how it watches itself.
+    color: "#6c5a8c"
+    center: true
+    clauses:
+      - ref: "GV.OC"
+        name: Organizational Context
+        description: The mission, the stakeholders and the legal obligations the program has to serve.
+      - ref: "GV.RM"
+        name: Risk Management Strategy
+        description: The organisation's stated appetite for risk and how it decides what to accept.
+      - ref: "GV.RR"
+        name: Roles, Responsibilities, and Authorities
+        description: Who is accountable for what, and who may decide.
+      - ref: "GV.PO"
+        name: Policy
+        description: The written direction the rest of the program derives from.
+      - ref: "GV.OV"
+        name: Oversight
+        description: Reviewing whether the strategy is working and adjusting it.
+      - ref: "GV.SC"
+        name: Cybersecurity Supply Chain Risk Management
+        description: Managing the risk that arrives through suppliers and third parties.
+  - id: ID
+    name: Identify
+    description: Knowing what you have and what threatens it.
+    color: "#3f6fa8"
+    clauses:
+      - ref: "ID.AM"
+        name: Asset Management
+        description: The inventory of what the organisation runs and the data it holds.
+      - ref: "ID.RA"
+        name: Risk Assessment
+        description: Understanding which threats matter and how much.
+      - ref: "ID.IM"
+        name: Improvement
+        description: Learning from tests, incidents and reviews, and acting on it.
+  - id: PR
+    name: Protect
+    description: The safeguards that keep the bad outcome from happening.
+    color: "#7a4f94"
+    clauses:
+      - ref: "PR.AA"
+        name: Identity Management, Authentication, and Access Control
+        description: Who gets in, proving they are who they claim, and what they may reach.
+      - ref: "PR.AT"
+        name: Awareness and Training
+        description: Making people able to play their part.
+      - ref: "PR.DS"
+        name: Data Security
+        description: Protecting data at rest, in transit and in use.
+      - ref: "PR.PS"
+        name: Platform Security
+        description: Hardening and maintaining the hardware, software and services in use.
+      - ref: "PR.IR"
+        name: Technology Infrastructure Resilience
+        description: Building the infrastructure so that it survives failure and attack.
+  - id: DE
+    name: Detect
+    description: Noticing that something has happened.
+    color: "#b08a22"
+    clauses:
+      - ref: "DE.CM"
+        name: Continuous Monitoring
+        description: Watching assets and networks for signs of an adverse event.
+      - ref: "DE.AE"
+        name: Adverse Event Analysis
+        description: Working out whether what was seen is actually an incident.
+  - id: RS
+    name: Respond
+    description: Acting once something has happened.
+    color: "#b1533a"
+    clauses:
+      - ref: "RS.MA"
+        name: Incident Management
+        description: Running the response — triage, escalation and closure.
+      - ref: "RS.AN"
+        name: Incident Analysis
+        description: Investigating what happened and how far it reached.
+      - ref: "RS.CO"
+        name: Incident Response Reporting and Communication
+        description: Telling the people inside and outside who need to know.
+      - ref: "RS.MI"
+        name: Incident Mitigation
+        description: Containing the incident and stopping it spreading.
+  - id: RC
+    name: Recover
+    description: Getting back to normal, and saying so.
+    color: "#3f8a6e"
+    clauses:
+      - ref: "RC.RP"
+        name: Incident Recovery Plan Execution
+        description: Restoring the affected systems and data to service.
+      - ref: "RC.CO"
+        name: Incident Recovery Communication
+        description: Keeping stakeholders informed while recovery runs.

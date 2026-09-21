@@ -1,0 +1,108 @@
+# SOC 2 Trust Services Criteria — shipped with kilagen.
+#
+# Reference-not-copy in its strictest form here. A SOC 2 criterion has no
+# short title: the criterion *is* a sentence, so reproducing it would be
+# copying rather than referencing. Each clause therefore carries its reference
+# only, and the meaning is carried by the group it sits in. The criteria text
+# is behind `resources`.
+#
+# Common Criteria CC1-CC9 apply to every SOC 2 report. Availability (A1) and
+# Confidentiality (C1) are additional categories an entity opts into; Processing
+# Integrity and Privacy are not in this edition — an entity whose report covers
+# them overrides this file rather than carrying them permanently unmapped.
+
+name: SOC 2 Trust Services Criteria
+description: >
+  The AICPA criteria a SOC 2 examination reports against. Unlike a
+  certification standard it has no control list of its own: the auditor tests
+  whether the entity's own controls meet each criterion, which is why mapping
+  requirements to criteria is the whole exercise.
+granularity: "Common Criteria (33) plus the Availability and Confidentiality categories — 38 criteria."
+
+resources:
+  - name: AICPA — SOC 2 and the Trust Services Criteria
+    url: https://www.aicpa-cima.com/resources/landing/system-and-organization-controls-soc-suite-of-services
+
+groups:
+  - id: "CC1"
+    name: "Control Environment"
+    description: "Integrity, governance, competence and accountability \u2014 the COSO principles the rest rests on."
+    clauses:
+      - "CC1.1"
+      - "CC1.2"
+      - "CC1.3"
+      - "CC1.4"
+      - "CC1.5"
+  - id: "CC2"
+    name: "Communication and Information"
+    description: "Whether the right information reaches the people who need it, inside and outside."
+    clauses:
+      - "CC2.1"
+      - "CC2.2"
+      - "CC2.3"
+  - id: "CC3"
+    name: "Risk Assessment"
+    description: "Setting objectives and identifying what could stop the entity meeting them."
+    clauses:
+      - "CC3.1"
+      - "CC3.2"
+      - "CC3.3"
+      - "CC3.4"
+  - id: "CC4"
+    name: "Monitoring Activities"
+    description: "Evaluating whether the controls are present and working, and reporting deficiencies."
+    clauses:
+      - "CC4.1"
+      - "CC4.2"
+  - id: "CC5"
+    name: "Control Activities"
+    description: "Selecting and deploying controls, including over technology, through policy."
+    clauses:
+      - "CC5.1"
+      - "CC5.2"
+      - "CC5.3"
+  - id: "CC6"
+    name: "Logical and Physical Access Controls"
+    description: "Who may reach what, how they prove it, and how access is removed."
+    clauses:
+      - "CC6.1"
+      - "CC6.2"
+      - "CC6.3"
+      - "CC6.4"
+      - "CC6.5"
+      - "CC6.6"
+      - "CC6.7"
+      - "CC6.8"
+  - id: "CC7"
+    name: "System Operations"
+    description: "Detecting and responding to anomalies, incidents and configuration drift."
+    clauses:
+      - "CC7.1"
+      - "CC7.2"
+      - "CC7.3"
+      - "CC7.4"
+      - "CC7.5"
+  - id: "CC8"
+    name: "Change Management"
+    description: "Authorising, designing, testing and approving changes to the system."
+    clauses:
+      - "CC8.1"
+  - id: "CC9"
+    name: "Risk Mitigation"
+    description: "Risk mitigation activities, including how vendors and business partners are managed."
+    clauses:
+      - "CC9.1"
+      - "CC9.2"
+  - id: "A1"
+    name: "Availability"
+    description: "The additional category covering availability commitments \u2014 capacity, backup and recovery."
+    clauses:
+      - "A1.1"
+      - "A1.2"
+      - "A1.3"
+  - id: "C1"
+    name: "Confidentiality"
+    description: "The additional category covering confidential information, from identification to disposal."
+    clauses:
+      - "C1.1"
+      - "C1.2"

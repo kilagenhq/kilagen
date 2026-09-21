@@ -1,0 +1,69 @@
+<!--
+  kilagen dashboard
+  Deployed via GitHub Pages. See keel/dashboard/README.md for details.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; font-src 'self';">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta name="referrer" content="no-referrer">
+<title>Security Program</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'><rect width='1024' height='1024' rx='180' fill='%231B1F22'/><g fill='%2367E6AE'><path d='M470 250 H554 V690 C554 714 542 737 524 754 L512 766 L500 754 C482 737 470 714 470 690 Z'/><path d='M170 690 H430 C452 690 470 708 470 730 V742 L438 710 H210 Z'/><path d='M594 690 H854 L814 710 H586 L554 742 V730 C554 708 572 690 594 690 Z'/></g></svg>">
+<!-- Vendored libs: marked 16.3.0, DOMPurify 3.4.15, js-yaml 4.3.2. Zero external requests.
+     Pinned in package.json, built by scripts/vendor-libs.sh; a test keeps this line honest. -->
+<script src="vendor/marked.umd.min.js"></script>
+<script src="vendor/purify.min.js"></script>
+<script src="vendor/js-yaml.min.js"></script>
+<link rel="stylesheet" href="app.css">
+<!-- The instance's own palette, if it wrote one: program/branding.css,
+     copied here by build. Nine public tokens, documented in app.css. -->
+<link rel="stylesheet" href="branding.css">
+</head>
+<body>
+<header>
+<button class="hamburger-btn" id="hamburger">&#9776;</button>
+<span class="app-title">
+  <svg width="24" height="18" viewBox="150 230 724 556" fill="currentColor" class="app-title-mark" aria-hidden="true"><path d="M470 250 H554 V690 C554 714 542 737 524 754 L512 766 L500 754 C482 737 470 714 470 690 Z"/><path d="M170 690 H430 C452 690 470 708 470 730 V742 L438 710 H210 Z"/><path d="M594 690 H854 L814 710 H586 L554 742 V730 C554 708 572 690 594 690 Z"/></svg>
+  <span class="app-title-lines">
+    <span class="app-title-name">Security Program</span>
+    <span class="app-title-sub">Security program</span>
+  </span>
+</span>
+<nav class="app-nav" id="app-nav" aria-label="Lenses"></nav>
+<span class="spacer"></span>
+<button class="theme-toggle" id="help-btn" title="How Kilagen works">?</button>
+<button class="theme-toggle" id="dark-toggle" title="Toggle dark mode">&#x263E;</button>
+</header>
+<!-- Keyboard shortcuts modal -->
+<div class="kbd-modal-overlay" id="kbd-modal">
+<div class="kbd-modal" role="dialog" aria-modal="true" aria-labelledby="kbd-modal-title" tabindex="-1">
+  <h2 id="kbd-modal-title">Keyboard shortcuts</h2>
+  <div class="kbd-modal-row"><span class="kbd-modal-action">Search</span><span class="kbd-modal-key"><span class="kbd">/</span></span></div>
+  <div class="kbd-modal-row"><span class="kbd-modal-action">Go home</span><span class="kbd-modal-key"><span class="kbd">Esc</span></span></div>
+  <div class="kbd-modal-row"><span class="kbd-modal-action">Navigate sidebar</span><span class="kbd-modal-key"><span class="kbd">&larr;</span> <span class="kbd">&rarr;</span></span></div>
+  <div class="kbd-modal-row"><span class="kbd-modal-action">Toggle dark mode</span><span class="kbd-modal-key"><span class="kbd">D</span></span></div>
+  <div class="kbd-modal-row"><span class="kbd-modal-action">Show this help</span><span class="kbd-modal-key"><span class="kbd">?</span></span></div>
+  <div class="kbd-modal-row kbd-modal-footer">Press <span class="kbd">Esc</span> or <span class="kbd">?</span> to close</div>
+</div>
+</div>
+<div class="container">
+<nav id="sidebar" aria-label="Program navigation">
+<div class="sidebar-resize" id="sidebar-resize"></div>
+<input id="search" type="text" placeholder="Search... (/)" aria-label="Search the program">
+<div id="tree"></div>
+</nav>
+<button class="panel-edge-btn left" id="sidebar-toggle" title="Toggle sidebar">&#x2039;</button>
+<main id="main"></main>
+<button class="panel-edge-btn right" id="right-toggle" title="Toggle panel">&#x203A;</button>
+<aside class="right-wrapper" id="right-wrapper" aria-label="Document details">
+<div class="right-resize" id="right-resize"></div>
+<div id="right"></div>
+</aside>
+</div>
+<button class="scroll-top-btn" id="scroll-top" title="Scroll to top">&#x2191;</button>
+<script type="module" src="modules/main.js"></script>
+</body>
+</html>

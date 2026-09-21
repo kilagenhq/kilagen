@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kilagen.com/schemas/config.schema.json",
+  "title": "Kilagen program configuration",
+  "description": "program/config.yml — who this program belongs to, how far its content has been migrated, and which frameworks it is measured against. Coverage is computed over those frameworks and nothing else.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The program's name, shown in the dashboard header."
+    },
+    "repo": {
+      "type": "string",
+      "pattern": "^$|^(https?://(www\\.)?github\\.com/)?[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(\\.git)?/?$",
+      "description": "Where this repository lives, as 'owner/repo' or its github.com URL. Used to link a document back to its source; leave empty for none."
+    },
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "How far the content has been migrated. Written by 'kilagen update content'; never edited by hand."
+    },
+    "organization": {
+      "type": "object",
+      "description": "Who the program belongs to. Rendered in the About view.",
+      "properties": {
+        "legal_name": {
+          "type": "string"
+        },
+        "industry": {
+          "type": "string"
+        },
+        "jurisdictions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "headcount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "remote_first": {
+          "type": "boolean"
+        },
+        "license": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "frameworks": {
+      "type": "array",
+      "description": "The frameworks in scope. An id is enough — Kilagen ships the clause vocabularies.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "description": "Resolved against the shipped catalogue, then program/model/frameworks/."
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^https://"
+          },
+          "binding": {
+            "enum": [
+              "mandatory",
+              "voluntary",
+              "reference"
+            ],
+            "description": "Who checks. mandatory: a law, a regulator or a contract requires it. voluntary: you audit yourself and assert conformity. reference: you use it as guidance and assert nothing."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "stale_gap_days": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3650,
+      "default": 90,
+      "description": "How many days a gap may stay open before check calls it stale. The number is arbitrary but it has to be declared: past it, an open gap is either a remediation that stalled or an exception nobody filed, and the check exists to force that choice."
+    }
+  },
+  "required": [
+    "name",
+    "schema_version"
+  ],
+  "additionalProperties": false
+}

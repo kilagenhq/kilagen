@@ -1,0 +1,34 @@
+# markdownlint configuration — rules and file selection.
+# Docs: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+
+globs:
+  - "**/*.md"
+ignores:
+  - "keel/dashboard/**"
+  - "keel/scaffold/**"
+  - ".github/**"
+  - "node_modules/**"
+  - "_site/**"
+  - "build/**"
+  - "dist/**"
+  - ".venv/**"
+
+config:
+  # No line length limit.
+  MD013: false
+  # Allow inline HTML — needed for mermaid diagrams and special formatting.
+  MD033: false
+  # First line does not need to be an H1 — all docs start with YAML frontmatter.
+  MD041: false
+  # Allow duplicate headings in different sections (e.g. multiple ## Steps).
+  MD024:
+    siblings_only: true
+  # Allow multiple H1 headings — frontmatter title: is counted as first H1.
+  MD025: false
+  # Allow consecutive blank lines — the shipped templates use them to separate
+  # the frontmatter block from the guidance under each heading.
+  MD012: false
+  # Allow fenced code blocks without language — directory trees and mixed snippets.
+  MD040: false
+  # Allow compact table style — all tables in this repo use |---|---| separators.
+  MD060: false

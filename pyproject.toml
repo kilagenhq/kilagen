@@ -1,0 +1,56 @@
+[build-system]
+# 77 is the first release that understands the PEP 639 "license" expression
+# and "license-files"; on anything older the fields below are silently ignored.
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kilagen"
+version = "0.1.0"
+description = "Git-native, AI-first toolkit to build and run a security program as Markdown and YAML in a Git repository"
+readme = "README.md"
+# Strictly this distribution is "Apache-2.0 AND MIT-0": the directories that
+# kilagen init copies into the user's repository are MIT-0, so a program
+# carries no attribution obligation from its own scaffolding. Declared as
+# Apache-2.0 alone because that is what PyPI displays and what people search
+# on, and the nested LICENSE files carry the nuance. Deliberate.
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE", "keel/*/LICENSE", "keel/content/*/LICENSE"]
+requires-python = ">=3.10"
+keywords = ["security", "grc", "compliance", "docs-as-code"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Information Technology",
+  "Programming Language :: Python :: 3",
+  "Topic :: Security",
+]
+
+# Runtime dependencies of the shipped framework only. Development tooling for
+# this repository lives in scripts/requirements.txt and is not part of the
+# package: an instance installs kilagen, it does not develop it.
+dependencies = [
+  "pyyaml>=6.0",
+  "jsonschema>=4.23",
+]
+
+[project.scripts]
+kilagen = "kilagen.cli:main"
+
+# kilagen.com is registered but does not serve a site yet, so the repository
+# is the homepage: a dead link on the package page is worse than no domain.
+[project.urls]
+Homepage = "https://github.com/kilagenhq/kilagen"
+Repository = "https://github.com/kilagenhq/kilagen"
+Changelog = "https://github.com/kilagenhq/kilagen/blob/main/CHANGELOG.md"
+Issues = "https://github.com/kilagenhq/kilagen/issues"
+
+# The directory keeps its architectural name (keel — the framework layer the
+# instance is built on) while the package is installed and imported under the
+# product name.
+[tool.setuptools]
+package-dir = { "kilagen" = "keel", "kilagen.libs" = "keel/libs", "kilagen.migrations" = "keel/migrations" }
+packages = ["kilagen", "kilagen.libs", "kilagen.migrations"]
+# The framework's data travels with the code. The file list lives in
+# MANIFEST.in rather than in package-data globs, which silently skip the
+# dotfiles the instance seed is made of.
+include-package-data = true

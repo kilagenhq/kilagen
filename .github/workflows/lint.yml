@@ -1,0 +1,42 @@
+# Framework CI: lint and spell-check this repository's own documentation.
+name: Lint
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.3.1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4.4.0
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: |
+          pip install --quiet -r scripts/requirements.txt
+          npm install -g markdownlint-cli2@0.17.2
+
+      - name: Run markdownlint
+        run: markdownlint-cli2
+
+      - name: Run codespell
+        run: codespell --config .codespellrc .

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kilagen.com/schemas/model-domains.schema.json",
+  "title": "Kilagen domain vocabulary",
+  "description": "program/model/domains.yml — the closed vocabulary the domains: facet is validated against. A domain is a label on documents, never a folder.",
+  "type": "object",
+  "properties": {
+    "domains": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id":          { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "name":        { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "order":       { "type": "integer", "minimum": 1, "description": "Display order in the Domains lens" }
+        },
+        "required": ["id", "name", "description"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["domains"],
+  "additionalProperties": false
+}

@@ -1,0 +1,44 @@
+# Recurring security activities — the calendar half of the program.
+#
+# These are activities, not document reviews. A document's own review cycle
+# lives in its frontmatter (last_reviewed / next_review) and shows up in the
+# Schedule lens on its own. This file is for work that recurs on a calendar
+# and that no single document owns: penetration tests, DR exercises, audits,
+# access recertification campaigns.
+#
+# Edit `last_completed`, and only when the activity has actually been done.
+# The next due date is computed from it plus `frequency`, so there is one
+# field to maintain and it records a fact rather than an intention.
+#
+# `tracker` is a link to wherever the work is managed. It is a pointer, never
+# a copy of the ticket's state: this repository does not mirror a tracker.
+#
+# Validated by the schedule schema — `kilagen check` will tell
+# you about a typo in a role or a document id.
+
+activities: []
+
+  # Delete the empty list above and uncomment what applies. Frequencies:
+  # monthly, quarterly, semi-annually, annually, every-2-years, every-3-years.
+  #
+  # - id: penetration-test
+  #   name: External penetration test
+  #   description: Independent test of the externally reachable estate.
+  #   frequency: annually
+  #   owner: role-security-lead
+  #   domain: offensive
+  #   last_completed: 2026-01-15
+  #   tracker: https://your-org.atlassian.net/browse/SEC-1
+  #   related: [std-vulnerability-management]
+  #
+  # - id: access-recertification
+  #   name: Access recertification campaign
+  #   frequency: semi-annually
+  #   owner: role-security-lead
+  #   domain: iam
+  #
+  # - id: disaster-recovery-exercise
+  #   name: Disaster recovery and restore exercise
+  #   frequency: annually
+  #   owner: role-security-lead
+  #   domain: infra

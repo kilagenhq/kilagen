@@ -1,0 +1,68 @@
+# Build the site (validate, build the dashboard) and deploy to GitHub Pages.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # Runs on a GitHub-hosted runner (not self-hosted) to protect the OIDC
+    # token (id-token: write). A shared self-hosted runner exposes the token
+    # to other repos on the same runner. The repo content already lives in
+    # GitHub, so the hosted runner sees nothing new.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.3.1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.12"
+
+      # The major is pinned: a new one may require migrating this
+      # program's content, which must be a deliberate act rather than
+      # something a Monday morning CI run does. "kilagen update config"
+      # raises the pin when you choose to move.
+      #
+      # Set the KILAGEN_SPEC repository variable to override the source —
+      # a branch or commit of the framework, say, while a change to it is
+      # being reviewed. The ref then acts as the pin. It is passed through
+      # env rather than interpolated into the script: a ${{ }} expression
+      # inside run: is substituted before the shell sees it, so whoever can
+      # set the variable can run commands on the runner. Repository
+      # variables are also not masked in logs, so never put a credential in
+      # one — install from a private source with a token in `secrets`.
+      - name: Install dependencies
+        env:
+          KILAGEN_SPEC: ${{ vars.KILAGEN_SPEC || 'kilagen<1' }}
+        run: pip install --quiet "$KILAGEN_SPEC"
+
+      - name: Build site
+        run: kilagen build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5.0.0
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3.0.1
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4.0.5

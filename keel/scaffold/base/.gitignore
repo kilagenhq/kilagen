@@ -1,0 +1,36 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# Node
+node_modules/
+
+# Build outputs
+_site/
+
+# Evidence staging (uploaded to external storage, not committed)
+evidence/*
+!evidence/README.md
+dist/
+build/
+*.pdf
+
+# Claude Code local files (not shared with team)
+CLAUDE.local.md
+.claude/settings.local.json
+.claude/status.md
+.claude/launch.json
