@@ -56,36 +56,10 @@ function bar(mapped, total) {
   return wrap;
 }
 
-/* The two halves of the auditor's question, as one bar.
- *
- * Coverage says a clause is addressed by a written requirement. Evidence says
- * whether that requirement can be shown to be true. They are the same
- * interrogation, so they are one lens with two faces rather than two lenses —
- * and the bar lives here, with the lens, so neither page can draw it alone.
- */
-export function renderComplianceTabs(container, current) {
-  const tabs = mk('div', 'doc-tabs');
-  tabs.setAttribute('role', 'tablist');
-  tabs.setAttribute('aria-label', 'Compliance views');
-  [['frameworks', 'Frameworks', 'compliance'],
-   ['evidence', 'Evidence', 'compliance/evidence']].forEach(function(spec) {
-    const btn = mk('button', 'doc-tab' + (current === spec[0] ? ' active' : ''));
-    btn.type = 'button';
-    btn.setAttribute('role', 'tab');
-    btn.setAttribute('aria-selected', current === spec[0] ? 'true' : 'false');
-    btn.tabIndex = current === spec[0] ? 0 : -1;
-    btn.appendChild(mk('span', 'doc-tab-label', spec[1]));
-    btn.addEventListener('click', function(e) { go(spec[2], e); });
-    tabs.appendChild(btn);
-  });
-  container.appendChild(tabs);
-}
-
 /* ===== Entry: every framework in scope, side by side ===== */
 
 function renderDashboard(frameworks) {
   mainEl.appendChild(mk('h1', '', 'Compliance'));
-  renderComplianceTabs(mainEl, 'frameworks');
 
   const grid = mk('div', 'fw-card-grid');
   frameworks.forEach(function(fw) {
@@ -292,9 +266,9 @@ function renderDetail(fw) {
      rather than listing it — what it is, what the denominator means, what
      coverage does not claim, and where the real text lives — is metadata about
      the thing you are looking at, and that is the panel. */
-  rightEl.appendChild(mk('h3', '', 'Framework'));
+  rightEl.appendChild(mk('h2', '', 'Framework'));
   if (m.description) rightEl.appendChild(mk('p', 'fw-intro', m.description));
-  rightEl.appendChild(mk('h3', '', 'Coverage'));
+  rightEl.appendChild(mk('h2', '', 'Coverage'));
   rightEl.appendChild(mk('p', 'section-note',
     s.mapped + ' of ' + s.total + ' clauses have a requirement mapped to them.'
     + (m.granularity ? ' ' + m.granularity : '')));
@@ -307,7 +281,7 @@ function renderDetail(fw) {
      reference-not-copy: we hold the references, the publisher holds the words. */
   const resources = (m.resources || []).filter(function(r) { return r && r.url && /^https:\/\//.test(r.url); });
   if (resources.length) {
-    rightEl.appendChild(mk('h3', '', 'The text'));
+    rightEl.appendChild(mk('h2', '', 'The text'));
     const box = mk('div', 'fw-resources');
     resources.forEach(function(r) {
       const a = mk('a', 'fw-resource-link', r.name || r.url);
@@ -414,10 +388,6 @@ export function renderCompliance(framework) {
   const frameworks = Object.keys(state.coverage);
   if (!frameworks.length) {
     mainEl.appendChild(mk('h1', '', 'Compliance'));
-    /* The tabs are drawn even here. Evidence does not depend on a framework
-       being in scope — a program can prove its requirements before it maps
-       any clause — and without this the only way to reach it is the tree. */
-    renderComplianceTabs(mainEl, 'frameworks');
     mainEl.appendChild(mkEmpty('standard', 'No framework coverage',
       'A framework is measured when it is declared in program/config.yml. '
       + 'Kilagen ships the clause vocabularies, so the id is all it needs.'));

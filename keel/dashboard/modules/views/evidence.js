@@ -4,7 +4,6 @@ import { go, setActiveView, setBread, setParams, splitHash, getHash, mainEl, rig
 import { chip } from '../doclink.js';
 import { safeUrl } from '../security.js';
 import { mountFilters } from '../filters.js';
-import { renderComplianceTabs } from './compliance.js';
 import {
   proofRows, evidenceSummary, collectorRows, evidenceStateInfo,
   EVIDENCE_STATES, DUE_SOON_DAYS,
@@ -285,7 +284,6 @@ export function renderEvidenceLens() {
             { label: 'Evidence' }]);
 
   mainEl.appendChild(mk('h1', '', 'Evidence'));
-  renderComplianceTabs(mainEl, 'evidence');
 
   const rows = proofRows();
   if (!rows.length) {
@@ -311,7 +309,7 @@ export function renderEvidenceLens() {
 }
 
 function renderPanel(count) {
-  rightEl.appendChild(mk('h3', '', 'What this is'));
+  rightEl.appendChild(mk('h2', '', 'What this is'));
   rightEl.appendChild(mk('p', 'section-note',
     'The repository holds the record, never the proof. An evidence entry is a '
     + 'name, a link to where the artefact actually lives, the day it was '
@@ -319,14 +317,14 @@ function renderPanel(count) {
     + 'committed blob survives its own deletion, and evidence is the category '
     + 'most likely to carry personal data.'));
 
-  rightEl.appendChild(mk('h3', '', 'When it goes off'));
+  rightEl.appendChild(mk('h2', '', 'When it goes off'));
   rightEl.appendChild(mk('p', 'section-note',
     'A quarterly access review proves something about its quarter and nothing '
     + 'about the next one. Past  collected + freshness  an artefact is stale; '
     + 'within ' + DUE_SOON_DAYS + ' days of that, it is due. Without a '
     + 'collected date nothing can say when it stopped being true.'));
 
-  rightEl.appendChild(mk('h3', '', 'From the command line'));
+  rightEl.appendChild(mk('h2', '', 'From the command line'));
   const commands = mk('div', 'evidence-commands');
   [['kilagen check evidence', 'reports what is missing or stale — informs, never fails'],
    ['kilagen update evidence', 'says what the collectors would change'],

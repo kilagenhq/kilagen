@@ -104,7 +104,7 @@ function renderRisks(container) {
    and on the landing page that thing is the instance. */
 function renderOrganisation() {
   const org = state.config.organization;
-  rightEl.appendChild(mk('h3', '', 'Organization'));
+  rightEl.appendChild(mk('h2', '', 'Organization'));
   if (!org) {
     rightEl.appendChild(mk('div', 'right-note-sm',
       'Add an organization section to program/config.yml.'));
@@ -132,7 +132,7 @@ function renderOrganisation() {
 
   const fws = state.config.frameworks;
   if (fws && fws.length) {
-    rightEl.appendChild(mk('h3', '', 'In scope'));
+    rightEl.appendChild(mk('h2', '', 'In scope'));
     fws.forEach(function(fw) {
       if (!fw || !fw.id || !fw.name) return;
       const row = mk('div', 'home-org-fw clickable');
@@ -148,7 +148,7 @@ function renderOrganisation() {
     });
   }
 
-  rightEl.appendChild(mk('h3', '', 'Instance'));
+  rightEl.appendChild(mk('h2', '', 'Instance'));
   if (state.config.repo) rightEl.appendChild(mkMetaRow('Repository', state.config.repo));
   if (org.license) rightEl.appendChild(mkMetaRow('License', org.license));
   rightEl.appendChild(mkMetaRow('Source', 'program/config.yml'));

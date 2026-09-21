@@ -149,6 +149,32 @@ describe('the keyboard reaches everything the mouse does', () => {
     expect(btn.getAttribute('aria-expanded')).toBe('false');
   });
 
+  it('the panel heads its sections at the level below the document title', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    navigateDoc('standards/std-access-control.md');
+    const panelHeadings = [...document.querySelectorAll('#right h1, #right h2, #right h3, #right h4')];
+    expect(panelHeadings.length).toBeGreaterThan(0);
+    // h3 only read correctly while the centre column happened to hold an h2 of
+    // its own. The moment a view had none, the outline jumped h1 to h3.
+    panelHeadings.forEach((h) => expect(h.tagName).toBe('H2'));
+  });
+
+  it('no view skips a heading level, whichever tab is open', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    for (const tab of ['content', 'mappings', 'gaps', 'evidence']) {
+      ['main', 'right'].forEach((id) => { document.getElementById(id).textContent = ''; });
+      location.hash = 'doc/standards/std-access-control.md?tab=' + tab;
+      navigateDoc('standards/std-access-control.md');
+      const levels = [...document.querySelectorAll('#main h1,#main h2,#main h3,#right h1,#right h2,#right h3')]
+        .map((h) => Number(h.tagName[1]));
+      levels.forEach((level, i) => {
+        if (i === 0) return;
+        expect(level - levels[i - 1], `${tab}: h${levels[i - 1]} followed by h${level}`)
+          .toBeLessThanOrEqual(1);
+      });
+    }
+  });
+
   it('a tablist is one tab stop, and the arrows move inside it', async () => {
     const { navigateDoc } = await import('../modules/views/doc.js');
     navigateDoc('standards/std-access-control.md');

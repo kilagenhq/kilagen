@@ -256,7 +256,7 @@ export function renderDomain(domainId) {
 
   /* The panel is metadata about the thing you are looking at, and here that
      thing is the domain. */
-  rightEl.appendChild(mk('h3', '', 'Domain'));
+  rightEl.appendChild(mk('h2', '', 'Domain'));
   rightEl.appendChild(mkMetaRow('Id', domain.id));
   rightEl.appendChild(mkMetaRow('Documents', String(stats.docs.length)));
   rightEl.appendChild(mkMetaRow('Capabilities', stats.written + ' / ' + stats.caps.length + ' written about'));

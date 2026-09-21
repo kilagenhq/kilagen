@@ -283,9 +283,6 @@ body > header {
 }
 .app-nav-item:hover { background: var(--accent-soft); color: var(--accent); }
 .app-nav-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-.tree-item { padding: 3px 10px 3px 22px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--fg); font-size: 12px; }
-.tree-item:hover,
-.tree-item.active { background: var(--accent-soft); color: var(--accent); }
 /* --- Sidebar resize --- */
 .sidebar-resize { position: absolute; top: 0; right: 0; width: 3px; height: 100%; cursor: col-resize; z-index: 10; background: transparent; transition: background 0.15s; }
 .sidebar-resize:hover,
@@ -327,7 +324,7 @@ body > header {
 .right-resize:hover,
 .right-resize.active { background: var(--accent); }
 #right { flex: 1; overflow-y: auto; padding: 16px; font-size: 12px; }
-#right h3 {
+#right h2 {
   font-size: 10px;
   font-weight: 700;
   margin: 18px 0 8px;
@@ -335,7 +332,7 @@ body > header {
   padding-bottom: 5px;
   border-bottom: 1px solid var(--border);
 }
-#right h3:first-child { margin-top: 0; }
+#right h2:first-child { margin-top: 0; }
 #right .meta-row { margin: 5px 0; display: flex; gap: 8px; align-items: baseline; }
 #right .meta-key { font-weight: 600; color: var(--fg2); min-width: 85px; font-size: 11px; }
 #right .meta-val { color: var(--fg); word-break: break-word; font-size: 11px; }
@@ -1282,6 +1279,10 @@ th.sortable[aria-sort="descending"] .sort-btn::after { content: " \2193"; color:
 .tree-group-label { display: flex; align-items: baseline; gap: var(--space-sm); padding: 12px 10px 3px 12px; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg3); }
 .tree-group-note { text-transform: none; letter-spacing: 0; font-size: 10px; opacity: 0.75; }
 #tree .tree-item { padding-left: 12px; }
+/* An id selector beats a class, so the nesting indent has to be written at the
+   same weight or it does nothing — which is what it did: `.tree-item-nested`
+   was applied, inert, from the day this rule was added. */
+#tree .tree-item-nested { padding-left: 26px; }
 
 /* ===== Domains, read like Compliance ===== */
 /* The lens uses the width. The old rows were `.fw-bars`, borrowed from

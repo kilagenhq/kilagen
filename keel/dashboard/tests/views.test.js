@@ -893,9 +893,18 @@ describe('degenerate data nothing should choke on', () => {
     state.config.frameworks = [{ id: 'ghost', binding: 'mandatory' }];
     renderCompliance('ghost');
     expect(main()).toContain('No framework coverage');
-    // Evidence does not depend on a framework being in scope, so the tab that
-    // reaches it must survive the empty state.
-    expect(main()).toContain('Evidence');
+    expect(errors).toEqual([]);
+  });
+
+  it('a program with no framework at all can still reach its evidence', async () => {
+    const { rebuildSidebar } = await import('../modules/sidebar.js');
+    state.coverage = {};
+    location.hash = 'compliance';
+    rebuildSidebar();
+    // Evidence does not depend on a clause being mapped: a program can prove
+    // its requirements before it maps anything.
+    const labels = [...document.querySelectorAll('#tree .tree-item-label')].map((l) => l.textContent);
+    expect(labels).toContain('Evidence');
     expect(errors).toEqual([]);
   });
 
@@ -944,18 +953,43 @@ describe('degenerate data nothing should choke on', () => {
 });
 
 describe('A standard, four ways', () => {
-  it('opens on its requirements, and offers the other three views', async () => {
+  it('opens on the document itself, and offers three views of it', async () => {
     const { navigateDoc } = await import('../modules/views/doc.js');
     navigateDoc('standards/std-access-control.md');
     const tabs = [...document.querySelectorAll('#main .doc-tab')].map((t) => t.textContent);
     expect(tabs).toHaveLength(4);
-    expect(tabs[0]).toContain('Requirements');
+    expect(tabs[0]).toContain('Content');
     expect(tabs[1]).toContain('Mappings');
     expect(tabs[2]).toContain('Gaps');
     expect(tabs[3]).toContain('Evidence');
-    expect(document.querySelector('#main .doc-tab.active').textContent).toContain('Requirements');
+    expect(document.querySelector('#main .doc-tab.active').textContent).toContain('Content');
     expect(main()).toContain('Every user has a unique account');
     expect(errors).toEqual([]);
+  });
+
+  it('puts the prose and the requirements in one place, in that order', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    navigateDoc('standards/std-access-control.md');
+    await Promise.resolve();
+    const panel = document.querySelector('#main .doc-tabpanel');
+    // The body card comes first: purpose and scope are what the requirements
+    // below are scoped by.
+    expect(panel.firstElementChild.className).toContain('doc-body');
+    expect(panel.textContent).toContain('Addressable requirements');
+    expect(panel.textContent).toContain('Every user has a unique account');
+    // And Connections travels with the document rather than sitting under
+    // every tab.
+    expect(panel.querySelector('.conn')).not.toBeNull();
+  });
+
+  it('leaves the body behind when you switch to a view of it', async () => {
+    const { navigateDoc } = await import('../modules/views/doc.js');
+    location.hash = 'doc/standards/std-access-control.md?tab=mappings';
+    navigateDoc('standards/std-access-control.md');
+    const panel = document.querySelector('#main .doc-tabpanel');
+    expect(panel.querySelector('.doc-body')).toBeNull();
+    expect(panel.querySelector('.conn')).toBeNull();
+    expect(panel.querySelector('.mapping-table')).not.toBeNull();
   });
 
   it('counts what is behind each tab, and evidence as a ratio', async () => {
@@ -1078,11 +1112,36 @@ describe('Slicing by standard', () => {
 });
 
 describe('Evidence, the other half of Compliance', () => {
-  it('is a tab of the lens, not a lens of its own', async () => {
+  it('is reached from the tree, beside the frameworks rather than inside them', async () => {
+    const { rebuildSidebar } = await import('../modules/sidebar.js');
+    location.hash = 'compliance';
+    rebuildSidebar();
+    const rows = [...document.querySelectorAll('#tree .tree-item')];
+    const labels = rows.map((r) => r.querySelector('.tree-item-label').textContent);
+    expect(labels[0]).toBe('Frameworks');
+    expect(labels).toContain('Evidence');
+    // A framework is a list of clauses and nests under Frameworks; evidence
+    // cuts across all of them and nests under nothing.
+    const nested = rows.filter((r) => r.classList.contains('tree-item-nested'))
+      .map((r) => r.querySelector('.tree-item-label').textContent);
+    expect(nested).toContain('PCI DSS v4.0');
+    expect(nested).not.toContain('Evidence');
+  });
+
+  it('carries the ratio the check would print, in the tree', async () => {
+    const { rebuildSidebar } = await import('../modules/sidebar.js');
+    location.hash = 'compliance';
+    rebuildSidebar();
+    const evidenceRow = [...document.querySelectorAll('#tree .tree-item')]
+      .find((r) => r.querySelector('.tree-item-label').textContent === 'Evidence');
+    expect(evidenceRow.querySelector('.tree-count').textContent).toBe('1 / 2');
+  });
+
+  it('opens the frameworks page with no tab bar over it', async () => {
     const { renderCompliance } = await import('../modules/views/compliance.js');
     renderCompliance(null);
-    const tabs = [...document.querySelectorAll('#main .doc-tab')].map((t) => t.textContent);
-    expect(tabs).toEqual(['Frameworks', 'Evidence']);
+    expect(document.querySelector('#main .doc-tabs')).toBeNull();
+    expect(main()).toContain('PCI DSS v4.0');
   });
 
   it('counts what the program can prove, in the words the check uses', async () => {

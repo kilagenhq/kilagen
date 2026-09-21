@@ -112,7 +112,7 @@ export function renderReference() {
   /* Keyboard help lives in the modal, which is one keystroke away and does not
      need a copy here — but somebody arriving through the Help button has no
      way of knowing that. */
-  rightEl.appendChild(mk('h3', '', 'Keyboard'));
+  rightEl.appendChild(mk('h2', '', 'Keyboard'));
   const kbd = mk('div', 'right-note-sm');
   kbd.appendChild(document.createTextNode('Press '));
   kbd.appendChild(mk('span', 'kbd', '?'));

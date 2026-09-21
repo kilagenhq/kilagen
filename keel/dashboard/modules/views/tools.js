@@ -89,7 +89,7 @@ export function renderTools() {
     });
   });
 
-  rightEl.appendChild(mk('h3', '', 'Where this comes from'));
+  rightEl.appendChild(mk('h2', '', 'Where this comes from'));
   rightEl.appendChild(mk('p', 'right-note',
     'Maintained in its own repository and snapshotted into each release, the '
     + 'way the dashboard’s libraries are. Upgrading the package is how a '

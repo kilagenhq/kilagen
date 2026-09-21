@@ -91,18 +91,25 @@ function subtree(lens, hash) {
       }));
     });
   } else if (lens === 'compliance') {
+    /* Two things, at the same level, because they are the two halves of the
+       auditor's question: coverage says a clause is addressed by a written
+       requirement, and evidence says whether that requirement can be shown to
+       be true. The frameworks nest under the first because each one is a list
+       of clauses; evidence cuts across all of them and nests under nothing. */
+    rows.push(item('Frameworks', 'compliance', {
+      active: hash === 'compliance',
+      title: 'Every framework in scope, and how much of each one is mapped',
+    }));
     Object.keys(state.coverage).forEach(function(fw) {
-      const row = item(fwLabel(fw), 'compliance/' + fw, { active: hash === 'compliance/' + fw });
+      const row = item(fwLabel(fw), 'compliance/' + fw, {
+        nested: true, active: hash === 'compliance/' + fw,
+      });
       row.appendChild(mk('span', 'tree-count', frameworkCount(fw)));
       rows.push(row);
     });
-    /* The other half of the lens, and the only way to reach it without going
-       through the landing page. Separated by its own label because it is not
-       a framework: it cuts across every one of them. */
-    rows.push(mk('div', 'tree-group-label', 'The proof'));
     const proof = evidenceSummary();
     const evidenceRow = item('Evidence', 'compliance/evidence', {
-      icon: 'standard', active: hash === 'compliance/evidence',
+      active: hash === 'compliance/evidence',
       title: 'What the program can show is true, and what has gone stale',
     });
     evidenceRow.appendChild(mk('span', 'tree-count', proof.proven + ' / ' + proof.requirements));

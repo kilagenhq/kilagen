@@ -42,7 +42,7 @@ export function renderTemplates() {
     mainEl.appendChild(block);
   });
 
-  rightEl.appendChild(mk('h3', '', 'Types'));
+  rightEl.appendChild(mk('h2', '', 'Types'));
   state.types.forEach(function(t) {
     const row = mk('div', 'right-item');
     row.appendChild(mk('div', 'right-item-title', typePlural(t.name)));

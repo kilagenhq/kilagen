@@ -96,3 +96,28 @@ describe.each([['light', LIGHT], ['dark', DARK]])('%s theme', (name, palette) =>
     });
   });
 });
+
+/* Specificity is not something jsdom can tell you about: it applies no
+ * stylesheet, so a rule that is silently outweighed looks identical to one
+ * that works. `.tree-item-nested` was applied by nobody for months and, the
+ * day it was, did nothing — `#tree .tree-item` sets padding-left with an id in
+ * the selector, and an id beats a class. This is the cheapest guard that would
+ * have caught it.
+ */
+describe('the sidebar nesting indent outweighs the rule that flattens it', () => {
+  const css = readFileSync(resolve(process.cwd(), 'app.css'), 'utf8');
+
+  it('both rules are written at the same weight', () => {
+    const flatten = /#tree\s+\.tree-item\s*\{[^}]*padding-left/.test(css);
+    const nested = /#tree\s+\.tree-item-nested\s*\{[^}]*padding-left/.test(css);
+    // If the flattening rule carries an id, the nesting rule must too.
+    expect(nested, 'a bare .tree-item-nested cannot beat #tree .tree-item').toBe(flatten);
+  });
+
+  it('nesting indents further than the level above it', () => {
+    const px = (re) => Number((css.match(re) || [])[1]);
+    const flat = px(/#tree\s+\.tree-item\s*\{[^}]*padding-left:\s*(\d+)px/);
+    const nested = px(/#tree\s+\.tree-item-nested\s*\{[^}]*padding-left:\s*(\d+)px/);
+    expect(nested).toBeGreaterThan(flat);
+  });
+});

@@ -79,7 +79,7 @@ export function renderSchemas() {
     }
   });
 
-  rightEl.appendChild(mk('h3', '', 'Files'));
+  rightEl.appendChild(mk('h2', '', 'Files'));
   SCHEMAS.forEach(function(s) {
     const row = mk('div', 'right-item');
     row.appendChild(mk('div', 'right-item-title', s[0]));

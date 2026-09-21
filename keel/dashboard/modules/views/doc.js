@@ -1,11 +1,11 @@
-import { mk, mkIcon, mkEmpty, mkMetaRow, mkCopyBtn, mkSourcePanel, formatRoles, makeCollapsible, dropRepeatedTitle } from '../dom.js';
+import { mk, mkIcon, mkMetaRow, mkCopyBtn, mkSourcePanel, formatRoles } from '../dom.js';
 import { state, isLiveException, supersededBy, statusOf } from '../state.js';
 import { go, setActiveView, setBread, mainEl, rightEl, showRightPanel } from '../nav.js';
-import { renderMd, safeHtmlNode } from '../parsers.js';
-import { safeFetch, hookLinks, safeUrl } from '../security.js';
+import { safeUrl } from '../security.js';
 import { renderConnections } from '../connections.js';
 import { idLink } from '../doclink.js';
 import { renderStandardTabs } from './standard.js';
+import { renderDocBody } from '../docbody.js';
 import { typeColor, typeLabel, typePlural, statusColor, SEVERITY_COLORS, daysUntil } from '../constants.js';
 
 /* One document, its metadata, its body, and what it relates to.
@@ -14,17 +14,6 @@ import { typeColor, typeLabel, typePlural, statusColor, SEVERITY_COLORS, daysUnt
  * the grouping you see here is computed at render time and cannot contradict
  * the data — which is exactly what the grouped mapping used to allow.
  */
-
-/* The body, with the frontmatter block taken off the front.
- *
- * Deliberately not parsers.parseFM: that one parses the YAML, and this page
- * already has the frontmatter from the registry. Both places that render a
- * body were doing this by hand, which is two copies of an offset calculation.
- */
-function stripFrontmatter(text) {
-  if (text.indexOf('---') !== 0) return text;
-  return text.substring(text.indexOf('---', 3) + 3);
-}
 
 function groupByPrefix(ids) {
   const groups = {};
@@ -38,7 +27,7 @@ function groupByPrefix(ids) {
 
 function relatedSection(container, title, ids) {
   if (!ids || !ids.length) return;
-  container.appendChild(mk('h3', '', title));
+  container.appendChild(mk('h2', '', title));
   const groups = groupByPrefix(ids);
   Object.keys(groups).sort().forEach(function(type) {
     const block = mk('div', 'related-group');
@@ -96,7 +85,7 @@ function contestBlock(container, fm) {
 /* A list of short strings the panel had no row for. */
 function pillSection(title, values) {
   if (!values || !values.length) return;
-  rightEl.appendChild(mk('h3', '', title));
+  rightEl.appendChild(mk('h2', '', title));
   const wrap = mk('div', 'facet-list');
   values.forEach(function(value) { wrap.appendChild(mk('span', 'pill', String(value))); });
   rightEl.appendChild(wrap);
@@ -107,7 +96,7 @@ function pillSection(title, values) {
    hidden. */
 function certificationSection(certifications) {
   if (!certifications || !certifications.length) return;
-  rightEl.appendChild(mk('h3', '', 'Certifications'));
+  rightEl.appendChild(mk('h2', '', 'Certifications'));
   certifications.forEach(function(cert) {
     const row = mk('div', 'meta-row');
     const certHref = safeUrl(cert.url);
@@ -132,7 +121,7 @@ function publishBlock(container, fm) {
   else if (fm.publish === 'all') targets = Object.keys(state.publish.destinations || {});
   else if (Array.isArray(fm.publish)) targets = fm.publish;
   if (!targets.length && !fm.publish) return;
-  container.appendChild(mk('h3', '', 'Publishing'));
+  container.appendChild(mk('h2', '', 'Publishing'));
   if (!targets.length) {
     container.appendChild(mk('div', 'right-note-sm', 'Not published.'));
     return;
@@ -195,17 +184,8 @@ export function navigateDoc(path) {
   /* Framework material (keel/…) has no registry entry — it is prose, not a
      program document — so it renders as a plain page. */
   if (!fm) {
-    safeFetch(path).then(function(text) {
-      const node = safeHtmlNode(renderMd(stripFrontmatter(text)));
-      hookLinks(node, go, path);
-      const card = mk('div', 'doc-body');
-      card.appendChild(node);
-      makeCollapsible(node, card);
-      mainEl.appendChild(card);
-      mkSourcePanel(rightEl, path);
-    }).catch(function(err) {
-      mainEl.appendChild(mkEmpty('file', 'Could not load this document', err.message));
-    });
+    renderDocBody(mainEl, path);
+    mkSourcePanel(rightEl, path);
     return;
   }
 
@@ -260,30 +240,21 @@ export function navigateDoc(path) {
     block.appendChild(mk('div', '', String(fm.retention_justification).trim()));
     mainEl.appendChild(block);
   }
-  /* A standard is the one type with requirements, and they are the reason
-     anybody opens it. Four views of them, in place of the single list. */
-  if (fm.type === 'standard') renderStandardTabs(mainEl, fm, path);
-
-  const bodyCard = mk('div', 'doc-body');
-  mainEl.appendChild(bodyCard);
-  safeFetch(path).then(function(text) {
-    state.bodyCache[path] = text;
-    const node = safeHtmlNode(renderMd(stripFrontmatter(text)));
-    hookLinks(node, go, path);
-    dropRepeatedTitle(node, fm.title);
-    bodyCard.appendChild(node);
-    makeCollapsible(node, bodyCard);
-  }).catch(function(err) {
-    bodyCard.appendChild(mk('p', 'right-empty', 'Body unavailable: ' + err.message));
-  });
-
-  /* Last in the document, after the body. It went to the panel for a while and
-     came back: at panel width the ids are too small to read, and a diagram
-     whose labels you cannot read is decoration. */
-  renderConnections(mainEl, fm);
+  /* A standard is the one type whose substance is split in two — prose in the
+     body, requirements in the frontmatter — so its own view owns both, and
+     Connections with them. Everything else reads top to bottom. */
+  if (fm.type === 'standard') {
+    renderStandardTabs(mainEl, fm, path);
+  } else {
+    renderDocBody(mainEl, path, fm.title);
+    /* Last in the document, after the body. It went to the panel for a while
+       and came back: at panel width the ids are too small to read, and a
+       diagram whose labels you cannot read is decoration. */
+    renderConnections(mainEl, fm);
+  }
 
   /* ===== Right panel ===== */
-  rightEl.appendChild(mk('h3', '', typeLabel(fm.type)));
+  rightEl.appendChild(mk('h2', '', typeLabel(fm.type)));
   META_FIELDS.forEach(function(field) {
     const value = field[1](fm);
     if (!value) return;
@@ -308,7 +279,7 @@ export function navigateDoc(path) {
   ['domains', 'capabilities', 'systems'].forEach(function(facet) {
     const values = fm[facet] || [];
     if (!values.length) return;
-    rightEl.appendChild(mk('h3', '', facet.charAt(0).toUpperCase() + facet.slice(1)));
+    rightEl.appendChild(mk('h2', '', facet.charAt(0).toUpperCase() + facet.slice(1)));
     const wrap = mk('div', 'facet-list');
     values.forEach(function(value) {
       const pill = mk('span', 'pill clickable', value);

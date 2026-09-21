@@ -91,8 +91,15 @@ export function ghUrl(path) {
   return 'https://github.com/' + repo + '/blob/main/' + ghRepoPath(path);
 }
 export function mkMetaRow(label, value) { const row = mk('div', 'meta-row'); row.appendChild(mk('span', 'meta-key', label)); row.appendChild(mk('span', 'meta-val', value)); return row; }
+/* The panel's section headings are h2, not h3.
+ *
+ * They are the top-level headings of a complementary region, so under the
+ * document's h1 they are the next level down — there is nothing between. They
+ * were h3, which only read correctly while the centre column happened to
+ * contain an h2 of its own; the moment a view had none, the outline jumped h1
+ * to h3 and axe said so. */
 export function mkSourcePanel(container, filePath) {
-  container.appendChild(mk('h3', '', 'Source'));
+  container.appendChild(mk('h2', '', 'Source'));
   const pathRow = mk('div', 'meta-row');
   pathRow.appendChild(mk('span', 'meta-key', 'File'));
   const pathVal = mk('span', 'meta-val', filePath);
@@ -109,7 +116,7 @@ export function mkSourcePanel(container, filePath) {
    both the landing page and Reference, so the licence notice cannot come to
    read two different ways on two pages. */
 export function appendAttribution(container) {
-  container.appendChild(mk('h3', '', 'Framework'));
+  container.appendChild(mk('h2', '', 'Framework'));
   const link = mk('a', 'about-fw-link', 'Kilagen');
   link.href = 'https://github.com/kilagenhq/kilagen';
   link.target = '_blank';

@@ -4,35 +4,40 @@ import { go, setParams, splitHash, getHash } from '../nav.js';
 import { chip, docChip } from '../doclink.js';
 import { safeUrl } from '../security.js';
 import { fwLabel } from '../constants.js';
+import { renderConnections } from '../connections.js';
+import { renderDocBody } from '../docbody.js';
 import { requirementRowsOf, proofRows, evidenceStateInfo } from '../evidence.js';
 import { evidenceTable } from './evidence.js';
 
 /* A standard, four ways.
  *
- * The requirement list already carried all of this — a clause pill here, a gap
- * pill there, two lines of evidence under the text — and that is the right
- * shape when you are reading one requirement. It is the wrong shape for every
- * question asked *about the standard*: which frameworks does this thing carry,
- * what stands against it, how much of it can we actually prove. Those are
- * aggregates, and an aggregate you have to assemble by scrolling is one nobody
- * assembles.
+ * **Content is the document.** A standard is the one type whose substance is
+ * split across two places — the prose lives in the markdown body, the
+ * requirements live in the frontmatter — and for a long time the page showed
+ * them as two stacked blocks that did not know about each other: a list of
+ * requirements, and then, underneath and unrelated, the standard's own words.
+ * Content is both, in the order they are read: purpose and scope first, then
+ * what is required.
  *
- * So the tabs are not the requirement list repeated four times. Each one is a
- * table that does not exist anywhere else in the product:
+ * The other three are not the document, they are questions asked of it, and
+ * each is a table that exists nowhere else:
  *
- *   Requirements  the list, unchanged — the reading view
- *   Mappings      requirement x framework, the matrix
- *   Gaps          everything ever filed against this standard, with its state
- *   Evidence      what can be proven, and what has gone stale
+ *   Mappings   requirement x framework, the matrix
+ *   Gaps       everything ever filed against it, with its state
+ *   Evidence   what can be proven, and what has gone stale
+ *
+ * There used to be a fifth, `Requirements`, and it was the other three read
+ * one requirement at a time — which is what Content already is, only without
+ * the prose that gives them their scope.
  *
  * The chosen tab lives in the query string, so a standard opened at its
  * mapping matrix is a link somebody can paste into a ticket. Switching redraws
- * the panel in place rather than re-routing, which is what keeps the document
- * body below from being fetched again on every click.
+ * the panel in place rather than re-routing; the body is fetched once and read
+ * from `state.bodyCache` on the way back.
  */
 
-const DEFAULT_TAB = 'requirements';
-const TAB_KEYS = ['requirements', 'mappings', 'gaps', 'evidence'];
+const DEFAULT_TAB = 'content';
+const TAB_KEYS = ['content', 'mappings', 'gaps', 'evidence'];
 
 /* ===== What each tab counts ===== */
 
@@ -110,22 +115,32 @@ function evidenceLine(container, found) {
   if (found.expires) pill.title = 'Good until ' + found.expires;
   row.appendChild(pill);
   if (item.collector) {
-    const via = chip('via ' + item.collector, 'var(--fg3)', 'compliance/evidence?tab=collectors');
+    const via = chip('via ' + item.collector, 'var(--fg3)', 'compliance/evidence?collector=' + encodeURIComponent(item.collector));
     via.title = 'Refreshed by the ' + item.collector + ' collector';
     row.appendChild(via);
   }
   container.appendChild(row);
 }
 
-function renderRequirements(container, fm) {
+function renderContent(container, fm, path) {
+  /* The standard's own words first: purpose and scope are what the
+     requirements below are scoped by, and they are read in that order. */
+  renderDocBody(container, path, fm.title);
+
   const rows = requirementRowsOf(fm.id);
   if (!rows.length) {
     container.appendChild(mkEmpty('standard', 'This standard states no requirements',
       'A requirement is what a framework clause maps to and what a gap is filed '
       + 'against, so a standard without them cannot be measured or contested.'));
+    renderConnections(container, fm);
     return;
   }
 
+  /* Named for what distinguishes it from the body's own `## Requirements`,
+     which the shipped template reserves for context a requirement cannot
+     carry. These are the ones with an id — the template's own words for why
+     they live in the frontmatter are "that is what makes them addressable". */
+  container.appendChild(mk('h2', 'standard-requirements-head', 'Addressable requirements'));
   container.appendChild(mk('p', 'section-note',
     'Each one is addressable on its own: a framework clause maps to it, and a gap '
     + 'or an exception is filed against it by id.'));
@@ -170,6 +185,11 @@ function renderRequirements(container, fm) {
     }
     container.appendChild(block);
   });
+
+  /* Connections belongs to the document, so it lives with it rather than
+     under every tab. At panel width the ids are unreadable, which is why it
+     is here and not in the right-hand panel. */
+  renderConnections(container, fm);
 }
 
 /* A gap or an exception beside the requirement it contests, coloured by which
@@ -353,7 +373,7 @@ function renderEvidence(container, fm) {
 }
 
 const RENDERERS = {
-  requirements: renderRequirements,
+  content: renderContent,
   mappings: renderMappings,
   gaps: renderGaps,
   evidence: renderEvidence,
@@ -363,7 +383,11 @@ const RENDERERS = {
    opening. `gaps` counts only what still stands, because that is what the
    word means — the table behind it shows the closed ones too. */
 function badgeOf(key, fm) {
-  if (key === 'requirements') return { text: String(requirementsOf(fm).length) };
+  if (key === 'content') {
+    /* The count is the requirements: the prose has no number worth
+       putting on a tab. */
+    return { text: String(requirementsOf(fm).length) };
+  }
   if (key === 'mappings') return { text: String(clauseCount(fm)) };
   if (key === 'gaps') {
     const open = standing(fm);
@@ -430,7 +454,7 @@ export function renderStandardTabs(container, fm, path) {
     const next = splitHash(getHash()).params;
     if (key === DEFAULT_TAB) delete next.tab; else next.tab = key;
     setParams('doc/' + path, next);
-    RENDERERS[key](panel, fm);
+    RENDERERS[key](panel, fm, path);
   }
 
   /* Left and right move between tabs, which is what a tablist promises. */
