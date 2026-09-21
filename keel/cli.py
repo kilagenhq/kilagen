@@ -40,7 +40,7 @@ STARTER_DATE_FIELDS = (
 )
 
 _FM_DATE_RE = re.compile(
-    r"^(?P<key>" + "|".join(STARTER_DATE_FIELDS) + r"): (?P<date>\d{4}-\d{2}-\d{2})\s*$",
+    r"^(?P<key>" + "|".join(STARTER_DATE_FIELDS) + r"): (?P<date>\d{4}-\d{2}-\d{2})[ \t]*$",
     re.MULTILINE,
 )
 
@@ -159,7 +159,9 @@ def _write_manifest(target: Path, deployment: str, agent: str,
         "schema_version": SCHEMA_VERSION,
         "deployment": deployment,
         "agent": agent,
-        "files": {str(rel): entries[rel] for rel in sorted(entries)},
+        # as_posix: the manifest is committed and read on other machines, so a
+        # backslash key written on Windows would make every file look new.
+        "files": {rel.as_posix(): entries[rel] for rel in sorted(entries)},
     }
     (target / MANIFEST_NAME).write_text(
         yaml.safe_dump(manifest, sort_keys=False), encoding="utf-8"
@@ -246,6 +248,21 @@ def _program_config(name: str, frameworks: Iterable[str] | None = None) -> str:
     )
 
 
+def _declared_schema_version(data: dict) -> int | None:
+    """The declared schema_version as an int, or None when absent.
+
+    Quoted in YAML (`schema_version: "3"`) it arrives as a string, and every
+    comparison against it would raise TypeError instead of saying what is wrong.
+    """
+    declared = data.get("schema_version")
+    if declared is None or isinstance(declared, int):
+        return declared
+    raise CommandError(
+        f"program/config.yml declares schema_version: {declared!r}, which is not a "
+        f"whole number. Write it unquoted, as 'schema_version: {SCHEMA_VERSION}'."
+    )
+
+
 def _require_schema_version() -> None:
     """Block when the content and the installed framework disagree (D-010)."""
     config = keel_lib.PROGRAM / "config.yml"
@@ -254,7 +271,7 @@ def _require_schema_version() -> None:
             f"no program found at {keel_lib.PROGRAM} — run 'kilagen init' first"
         )
     data = yaml.safe_load(config.read_text(encoding="utf-8")) or {}
-    declared = data.get("schema_version")
+    declared = _declared_schema_version(data)
     if declared == SCHEMA_VERSION:
         return
     if declared is None:
@@ -366,7 +383,29 @@ def cmd_init(args: argparse.Namespace) -> int:
     if program.exists() and not args.force:
         raise CommandError(f"{program} already exists — refusing to overwrite (use --force)")
 
-    copied = _write_plan(_seed_plan(args.deployment, args.agent), target)
+    # The seed's base layer is ordinary repository furniture — .gitignore,
+    # .pre-commit-config.yaml, a tests/ directory — under names nobody
+    # namespaced. init is documented as something you run inside a repository
+    # you already own, so those names may well be taken, and copying over them
+    # would replace work this tool never wrote.
+    plan = _seed_plan(args.deployment, args.agent)
+    occupied = sorted(
+        str(rel) for rel, source in plan.items()
+        if (target / rel).is_file()
+        and (target / rel).read_bytes() != source.read_bytes()
+    )
+    if occupied and not args.force:
+        raise CommandError(
+            "these files already exist here and differ from what init would "
+            "write. Move them aside, or re-run with --force to overwrite:\n  "
+            + "\n  ".join(occupied)
+        )
+    if occupied:
+        print("Overwriting (--force):")
+        for rel in occupied:
+            print(f"  {rel}")
+
+    copied = _write_plan(plan, target)
 
     # The program layer is the user's, so it is generated rather than copied
     # and never appears in the manifest: upgrade must not touch it.
@@ -539,8 +578,11 @@ def cmd_serve(args: argparse.Namespace) -> int:
     if not site.is_dir():
         raise CommandError(f"no site at {site} — run 'kilagen build' first")
     handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(site))
+    # Loopback, not "": the built site holds the whole program — open gaps,
+    # live exceptions, evidence URLs — and there is no authentication in front
+    # of it. Binding every interface would publish it to the local network.
     print(f"Serving {site} at http://localhost:{args.port}")
-    http.server.ThreadingHTTPServer(("", args.port), handler).serve_forever()
+    http.server.ThreadingHTTPServer(("127.0.0.1", args.port), handler).serve_forever()
     return 0
 
 
@@ -620,9 +662,11 @@ def cmd_upgrade(args: argparse.Namespace) -> int:
 
     written = _write_plan({**updatable, **{rel: plan[rel] for rel in added}}, target)
     # Files this run did not write keep the hash recorded when they were last
-    # written by the framework, so an edited file stays recognisably edited.
-    entries = {Path(name): entry for name, entry in recorded.items()
-               if (target / name).is_file()}
+    # written by the framework, so an edited file stays recognisably edited —
+    # and a file the user deleted keeps its entry too. That record is the only
+    # thing separating "deleted on purpose" from "never had it": drop it and
+    # the next release classifies the file as new and puts it back.
+    entries = {Path(name): entry for name, entry in recorded.items()}
     entries.update({rel: {"version": __version__, "sha256": _sha256(target / rel)}
                     for rel in written})
     _write_manifest(target, deployment, agent, entries)
@@ -686,7 +730,7 @@ def cmd_migrate(args: argparse.Namespace) -> int:
     if not config.is_file():
         raise CommandError(f"no program found at {keel_lib.PROGRAM}")
     text = config.read_text(encoding="utf-8")
-    declared = (yaml.safe_load(text) or {}).get("schema_version")
+    declared = _declared_schema_version(yaml.safe_load(text) or {})
 
     if declared == SCHEMA_VERSION:
         print(f"Already at schema {SCHEMA_VERSION}. Nothing to migrate.")
@@ -710,20 +754,41 @@ def cmd_migrate(args: argparse.Namespace) -> int:
     # The diff is the review, so it must not be mixed with unrelated work.
     # A repository with no commits has nothing to diff against, so the rule
     # has nothing to protect there — which is the case for an instance being
-    # brought forward before its first commit.
-    has_head = subprocess.run(["git", "rev-parse", "--verify", "-q", "HEAD"],
-                              capture_output=True).returncode == 0
-    dirty = subprocess.run(["git", "status", "--porcelain"],
-                           capture_output=True, text=True).stdout.strip()
-    if dirty and has_head and args.apply:
-        raise CommandError(
-            "the working tree has uncommitted changes; commit or stash them so "
-            "the migration's diff stands on its own"
-        )
+    # brought forward before its first commit. Outside a repository there is
+    # no diff and no undo, so the guard refuses instead of falling silent.
+    if args.apply:
+        try:
+            inside = subprocess.run(
+                ["git", "rev-parse", "--is-inside-work-tree"],
+                capture_output=True, text=True,
+            ).stdout.strip() == "true"
+        except FileNotFoundError:
+            raise CommandError(
+                "git is not on PATH, so this migration cannot be reviewed as a "
+                "diff or undone. Install git, or migrate a copy of program/."
+            ) from None
+        if not inside:
+            raise CommandError(
+                f"{keel_lib.REPO} is not a git repository, so this migration "
+                "could not be reviewed as a diff or undone. Run 'git init' and "
+                "commit the program first."
+            )
+        has_head = subprocess.run(["git", "rev-parse", "--verify", "-q", "HEAD"],
+                                  capture_output=True).returncode == 0
+        dirty = subprocess.run(["git", "status", "--porcelain"],
+                               capture_output=True, text=True).stdout.strip()
+        if dirty and has_head:
+            raise CommandError(
+                "the working tree has uncommitted changes; commit or stash them so "
+                "the migration's diff stands on its own"
+            )
 
     print(f"schema {declared} -> {SCHEMA_VERSION}\n")
     for step in steps:
-        changed = step.apply(keel_lib.PROGRAM, dry_run=not args.apply)
+        try:
+            changed = step.apply(keel_lib.PROGRAM, dry_run=not args.apply)
+        except migrations.MigrationError as exc:
+            raise CommandError(f"{step.name} refused to run: {exc}") from None
         print(f"  {step.name}")
         for line in changed:
             print(f"    {line}")
@@ -779,7 +844,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--agent", default="claude",
                    help="agent integration to render (default: claude)")
     p.add_argument("--force", action="store_true",
-                   help="proceed even if program/ already exists")
+                   help="proceed even if program/ already exists, or if the seed "
+                        "would overwrite files this repository already has")
 
     p = sub.add_parser("new", help="write a document from its template")
     p.add_argument("type", metavar="TYPE",

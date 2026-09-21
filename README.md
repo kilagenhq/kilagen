@@ -82,6 +82,7 @@ Releasing:
 
 ```bash
 python -m unittest discover -s tests && npm test --prefix keel/dashboard
+rm -rf build dist *.egg-info      # setuptools caches the old file list in SOURCES.txt
 python -m build
 git tag v0.2.0 && git push --tags
 ```

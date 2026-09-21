@@ -16,6 +16,11 @@ concurrency:
 jobs:
   python:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # The ends of the range pyproject.toml claims, and the two in between.
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - name: Checkout
         uses: actions/checkout@v4.3.1
@@ -23,7 +28,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5.6.0
         with:
-          python-version: "3.12"
+          python-version: "${{ matrix.python-version }}"
 
       # Editable rather than plain: the tests import kilagen the way an
       # instance does, so they exercise the real package layout.

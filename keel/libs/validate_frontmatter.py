@@ -49,8 +49,9 @@ def load_schema(name: str) -> dict:
     # installed package, which has no relation to where the program lives.
     path = keel_lib.KEEL / "schemas" / name
     try:
-        with open(path) as f:
-            return json.load(f)
+        # Explicit UTF-8: every schema holds non-ASCII, and the platform
+        # default is the ANSI codepage on Windows.
+        return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         print(f"ERROR: Schema file not found: {path}", file=sys.stderr)
         sys.exit(1)
@@ -130,7 +131,14 @@ def validate_documents(fm_schema: dict) -> list[str]:
         rel = path.relative_to(keel_lib.REPO)
         fm = extract_frontmatter(path)
         if fm is None:
-            errors.append(f"  {rel}: no YAML frontmatter — every document in a type folder needs one")
+            # None covers four different faults. Ask again, letting the error
+            # out, so the message names the one that actually happened.
+            try:
+                extract_frontmatter(path, raise_on_error=True)
+                reason = "no YAML frontmatter — every document in a type folder needs one"
+            except Exception as exc:
+                reason = f"frontmatter did not parse — {exc}"
+            errors.append(f"  {rel}: {reason}")
             continue
         if "type" not in fm:
             errors.append(f"  {rel}: frontmatter has no 'type' field")

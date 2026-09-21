@@ -59,8 +59,12 @@ def collect(documents: list[dict], today: str | None = None,
         if doc.get("type") == "exception" and doc.get("expires") and not doc.get("revoked"):
             if str(doc["expires"]) < today:
                 found["expired"].append((str(doc["expires"]), *label))
-        if doc.get("type") == "gap" and is_open_gap(doc) and str(doc.get("found", "")) <= stale_before:
-            found["stale_gaps"].append((str(doc.get("found", "")), *label))
+        # `found` is required on a gap, so a missing one is a schema error that
+        # `check` reports. Comparing "" would make it sort as stale and print a
+        # row with a blank date, which says nothing true.
+        if doc.get("type") == "gap" and is_open_gap(doc) and doc.get("found") \
+                and str(doc["found"]) <= stale_before:
+            found["stale_gaps"].append((str(doc["found"]), *label))
     for bucket in found.values():
         bucket.sort()
     return found

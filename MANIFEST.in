@@ -6,6 +6,7 @@
 # setuptools' package-data globs skip them. graft does not.
 
 graft keel/ai
+graft keel/collectors
 graft keel/content
 graft keel/schemas
 graft keel/scaffold

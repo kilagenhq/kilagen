@@ -38,6 +38,10 @@ from .keel_lib import KEEL, scan_documents
 
 KEEL_COLLECTORS = KEEL / "collectors"
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# The same shape the frontmatter schema requires. Repeated here because this is
+# where the name becomes a path and the file behind it is executed, and the
+# schema is not a gate on that path: `update evidence` does not run validation.
+COLLECTOR_NAME = re.compile(r"^[a-z][a-z0-9-]*$")
 
 
 class CollectorError(Exception):
@@ -46,20 +50,46 @@ class CollectorError(Exception):
 
 def collector_path(name: str, root: Path | None = None) -> Path:
     """Where a collector lives: the instance's first, then the shipped one."""
+    if not isinstance(name, str) or not COLLECTOR_NAME.match(name):
+        raise CollectorError(
+            f"{name!r} is not a collector name — lowercase letters, digits and "
+            f"hyphens, starting with a letter. A name is turned into a path and "
+            f"the file behind it is executed, so it is never taken on trust.")
     root = root or keel_lib.PROGRAM.parent
     local = root / "collectors" / f"{name}.py"
     if local.is_file():
-        return local
+        return _contained(local, root / "collectors")
     shipped = KEEL_COLLECTORS / f"{name}.py"
     if shipped.is_file():
-        return shipped
+        return _contained(shipped, KEEL_COLLECTORS)
     raise CollectorError(
         f"no collector named {name} — expected collectors/{name}.py in this "
         f"repository, or one shipped with the framework")
 
 
-def load(name: str, root: Path | None = None) -> ModuleType:
-    """Import a collector module by name, without putting it on sys.path."""
+def _contained(path: Path, folder: Path) -> Path:
+    """The path, once it is proved to sit directly inside folder.
+
+    Belt to the name check's braces: a symlink inside collectors/ can point
+    anywhere, and what is at the end of it gets executed.
+    """
+    resolved = path.resolve()
+    if resolved.parent != folder.resolve():
+        raise CollectorError(
+            f"{path} resolves to {resolved}, outside {folder} — refusing to run it")
+    return path
+
+
+def load(name: str, root: Path | None = None, cache: dict | None = None) -> ModuleType:
+    """Import a collector module by name, without putting it on sys.path.
+
+    ``cache`` holds one module per name for the run: a collector named by
+    several requirements would otherwise be executed once per entry, repeating
+    whatever its import does — authenticating, opening a session, reading a
+    credential.
+    """
+    if cache is not None and name in cache:
+        return cache[name]
     path = collector_path(name, root)
     spec = importlib.util.spec_from_file_location(f"kilagen_collector_{name.replace('-', '_')}", path)
     if spec is None or spec.loader is None:
@@ -68,6 +98,8 @@ def load(name: str, root: Path | None = None) -> ModuleType:
     spec.loader.exec_module(module)
     if not hasattr(module, "collect"):
         raise CollectorError(f"{path} defines no collect(config) function")
+    if cache is not None:
+        cache[name] = module
     return module
 
 
@@ -86,20 +118,15 @@ def _validate(result: object, name: str) -> dict:
     return {"url": url, "collected": collected}
 
 
-def _rewrite(text: str, name: str, fresh: dict) -> tuple[str, bool]:
-    """Replace the url and collected of the entry that names this collector.
+def _locate(lines: list[str], name: str, occurrence: int = 0) -> tuple[int, int] | None:
+    """The line span of the nth evidence entry naming this collector.
 
-    Line by line, not with one regex over the whole file. The obvious pattern
-    for "a list item and the keys under it" pairs a lazy quantifier with
-    ``re.S``, and ``.*`` then matches newlines: on a document of any size that
-    backtracks until it looks like a hang, which is exactly what it did.
-
-    Text rather than a YAML round-trip, because the frontmatter of a program
-    document is written by people and reformatting all of it to change two
-    lines is not a diff anybody wants to review.
+    Indexed rather than first-match: one document may prove several
+    requirements with the same collector, and each of those entries has its own
+    url and its own date.
     """
-    lines = text.split("\n")
-    # Find the entry: a "- name:" line, then the keys indented under it, one of
+    seen = 0
+    # An entry is a "- name:" line, then the keys indented under it, one of
     # which names this collector.
     for start in range(len(lines)):
         if not re.match(r"^\s*-\s+name:", lines[start]):
@@ -114,9 +141,33 @@ def _rewrite(text: str, name: str, fresh: dict) -> tuple[str, bool]:
             if current <= indent:
                 break
             end += 1
-        entry = lines[start:end]
-        if not any(re.match(r"^\s*collector:\s*" + re.escape(name) + r"\s*$", x) for x in entry):
+        if not any(re.match(r"^\s*collector:\s*" + re.escape(name) + r"\s*$", x)
+                   for x in lines[start:end]):
             continue
+        if seen == occurrence:
+            return start, end
+        seen += 1
+    return None
+
+
+def _rewrite(text: str, name: str, fresh: dict, occurrence: int = 0) -> tuple[str, bool]:
+    """Replace the url and collected of one entry that names this collector.
+
+    Line by line, not with one regex over the whole file. The obvious pattern
+    for "a list item and the keys under it" pairs a lazy quantifier with
+    ``re.S``, and ``.*`` then matches newlines: on a document of any size that
+    backtracks until it looks like a hang, which is exactly what it did.
+
+    Text rather than a YAML round-trip, because the frontmatter of a program
+    document is written by people and reformatting all of it to change two
+    lines is not a diff anybody wants to review.
+    """
+    lines = text.split("\n")
+    span = _locate(lines, name, occurrence)
+    if span is not None:
+        start, end = span
+        entry = lines[start:end]
+        indent = len(lines[start]) - len(lines[start].lstrip())
 
         changed = False
         seen_collected = False
@@ -174,11 +225,18 @@ def main(apply: bool = False) -> int:
           f"declare{'s' if len(wanted) == 1 else ''} a collector.\n")
 
     failures = 0
+    # How many entries naming this collector this document has already had
+    # rewritten. Without it every entry after the first would re-find the
+    # first one, and be reported "unchanged" while keeping a stale pointer.
+    done: dict[tuple[str, str], int] = {}
+    loaded: dict[str, ModuleType] = {}
     for doc, req, item in wanted:
         name = item["collector"]
         where = f"{doc.get('id', '')}#{req.get('ref', '')} — {item.get('name', '')}"
+        occurrence = done.get((doc["path"], name), 0)
+        done[(doc["path"], name)] = occurrence + 1
         try:
-            module = load(name)
+            module = load(name, cache=loaded)
             fresh = _validate(module.collect(dict(item)), name)
         except CollectorError as err:
             print(f"  {where}\n    FAILED — {err}")
@@ -191,13 +249,21 @@ def main(apply: bool = False) -> int:
 
         path = keel_lib.PROGRAM / doc["path"]
         text = path.read_text(encoding="utf-8")
-        new_text, changed = _rewrite(text, name, fresh)
+        new_text, changed = _rewrite(text, name, fresh, occurrence)
         if not changed:
-            print(f"  {where}\n    unchanged ({fresh['collected']})")
+            if _locate(text.split("\n"), name, occurrence) is None:
+                # The entry is in the parsed frontmatter but its text could not
+                # be found. Saying "unchanged" here would report a pointer as
+                # current that was never written.
+                print(f"  {where}\n    FAILED — could not find this entry in "
+                      f"{doc['path']} to rewrite it")
+                failures += 1
+            else:
+                print(f"  {where}\n    unchanged ({fresh['collected']})")
             continue
         print(f"  {where}\n    -> {fresh['url']}  collected {fresh['collected']}")
         if apply:
-            path.write_text(new_text, encoding="utf-8")
+            keel_lib.write_text_atomic(path, new_text)
 
     print()
     if failures:

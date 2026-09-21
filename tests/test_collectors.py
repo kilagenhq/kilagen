@@ -15,7 +15,7 @@ from pathlib import Path
 
 from kilagen.libs import build_site, collect_evidence, keel_lib
 
-from support import ProgramTestCase
+from tests.support import ProgramTestCase
 
 SHIPPED = keel_lib.KEEL / "collectors"
 

@@ -34,6 +34,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from ..libs.keel_lib import write_text_atomic
+from . import MigrationError
+
 FROM_VERSION = 1
 TO_VERSION = 2
 
@@ -97,6 +100,21 @@ def apply(program: Path, dry_run: bool) -> list[str]:
     changed: list[str] = []
     renamed = _renamed_ids(program)
 
+    # A rename whose destination is already taken would replace a document
+    # this migration did not write — Path.rename overwrites silently on POSIX.
+    # Refuse before step 1 writes anything, so the tree is left as found.
+    occupied = sorted(
+        f"{OLD_FOLDER}/{old_id}.md -> {NEW_FOLDER}/{new_id}.md (destination exists)"
+        for old_id, new_id in renamed.items()
+        if (program / NEW_FOLDER / f"{new_id}.md").exists()
+    )
+    if occupied:
+        raise MigrationError(
+            "these documents already exist where the rename would put them, and "
+            "migrating would overwrite them. Move or delete them first:\n  "
+            + "\n  ".join(occupied)
+        )
+
     # 1. Rewrite every file that mentions a renamed id, wherever it lives.
     if renamed:
         for path in sorted(program.rglob("*.md")) + sorted(program.rglob("*.yml")):
@@ -108,7 +126,7 @@ def apply(program: Path, dry_run: bool) -> list[str]:
             if new_text == text:
                 continue
             if not dry_run:
-                path.write_text(new_text, encoding="utf-8")
+                write_text_atomic(path, new_text)
             changed.append(f"{path.relative_to(program)}: references updated")
 
         # 2. Move the documents themselves.
@@ -134,7 +152,7 @@ def apply(program: Path, dry_run: bool) -> list[str]:
         new_text = re.sub(r"^(\s*)adr:", r"\1decision:", text, count=1, flags=re.M)
         if new_text != text:
             if not dry_run:
-                publish.write_text(new_text, encoding="utf-8")
+                write_text_atomic(publish, new_text)
             changed.append("publish.yml: the adr default is now keyed decision")
 
     # 4. The binding scale.
@@ -153,7 +171,7 @@ def apply(program: Path, dry_run: bool) -> list[str]:
             lines.append(line)
         new_text = "".join(lines)
         if new_text != text and not dry_run:
-            config.write_text(new_text, encoding="utf-8")
+            write_text_atomic(config, new_text)
 
     # 5. Gaps and exceptions lose their declared status.
     for path in sorted(program.rglob("*.md")):
@@ -165,7 +183,7 @@ def apply(program: Path, dry_run: bool) -> list[str]:
         if new_text == text:
             continue
         if not dry_run:
-            path.write_text(new_text, encoding="utf-8")
+            write_text_atomic(path, new_text)
         changed.append(f"{path.relative_to(program)}: status removed (state is derived)")
 
     return changed

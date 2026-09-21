@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from datetime import date
@@ -170,6 +171,21 @@ def _load_yaml(path: Path) -> dict | None:
     except yaml.YAMLError as exc:
         _warn(f"YAML parse error in {path}: {exc}")
         return None
+
+
+def write_text_atomic(path: Path, text: str) -> None:
+    """Replace a file's contents, or leave them untouched.
+
+    ``write_text`` truncates first, so an interruption between truncation and
+    write leaves an empty document. Every caller here is rewriting a document
+    a person wrote, so the failure has to be "nothing happened".
+    """
+    temporary = path.with_name(f"{path.name}.kilagen-tmp")
+    try:
+        temporary.write_text(text, encoding="utf-8")
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def extract_frontmatter(path: Path, *, raise_on_error: bool = False) -> dict | None:
@@ -697,7 +713,9 @@ def unrecognised_program_files() -> list[str]:
     for path in sorted(PROGRAM.rglob("*")):
         if not path.is_file() or path.name.startswith("."):
             continue
-        relative = str(path.relative_to(PROGRAM))
+        # as_posix, not str: on Windows str() yields backslashes, and both the
+        # fnmatch patterns and the folder split below are written with "/".
+        relative = path.relative_to(PROGRAM).as_posix()
         recognised, _ = validator_for(relative)
         if not recognised:
             found.append(relative)

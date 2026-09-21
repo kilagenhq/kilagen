@@ -63,6 +63,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from ..libs.keel_lib import write_text_atomic
+
 FROM_VERSION = 2
 TO_VERSION = 3
 
@@ -166,7 +168,7 @@ def _reciprocal_supersedes(program: Path, dry_run: bool, changed: list[str]) -> 
         else:
             frontmatter = frontmatter + f"supersedes:\n{lines}"
         if not dry_run:
-            path.write_text(_join(frontmatter, body), encoding="utf-8")
+            write_text_atomic(path, _join(frontmatter, body))
         changed.append(f"{path.relative_to(program)}: supersedes {', '.join(missing)} "
                        "(the other side declared it and now the edge lives here)")
 
@@ -239,7 +241,7 @@ def apply(program: Path, dry_run: bool) -> list[str]:
             frontmatter = _date_certifications(frontmatter, where, changed)
 
         if frontmatter != original and not dry_run:
-            path.write_text(_join(frontmatter, body), encoding="utf-8")
+            write_text_atomic(path, _join(frontmatter, body))
 
     return changed
 
@@ -251,8 +253,11 @@ def _move_evidence(frontmatter: str, where: Path, changed: list[str]) -> str:
     becomes one; anything else is left where it is and reported, because the
     requirement it belongs to is a judgement the migration cannot make.
     """
-    # requirements[].evidence was a sentence, not a link.
-    renamed = re.sub(r"^(\s+)evidence:(\s+\S)", r"\1how_demonstrated:\2", frontmatter, flags=re.M)
+    # requirements[].evidence was a sentence, not a link. The indent must be
+    # spaces or tabs, never `\s`: `\s` matches a newline, so under re.M the
+    # group can start on a blank line and swallow it — which would rename a
+    # document-level `evidence:` the branch below is meant to handle by hand.
+    renamed = re.sub(r"^([ \t]+)evidence:([ \t]+\S)", r"\1how_demonstrated:\2", frontmatter, flags=re.M)
     if renamed != frontmatter:
         frontmatter = renamed
         changed.append(f"{where}: requirements[].evidence -> how_demonstrated (it is the method, not the proof)")

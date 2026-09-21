@@ -47,12 +47,12 @@ from .keel_lib import (
 _ROLE_FIELDS = ("owner", "reports_to", "requested_by")
 _ROLE_LIST_FIELDS = ("approved_by", "reviewed_by")
 
-# Extensions that are text as far as a security program is concerned. Anything
-# else under program/ is treated as an artifact that belongs in storage.
-# Extensions a text file may carry. "" covers .gitkeep and friends, whose
-# whole name is the suffix — they are sniffed like everything else. ".css" is
-# there for the one stylesheet a program may own, program/branding.css.
-_TEXT_SUFFIXES = {".md", ".yml", ".yaml", ".json", ".txt", ".csv", ".css", ".gitkeep", ""}
+# Extensions that are text as far as a security program is concerned; anything
+# else under program/ is an artifact that belongs in storage. "" covers
+# .gitkeep and friends, whose whole name is the suffix, so Path.suffix is empty
+# for them. ".css" is there for the one stylesheet a program may own,
+# program/branding.css.
+_TEXT_SUFFIXES = {".md", ".yml", ".yaml", ".json", ".txt", ".csv", ".css", ""}
 
 
 def check_facets(documents: list[dict], model: dict) -> list[str]:
@@ -65,7 +65,15 @@ def check_facets(documents: list[dict], model: dict) -> list[str]:
             if not isinstance(values, list):
                 continue
             for value in values:
-                if value not in ids[facet]:
+                # `value not in <set>` raises TypeError on anything unhashable,
+                # and a facet written as `- id: identity` is a dict. The type
+                # is the error to report, not a crash.
+                if not isinstance(value, str):
+                    errors.append(
+                        f"  {doc['path']}: {facet}: expected a list of ids, found "
+                        f"{type(value).__name__} ({value!r})"
+                    )
+                elif value not in ids[facet]:
                     errors.append(
                         f"  {doc['path']}: {facet}: '{value}' is not in "
                         f"program/model/{facet}.yml"
@@ -299,16 +307,30 @@ def check_risk_taxonomy(documents: list[dict], model: dict) -> list[str]:
             continue
         category = doc.get("risk_category")
         if isinstance(category, dict):
-            principle = categories.get(category.get("principle"))
-            level1 = principle.get("children", {}).get(category.get("category1")) if principle else None
-            level2 = level1.get("children", {}) if isinstance(level1, dict) else {}
-            if principle is None or level1 is None or category.get("category2") not in level2:
+            # Every lookup below indexes a dict or a set with a value that came
+            # out of the document, so each one has to be hashable first.
+            levels = [category.get(key) for key in ("principle", "category1", "category2")]
+            if not all(isinstance(level, str) for level in levels):
                 errors.append(
-                    f"  {doc['path']}: risk_category does not resolve to a path in "
-                    "program/model/risk-taxonomy.yml"
+                    f"  {doc['path']}: risk_category: principle, category1 and "
+                    f"category2 must each be a single id"
                 )
+            else:
+                principle = categories.get(levels[0])
+                level1 = principle.get("children", {}).get(levels[1]) if principle else None
+                level2 = level1.get("children", {}) if isinstance(level1, dict) else {}
+                if principle is None or level1 is None or levels[2] not in level2:
+                    errors.append(
+                        f"  {doc['path']}: risk_category does not resolve to a path in "
+                        "program/model/risk-taxonomy.yml"
+                    )
         for slug in doc.get("root_causes") or []:
-            if slug not in cause_slugs:
+            if not isinstance(slug, str):
+                errors.append(
+                    f"  {doc['path']}: root_causes: expected a list of slugs, found "
+                    f"{type(slug).__name__} ({slug!r})"
+                )
+            elif slug not in cause_slugs:
                 errors.append(
                     f"  {doc['path']}: root_causes: '{slug}' is not in the taxonomy's causes"
                 )

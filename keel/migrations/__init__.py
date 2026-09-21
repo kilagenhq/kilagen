@@ -16,6 +16,10 @@ To add one, drop a module named ``m<NNN>_<slug>.py`` here exposing:
 once — and must never invent a value it cannot know. For a newly required
 field, write an obvious sentinel and let validation fail loudly on it; a
 plausible guess in a compliance document is worse than a blank.
+
+When a migration cannot proceed without destroying something it did not
+write, it raises ``MigrationError`` — before touching anything, so a refusal
+leaves the tree exactly as it found it.
 """
 
 from __future__ import annotations
@@ -24,6 +28,10 @@ import importlib
 import pkgutil
 from collections.abc import Callable
 from dataclasses import dataclass
+
+
+class MigrationError(Exception):
+    """A migration refused to run. Raised before any file is written."""
 
 
 @dataclass(frozen=True)
@@ -69,4 +77,4 @@ def between(current: int, target: int) -> list[Migration]:
     return chain
 
 
-__all__ = ["Migration", "between", "discover"]
+__all__ = ["Migration", "MigrationError", "between", "discover"]
