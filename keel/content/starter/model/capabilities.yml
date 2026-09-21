@@ -360,37 +360,6 @@ capabilities:
       Validates that detection and prevention controls actually work against
       realistic attack scenarios.
 
-  - id: digital-assets.custody
-    name: Custody & Key Management
-    domain: digital-assets
-    description: >
-      Secure custody of digital asset private keys, including key ceremonies,
-      signer enrollment, multi-signature governance, and policy-based
-      transaction controls.
-    why: >
-      If custody is compromised, client funds are lost irreversibly. Every other
-      security control is secondary to this.
-
-  - id: digital-assets.smart-contracts
-    name: Smart Contract Security
-    domain: digital-assets
-    description: >
-      Security controls around smart contract development, review and
-      deployment.
-    why: >
-      Smart contract vulnerabilities can result in irreversible loss of funds;
-      deployment must be controlled and auditable.
-
-  - id: digital-assets.on-chain-monitoring
-    name: On-Chain Monitoring / KYT
-    domain: digital-assets
-    description: >
-      Blockchain transaction monitoring for suspicious activity and counterparty
-      screening.
-    why: >
-      Regulatory requirement and operational necessity — detect and flag
-      suspicious transactions in real time.
-
   - id: awareness.security-awareness-training
     name: Security Awareness Training
     domain: awareness

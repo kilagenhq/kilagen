@@ -138,6 +138,50 @@ describe('every view passes axe-core', () => {
   });
 });
 
+/* axe cannot see an event listener, so a view whose whole navigation is
+ * click-handlers on bare <div>s passes every rule it has. This is the sweep
+ * that closes that: record what gets a click listener while a view renders,
+ * then require each of those to be something the keyboard can reach and
+ * activate. It cannot be defeated by adding a case — a new clickable element
+ * is caught the moment the view that draws it is in VIEWS.
+ */
+const FOCUSABLE = new Set(['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA', 'SUMMARY']);
+
+function focusable(el) {
+  if (FOCUSABLE.has(el.tagName)) return true;
+  const tabindex = el.getAttribute('tabindex');
+  return tabindex !== null && Number(tabindex) >= 0 && !!el.getAttribute('role');
+}
+
+function unreachable(el) {
+  if (focusable(el)) return false;
+  // A <tr> cannot carry role="link" without breaking the table's semantics,
+  // so a row counts as reachable when one of its cells holds the handle.
+  return ![...el.querySelectorAll('*')].some(focusable);
+}
+
+describe('nothing is clickable without being reachable', () => {
+  const native = Element.prototype.addEventListener;
+  VIEWS.forEach(([name, render]) => {
+    it(name, async () => {
+      const clickable = new Set();
+      Element.prototype.addEventListener = function(type, ...rest) {
+        if (type === 'click') clickable.add(this);
+        return native.call(this, type, ...rest);
+      };
+      try {
+        await render();
+      } finally {
+        Element.prototype.addEventListener = native;
+      }
+
+      const offenders = [...clickable].filter(unreachable).map((el) =>
+        `<${el.tagName.toLowerCase()} class="${el.className || ''}">`);
+      expect([...new Set(offenders)]).toEqual([]);
+    });
+  });
+});
+
 describe('the keyboard reaches everything the mouse does', () => {
   it('a filter popover says whether it is open, and closes on Escape', async () => {
     const { renderBrowse } = await import('../modules/views/browse.js');

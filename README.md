@@ -17,6 +17,11 @@ pip install kilagen
 kilagen init --name "Acme Corp"      # or --guided, to be asked
 ```
 
+> Not released yet. The name is reserved on PyPI but no working version is
+> published, so the line above installs a placeholder. Until the first release,
+> install from this repository:
+> `pip install git+https://github.com/kilagenhq/kilagen.git`
+
 `init` also takes `--deployment` (which CI to wire up, default `github`) and `--agent` (which agent integration to render, default `claude`). Both accept `none`. It records everything it copied, with a checksum per file, in `.kilagen-manifest.yml`.
 
 Day to day:

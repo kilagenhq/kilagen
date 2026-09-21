@@ -1,4 +1,4 @@
-import { mk, mkEmpty, mkIcon, th } from '../dom.js';
+import { mkClickable, mk, mkEmpty, mkIcon, th } from '../dom.js';
 import { state, docById, coverageOf } from '../state.js';
 import { go, setActiveView, setBread, setParams, splitHash, getHash, mainEl, rightEl, showRightPanel, hideRightPanel } from '../nav.js';
 import { frameworkWheel, frameworkBars, wheelCaption, barsCaption } from '../wheel.js';
@@ -25,8 +25,8 @@ function frameworkSummary(fw) {
   return {
     total: cov.total,
     mapped: cov.mapped,
-    gaps: refs.filter(function(r) { return clauses[r].gaps.length; }).length,
-    exceptions: refs.filter(function(r) { return clauses[r].exceptions.length; }).length,
+    gaps: refs.filter(function(r) { return (clauses[r].gaps || []).length; }).length,
+    exceptions: refs.filter(function(r) { return (clauses[r].exceptions || []).length; }).length,
   };
 }
 
@@ -100,7 +100,7 @@ function renderDashboard(frameworks) {
 
     if (m.granularity) card.appendChild(mk('div', 'fw-card-granularity', m.granularity));
 
-    card.addEventListener('click', function(e) { go('compliance/' + fw, e); });
+    mkClickable(card, function(e) { go('compliance/' + fw, e); });
     grid.appendChild(card);
   });
   mainEl.appendChild(grid);
@@ -133,7 +133,7 @@ function requirementCell(keys) {
     if (fm) {
       name.title = fm.title || '';
       name.classList.add('clickable');
-      name.addEventListener('click', function(e) { go('doc/' + fm.path, e); });
+      mkClickable(name, function(e) { go('doc/' + fm.path, e); });
     }
     row.appendChild(name);
     const list = mk('span', 'req-map-clauses');
@@ -143,7 +143,7 @@ function requirementCell(keys) {
       if (entry && entry.text) el.title = entry.text;
       if (fm) {
         el.classList.add('clickable');
-        el.addEventListener('click', function(e) { go('doc/' + fm.path, e); });
+        mkClickable(el, function(e) { go('doc/' + fm.path, e); });
       }
       list.appendChild(el);
     });
@@ -184,8 +184,7 @@ function evidenceCell(keys) {
   cell.appendChild(ratio);
   cell.appendChild(mk('span', 'clause-ev-label', 'proven'));
   if (lapsed) {
-    cell.appendChild(mk('span', 'clause-ev-lapsed',
-      lapsed + (lapsed === 1 ? ' lapsed' : ' lapsed')));
+    cell.appendChild(mk('span', 'clause-ev-lapsed', lapsed + ' lapsed'));
   }
   return cell;
 }
@@ -213,11 +212,11 @@ function clauseTable(container, refs, clauseNames) {
     row.appendChild(evidenceCell(entry.requirements || []));
 
     const gapCell = mk('td', 'clause-contest');
-    entry.gaps.forEach(function(id) { gapCell.appendChild(docChip(id, 'var(--sev-high)')); });
+    (entry.gaps || []).forEach(function(id) { gapCell.appendChild(docChip(id, 'var(--sev-high)')); });
     row.appendChild(gapCell);
 
     const excCell = mk('td', 'clause-contest');
-    entry.exceptions.forEach(function(id) { excCell.appendChild(docChip(id, 'var(--sev-medium)')); });
+    (entry.exceptions || []).forEach(function(id) { excCell.appendChild(docChip(id, 'var(--sev-medium)')); });
     row.appendChild(excCell);
 
     table.appendChild(row);
@@ -281,7 +280,7 @@ function renderDetail(fw) {
   }
   const pack = mk('button', 'audit-open-btn', 'Audit pack');
   pack.title = 'Every clause, its requirement, what stands against it — on one printable page';
-  pack.addEventListener('click', function(e) { go('audit/' + fw, e); });
+  mkClickable(pack, function(e) { go('audit/' + fw, e); });
   title.appendChild(pack);
   mainEl.appendChild(title);
 
@@ -376,7 +375,7 @@ function renderDetail(fw) {
       const icon = mkIcon(fm.type, 'doc-type-icon');
       row.appendChild(icon);
       row.appendChild(mk('span', '', fm.title || fm.id));
-      row.addEventListener('click', function(e) { go('doc/' + fm.path, e); });
+      mkClickable(row, function(e) { go('doc/' + fm.path, e); });
       box.appendChild(row);
     });
     mainEl.appendChild(box);

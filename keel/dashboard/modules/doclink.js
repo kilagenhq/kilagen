@@ -1,4 +1,4 @@
-import { mk } from './dom.js';
+import { mk, mkClickable } from './dom.js';
 import { docById } from './state.js';
 import { go } from './nav.js';
 
@@ -18,7 +18,7 @@ export function idLink(id) {
   const el = mk('span', 'id-link', id);
   if (fm) {
     el.title = fm.title || '';
-    el.addEventListener('click', function(e) { go('doc/' + fm.path, e); });
+    mkClickable(el, function(e) { go('doc/' + fm.path, e); });
   } else {
     el.classList.add('id-link-missing');
     el.title = 'No document with this id';
@@ -32,7 +32,7 @@ export function chip(text, color, route) {
   if (color) { el.style.borderColor = color; el.style.color = color; }
   if (route) {
     el.classList.add('clickable');
-    el.addEventListener('click', function(e) { e.stopPropagation(); go(route, e); });
+    mkClickable(el, function(e) { e.stopPropagation(); go(route, e); });
   }
   return el;
 }

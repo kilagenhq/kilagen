@@ -191,6 +191,7 @@ export function mkFacetPicker(container, opts) {
         const box = mk('input');
         box.type = 'checkbox';
         box.checked = selected.indexOf(entry.value) !== -1;
+        box.setAttribute('data-facet-value', entry.value);
         box.addEventListener('change', function() { opts.onToggle(entry.value, box.checked); });
         row.appendChild(box);
         row.appendChild(mk('span', 'filter-popover-label',
@@ -207,6 +208,14 @@ export function mkFacetPicker(container, opts) {
       pop.addEventListener('click', function(e) { e.stopPropagation(); });
       wrap.appendChild(pop);
       openPickers.push(picker);
+    },
+    /* Put the focus back where it was before the rebuild. Values inside one
+       facet are OR, so choosing two of them is the normal case — and without
+       this every tick tore the popover down and dropped focus to <body>. */
+    focusValue: function(value) {
+      if (!pop) return;
+      const box = pop.querySelector('[data-facet-value="' + String(value).replace(/"/g, '\\"') + '"]');
+      if (box) box.focus();
     },
   };
 
@@ -321,8 +330,17 @@ export function mountFilters(container, docs, opts) {
     facets.forEach(function(f) {
       if (selection[f.key].length) next[f.key] = selection[f.key].join(',');
     });
+    // The 150ms debounce can fire after the view is gone — press Escape while
+    // typing and the hash is already #home. Writing then would leave the URL
+    // describing a page nobody is looking at, and replaceState fires no
+    // hashchange to correct it.
+    if (splitHash(getHash()).route !== route) return;
     setParams(route, next);
   }
+
+  /* Which facet popover was open when a redraw was triggered, and the value
+     that triggered it, so the redraw can put both back. */
+  let reopen = null;
 
   function drawFacets() {
     facetRow.textContent = '';
@@ -340,7 +358,7 @@ export function mountFilters(container, docs, opts) {
       // Nothing to offer: do not draw an empty dropdown.
       if (!entries.length) return;
 
-      mkFacetPicker(facetRow, {
+      const picker = mkFacetPicker(facetRow, {
         name: facet.name,
         entries: entries,
         selected: selection[facet.key],
@@ -348,10 +366,17 @@ export function mountFilters(container, docs, opts) {
           const at = selection[facet.key].indexOf(value);
           if (checked && at === -1) selection[facet.key].push(value);
           else if (!checked && at !== -1) selection[facet.key].splice(at, 1);
+          reopen = { key: facet.key, value: value };
           apply();
         },
-        onClear: function() { selection[facet.key] = []; apply(); },
+        onClear: function() { selection[facet.key] = []; reopen = null; apply(); },
       });
+      if (reopen && reopen.key === facet.key) {
+        const value = reopen.value;
+        reopen = null;
+        picker.open();
+        picker.focusValue(value);
+      }
     });
   }
 

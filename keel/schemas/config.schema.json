@@ -12,7 +12,8 @@
     },
     "repo": {
       "type": "string",
-      "description": "Where this repository lives. Used to link a document back to its source."
+      "pattern": "^$|^(https?://(www\\.)?github\\.com/)?[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(\\.git)?/?$",
+      "description": "Where this repository lives, as 'owner/repo' or its github.com URL. Used to link a document back to its source; leave empty for none."
     },
     "schema_version": {
       "type": "integer",

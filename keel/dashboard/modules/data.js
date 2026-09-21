@@ -1,5 +1,19 @@
 import { state, resetDerived } from './state.js';
 
+const SLUG = /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/;
+
+/*
+ * config.repo as `owner/repo`, or '' when it is neither that nor a github.com
+ * URL. Both shapes are accepted because both are what people write, and the
+ * field is only ever used to build a github.com link.
+ */
+export function repoSlug(value) {
+  if (typeof value !== 'string') return '';
+  let repo = value.trim().replace(/^https?:\/\/(www\.)?github\.com\//i, '');
+  repo = repo.replace(/\.git$/i, '').replace(/\/+$/, '');
+  return SLUG.test(repo) ? repo : '';
+}
+
 /*
  * Load registry.json, built by `kilagen build`. One fetch populates every
  * lookup the views use; document bodies are fetched on demand.
@@ -11,7 +25,13 @@ export function loadRegistry() {
   }).then(function(reg) {
     if (reg.config) {
       if (reg.config.name) state.config.name = reg.config.name;
-      if (reg.config.repo && /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(reg.config.repo)) state.config.repo = reg.config.repo;
+      if (reg.config.repo) {
+        const slug = repoSlug(reg.config.repo);
+        if (slug) state.config.repo = slug;
+        // Never silently: a repo nobody accepts means every "View in GitHub"
+        // link disappears from every document, with nothing to explain it.
+        else console.warn('config.repo is not owner/repo or a github.com URL, so source links are off: ' + reg.config.repo);
+      }
       if (reg.config.organization && typeof reg.config.organization === 'object' && !Array.isArray(reg.config.organization)) state.config.organization = reg.config.organization;
       if (Array.isArray(reg.config.frameworks)) state.config.frameworks = reg.config.frameworks;
     }

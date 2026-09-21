@@ -2,12 +2,21 @@ const marked = window.marked;
 const DOMPurify = window.DOMPurify;
 const jsyaml = window.jsyaml;
 
-marked.use({ breaks: false, gfm: true });
+/* The three vendored libraries are the dashboard's only dependencies and they
+   are read here at import time. A botched vendor-libs.sh run that 404s one of
+   them used to throw during module evaluation, which takes the whole graph
+   down to a blank page with nothing but a console error — while a missing
+   registry.json gets a helpful message. Name them instead and let main.js say
+   so on the page. */
+export const missingLibraries = [['marked', marked], ['DOMPurify', DOMPurify], ['js-yaml', jsyaml]]
+  .filter(function(pair) { return !pair[1]; }).map(function(pair) { return pair[0]; });
+
+if (!missingLibraries.length) marked.use({ breaks: false, gfm: true });
 
 const TAGS = ['p', 'br', 'hr', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'strong', 'em', 'code', 'pre', 'blockquote', 'ul', 'ol', 'li', 'a', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img', 'del'];
 export const purCfg = { ALLOWED_TAGS: TAGS, ALLOWED_ATTR: ['href', 'title', 'src', 'alt'], ALLOW_DATA_ATTR: false };
 
-DOMPurify.addHook('afterSanitizeAttributes', function(n) {
+if (!missingLibraries.length) DOMPurify.addHook('afterSanitizeAttributes', function(n) {
   if (n.tagName === 'A') { const h = n.getAttribute('href') || ''; if (/^https?:\/\//.test(h) || /^mailto:/.test(h)) { n.setAttribute('target', '_blank'); n.setAttribute('rel', 'noopener noreferrer'); } }
   // Block all external/dangerous image sources — documents are local markdown;
   // allowing remote images would enable tracking pixels and unreviewed content.

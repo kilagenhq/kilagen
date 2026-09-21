@@ -179,9 +179,9 @@ class RealInstanceTests(unittest.TestCase):
     def test_the_program_arrives_with_one_capability_vocabulary(self):
         """The menu ships as a checklist, in one file, carrying no assessment.
 
-        Ten files of capabilities with a maturity each was the shape of a
-        self-assessment. One file of ids, names and descriptions is the shape
-        of a vocabulary, which is all a capability is now.
+        One file of capabilities per domain, each with a maturity, was the
+        shape of a self-assessment. One file of ids, names and descriptions is
+        the shape of a vocabulary, which is all a capability is now.
         """
         model = self.instance / "program" / "model"
         self.assertEqual(sorted(p.name for p in model.glob("*.yml")),
@@ -189,7 +189,7 @@ class RealInstanceTests(unittest.TestCase):
 
         domains = yaml.safe_load((model / "domains.yml").read_text())["domains"]
         capabilities = yaml.safe_load((model / "capabilities.yml").read_text())["capabilities"]
-        self.assertEqual(len(domains), 10)
+        self.assertEqual(len(domains), 9)
         self.assertTrue(capabilities)
 
         domain_ids = {d["id"] for d in domains}
@@ -328,7 +328,10 @@ class SeededWorkflowTests(unittest.TestCase):
                                               r"(?:[=@<>][^\s\"']*)?\s*$",
                                               script, re.M):
                             installed.add(pkg)
-                        if "kilagen" in script:
+                        # The framework's own spec is passed through env, so
+                        # the package name is in the step's environment rather
+                        # than in the script it runs.
+                        if "kilagen" in script or "KILAGEN_SPEC" in (step.get("env") or {}):
                             installed.add("kilagen")
                         continue
                     command = script.strip().split()[0]

@@ -244,7 +244,7 @@ class MigrationTwoTests(ProgramTestCase):
 
 
 class SchemaVersionGateTests(ProgramTestCase):
-    """check does not migrate on its own; it says what to run (D-010)."""
+    """check does not migrate on its own; it says what to run."""
 
     def test_content_behind_the_package_is_told_to_migrate(self):
         self.edit("config.yml", f"schema_version: {SCHEMA_VERSION}", "schema_version: 1")

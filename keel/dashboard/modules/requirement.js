@@ -1,4 +1,4 @@
-import { mk } from './dom.js';
+import { mk, mkClickable } from './dom.js';
 import { safeUrl } from './security.js';
 import { fwLabel } from './constants.js';
 import { evidenceState, evidenceStateInfo, expiresOn } from './evidence.js';
@@ -41,7 +41,7 @@ export function mkMappingRows(frameworks, onClause) {
       const el = mk('span', 'req-clause', String(clause));
       if (onClause) {
         el.classList.add('clickable');
-        el.addEventListener('click', function(e) { onClause(key, clause, e); });
+        mkClickable(el, function(e) { onClause(key, clause, e); });
       }
       list.appendChild(el);
     });

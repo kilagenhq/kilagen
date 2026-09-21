@@ -1,4 +1,4 @@
-import { mk, mkMetaRow, th, appendAttribution } from '../dom.js';
+import { mkClickable, mk, mkMetaRow, th, appendAttribution } from '../dom.js';
 import { state, isOpenGap, isLiveException, docsOfType, coverageOf } from '../state.js';
 import { go, setActiveView, mainEl, rightEl, showRightPanel } from '../nav.js';
 import { fwLabel, daysUntil, BINDING_NOTE } from '../constants.js';
@@ -24,7 +24,7 @@ function tile(label, value, route, tone) {
   if (tone && Number(value) > 0) number.classList.add('home-tile-' + tone);
   el.appendChild(number);
   el.appendChild(mk('div', 'home-tile-label', label));
-  if (route) { el.classList.add('clickable'); el.addEventListener('click', function(e) { go(route, e); }); }
+  if (route) { el.classList.add('clickable'); mkClickable(el, function(e) { go(route, e); }); }
   return el;
 }
 
@@ -74,6 +74,8 @@ function renderCoverage(container) {
 
     row.appendChild(mk('td', 'home-cov-num', cov.mapped + ' / ' + cov.total));
     row.addEventListener('click', function(e) { go('compliance/' + fw, e); });
+    // A <tr> cannot be a link; its first cell is the keyboard route in.
+    if (row.firstChild) mkClickable(row.firstChild, function(e) { e.stopPropagation(); go('compliance/' + fw, e); });
     table.appendChild(row);
   });
   container.appendChild(table);
@@ -90,7 +92,7 @@ function renderRisks(container) {
   const head = mk('div', 'home-section-head');
   head.appendChild(mk('h2', '', 'Risk'));
   const all = mk('span', 'home-section-link clickable', risks.length + ' risks');
-  all.addEventListener('click', function(e) { go('program/risk', e); });
+  mkClickable(all, function(e) { go('program/risk', e); });
   head.appendChild(all);
   container.appendChild(head);
 
@@ -143,7 +145,7 @@ function renderOrganisation() {
         badge.title = BINDING_NOTE[fw.binding] || '';
         row.appendChild(badge);
       }
-      row.addEventListener('click', function(e) { go('compliance/' + fw.id, e); });
+      mkClickable(row, function(e) { go('compliance/' + fw.id, e); });
       rightEl.appendChild(row);
     });
   }

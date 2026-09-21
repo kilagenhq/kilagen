@@ -1,4 +1,4 @@
-import { mk, mkIcon, mkEmpty, formatRoles, th, makeSortable } from '../dom.js';
+import { mk, mkClickable, mkIcon, mkEmpty, formatRoles, th, makeSortable } from '../dom.js';
 import { state, docsOfType, derivedState } from '../state.js';
 import { go, setActiveView, setBread, splitHash, setParams, getHash, mainEl, hideRightPanel } from '../nav.js';
 import { mountFilters } from '../filters.js';
@@ -146,12 +146,16 @@ function cell(row, value) {
    anonymous cell, so the column sat short of its own row and out of line with
    the header. Returning the span and letting `cell` wrap it is what keeps this
    column the same kind of thing as every other one. */
+/* The id is the row's handle. A <tr> cannot carry role="link" without
+   breaking the table, so the keyboard route into a row is this cell. */
 function idContent(fm) {
   const wrap = mk('span', 'browse-id');
   const icon = mkIcon(fm.type, 'doc-type-icon');
   icon.style.color = typeColor(fm.type);
   wrap.appendChild(icon);
   wrap.appendChild(mk('span', '', fm.id || ''));
+  mkClickable(wrap, function(e) { e.stopPropagation(); go('doc/' + fm.path, e); });
+  wrap.title = fm.title || '';
   return wrap;
 }
 

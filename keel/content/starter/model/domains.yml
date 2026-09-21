@@ -52,20 +52,14 @@ domains:
       someone else does.
     order: 7
 
-  - id: digital-assets
-    name: Digital Assets
-    description: >
-      Custody, key management, wallet operations and smart-contract security.
-    order: 8
-
   - id: awareness
     name: Security Awareness
     description: >
       Training, phishing simulation and the human side of the program.
-    order: 9
+    order: 8
 
   - id: data-security
     name: Data Security
     description: >
       Classification, loss prevention, encryption, key management and backup.
-    order: 10
+    order: 9

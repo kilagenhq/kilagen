@@ -1,4 +1,4 @@
-import { mk } from './dom.js';
+import { mk, mkClickable } from './dom.js';
 
 /* The 5x5 risk heatmap.
  *
@@ -107,7 +107,7 @@ export function riskHeatmap(risks, severity, onSelect) {
       here.forEach(function(fm) {
         const dot = mk('div', 'heatmap-risk', fm.id);
         dot.title = fm.title || fm.id;
-        dot.addEventListener('click', function(e) { e.stopPropagation(); onSelect(fm, e); });
+        mkClickable(dot, function(e) { e.stopPropagation(); onSelect(fm, e); });
         td.appendChild(dot);
       });
       row.appendChild(td);
@@ -125,7 +125,7 @@ export function riskHeatmap(risks, severity, onSelect) {
       + (unplaced.length === 1 ? '' : 's') + ' not on the matrix — no likelihood or impact score: '));
     unplaced.forEach(function(fm) {
       const link = mk('span', 'heatmap-risk-inline', fm.id);
-      link.addEventListener('click', function(e) { onSelect(fm, e); });
+      mkClickable(link, function(e) { onSelect(fm, e); });
       note.appendChild(link);
     });
     wrap.appendChild(note);

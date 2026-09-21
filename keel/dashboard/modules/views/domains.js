@@ -1,4 +1,4 @@
-import { mk, mkIcon, mkEmpty, th, makeSortable, mkMetaRow, onActivate,
+import { mkClickable, mk, mkIcon, mkEmpty, th, makeSortable, mkMetaRow, onActivate,
          mkStatStrip, mkSegmentMeter } from '../dom.js';
 import { state, docsWithFacet, isOpenGap } from '../state.js';
 import { go, setActiveView, setBread, mainEl, rightEl, showRightPanel, hideRightPanel } from '../nav.js';
@@ -50,7 +50,7 @@ function docRow(fm) {
   status.style.borderColor = statusColor(fm.status);
   status.style.color = statusColor(fm.status);
   row.appendChild(status);
-  row.addEventListener('click', function(e) { go('doc/' + fm.path, e); });
+  mkClickable(row, function(e) { go('doc/' + fm.path, e); });
   return row;
 }
 
@@ -229,7 +229,7 @@ export function renderDomain(domainId) {
         about.forEach(function(fm) {
           const link = mk('span', 'capability-doc', fm.id);
           link.title = fm.title || '';
-          link.addEventListener('click', function(e) { go('doc/' + fm.path, e); });
+          mkClickable(link, function(e) { go('doc/' + fm.path, e); });
           docsCell.appendChild(link);
         });
       }

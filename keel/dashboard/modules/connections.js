@@ -342,6 +342,9 @@ function animate(svg, nodes, cx, cy, w, h) {
   nodes.forEach(function(n) {
     let downAt = null;
     n.el.addEventListener('pointerdown', function(e) {
+      /* Primary button only: a right-click opens the context menu, and without
+         this it also navigated. */
+      if (e.button !== 0) return;
       /* The label is the link and the disc is the handle. Both drag, because a
          drag that only works on one half of a node is a puzzle; only the label
          navigates, because clicking a thing you are about to move should not
@@ -385,6 +388,10 @@ function animate(svg, nodes, cx, cy, w, h) {
       wake();
     }
     n.el.addEventListener('pointerup', release);
+    /* Backstop: if setPointerCapture threw, a pointer released outside the
+       element never fires pointerup on it, and `dragging` staying set keeps the
+       animation loop awake forever. */
+    window.addEventListener('pointerup', function() { if (dragging === n) { dragging = null; n.pinned = false; downAt = null; wake(); } });
     n.el.addEventListener('pointercancel', function() { dragging = null; n.pinned = false; downAt = null; wake(); });
     n.el.addEventListener('pointerenter', wake);
   });

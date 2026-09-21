@@ -1,4 +1,4 @@
-import { mk } from './dom.js';
+import { mk, mkClickable } from './dom.js';
 import { state } from './state.js';
 
 export const mainEl = document.getElementById('main');
@@ -90,13 +90,13 @@ export function setBread(parts) {
   if (!parts || !parts.length) return;
   const breadEl = mk('div', 'breadcrumbs-inline');
   const h = mk('span', '', 'Home');
-  h.addEventListener('click', function(e) { go('home', e); });
+  mkClickable(h, function(e) { go('home', e); });
   breadEl.appendChild(h);
   parts.forEach(function(p) {
     const sep = document.createTextNode(' \u203A ');
     breadEl.appendChild(sep);
     const s = mk('span', '', p.label);
-    if (p.action) s.addEventListener('click', p.action);
+    if (p.action) mkClickable(s, p.action);
     breadEl.appendChild(s);
   });
   mainEl.insertBefore(breadEl, mainEl.firstChild);

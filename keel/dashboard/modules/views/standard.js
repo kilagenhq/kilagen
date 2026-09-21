@@ -1,4 +1,4 @@
-import { mk, mkEmpty, th, makeSortable, formatRoles, mkStatStrip } from '../dom.js';
+import { mkClickable, mk, mkEmpty, th, makeSortable, formatRoles, mkStatStrip } from '../dom.js';
 import { state, derivedState, isOpenGap, isLiveException } from '../state.js';
 import { go, setParams, splitHash, getHash } from '../nav.js';
 import { chip, docChip } from '../doclink.js';
@@ -280,6 +280,9 @@ function renderGaps(container, fm) {
     tr.appendChild(tracker);
 
     tr.addEventListener('click', function(e) { go('doc/' + doc.path, e); });
+    // The keyboard route into the row: a <tr> cannot be a link.
+    const handle = tr.querySelector('.id-link, .browse-id');
+    if (!handle && tr.firstChild) mkClickable(tr.firstChild, function(e) { e.stopPropagation(); go('doc/' + doc.path, e); });
     table.appendChild(tr);
   });
 

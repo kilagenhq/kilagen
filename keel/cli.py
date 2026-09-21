@@ -219,6 +219,8 @@ def _program_config(name: str, frameworks: Iterable[str] | None = None) -> str:
     return (
         "# Identity and framework selection for this program.\n"
         f"name: {name}\n"
+        "# owner/repo, or its github.com URL. Links each document back to its\n"
+        "# source; leave empty for no source links.\n"
         "repo: \"\"\n"
         "\n"
         "# How far this content has been migrated. Managed by 'kilagen update content';\n"
@@ -264,7 +266,10 @@ def _declared_schema_version(data: dict) -> int | None:
 
 
 def _require_schema_version() -> None:
-    """Block when the content and the installed framework disagree (D-010)."""
+    """Block when the content and the installed framework disagree.
+
+    One content contract at a time: see keel/content/adrs/.
+    """
     config = keel_lib.PROGRAM / "config.yml"
     if not config.is_file():
         raise CommandError(

@@ -1,4 +1,4 @@
-import { mk, mkEmpty, mkIcon, th, makeSortable, mkStatStrip } from '../dom.js';
+import { mkClickable, mk, mkEmpty, mkIcon, th, makeSortable, mkStatStrip } from '../dom.js';
 import { state } from '../state.js';
 import { go, setActiveView, setBread, setParams, splitHash, getHash, mainEl, rightEl, showRightPanel } from '../nav.js';
 import { chip } from '../doclink.js';
@@ -92,13 +92,13 @@ export function evidenceTable(container, rows, opts) {
     ['ev-standard', 'Standard', function(row) {
       const link = mk('span', 'id-link', row.standard.id || '');
       link.title = row.standard.title || '';
-      link.addEventListener('click', function(e) { go('doc/' + row.standard.path, e); });
+      mkClickable(link, function(e) { go('doc/' + row.standard.path, e); });
       return link;
     }],
     ['ev-req', 'Requirement', function(row) {
       const ref = mk('code', 'req-ref clickable', String(row.req.ref || ''));
       ref.title = String(row.req.text || '');
-      ref.addEventListener('click', function(e) { go('doc/' + row.standard.path, e); });
+      mkClickable(ref, function(e) { go('doc/' + row.standard.path, e); });
       return ref;
     }],
     ['ev-how', 'How demonstrated', function(row) {

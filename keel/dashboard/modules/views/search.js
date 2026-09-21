@@ -1,4 +1,4 @@
-import { mk, mkEmpty } from '../dom.js';
+import { mk, mkClickable, mkEmpty } from '../dom.js';
 import { state } from '../state.js';
 import { go, setActiveView, mainEl, hideRightPanel } from '../nav.js';
 
@@ -53,7 +53,7 @@ export function renderSearchResults(q) {
       descEl.appendChild(highlightText(String(r.fm.description).trim().substring(0, 150), q));
       item.appendChild(descEl);
     }
-    item.addEventListener('click', function(e) { go('doc/' + r.path, e); });
+    mkClickable(item, function(e) { go('doc/' + r.path, e); });
     mainEl.appendChild(item);
   });
 }

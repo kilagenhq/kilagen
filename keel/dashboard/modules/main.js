@@ -1,4 +1,5 @@
 import { state } from './state.js';
+import { missingLibraries } from './parsers.js';
 import { go, getHash, splitHash, fadeMain, initRouter, mainEl } from './nav.js';
 import { rebuildSidebar } from './sidebar.js';
 import { loadRegistry } from './data.js';
@@ -35,6 +36,7 @@ function route(hash) {
   fadeMain();
 
   if (h === 'home') return renderHome();
+  if (h === 'search') return renderSearchResults((splitHash(hash || '').params.q || '').toLowerCase());
   if (h === 'program') return renderBrowse(null);
   if (h.indexOf('program/') === 0) return renderBrowse(h.substring(8));
   if (h === 'domains') return renderDomains();
@@ -92,22 +94,46 @@ darkBtn.addEventListener('click', function() {
 
 /* ===== Keyboard ===== */
 const kbdModal = document.getElementById('kbd-modal');
-kbdModal.addEventListener('click', function(e) { if (e.target === kbdModal) kbdModal.classList.remove('show'); });
+
+/* Open and close the shortcuts dialog, moving the focus with it. Without that
+   a screen reader gets no indication anything happened, and on close the
+   focus is left wherever it was when the dialog took over. */
+let shortcutsOpener = null;
+function toggleShortcuts(force) {
+  const show = force == null ? !kbdModal.classList.contains('show') : force;
+  if (show) {
+    shortcutsOpener = document.activeElement;
+    kbdModal.classList.add('show');
+    const dialog = kbdModal.querySelector('.kbd-modal');
+    if (dialog) dialog.focus();
+  } else {
+    kbdModal.classList.remove('show');
+    if (shortcutsOpener && shortcutsOpener.focus) shortcutsOpener.focus();
+    shortcutsOpener = null;
+  }
+}
+kbdModal.addEventListener('click', function(e) { if (e.target === kbdModal) toggleShortcuts(false); });
 const searchEl = document.getElementById('search');
 const treeEl = document.getElementById('tree');
 document.addEventListener('keydown', function(e) {
+  // Cmd/Ctrl/Alt belong to the browser: without this, Cmd+D flipped the theme
+  // while the bookmark dialog opened.
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.target.tagName === 'INPUT') {
     if (e.key === 'Escape') { searchEl.blur(); searchEl.value = ''; rebuildSidebar(); }
-    if (e.key === 'Enter' && searchEl.value.trim()) renderSearchResults(searchEl.value.trim().toLowerCase());
+    if (e.key === 'Enter' && searchEl.value.trim()) go('search?q=' + encodeURIComponent(searchEl.value.trim()));
     return;
   }
-  if (e.key === '?') { e.preventDefault(); kbdModal.classList.toggle('show'); return; }
-  if (kbdModal.classList.contains('show')) { if (e.key === 'Escape') kbdModal.classList.remove('show'); return; }
+  if (e.key === '?') { e.preventDefault(); toggleShortcuts(); return; }
+  if (kbdModal.classList.contains('show')) { if (e.key === 'Escape') toggleShortcuts(false); return; }
   if (e.key === '/') { e.preventDefault(); if (!focusFilterSearch()) searchEl.focus(); }
   else if (e.key === 'Escape') go('home');
   else if (e.key === 'd' || e.key === 'D') darkBtn.click();
-  else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-    const items = treeEl.querySelectorAll('.tree-item,.app-nav-item');
+  else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight')
+           && (e.target === document.body || treeEl.contains(e.target))) {
+    // Only from the tree or from nothing in particular. Otherwise an arrow
+    // press while a sort button or a heading had focus navigated the app away.
+    const items = treeEl.querySelectorAll('.tree-item');
     if (!items.length) return;
     let idx = -1;
     for (let i = 0; i < items.length; i++) if (items[i].classList.contains('active')) { idx = i; break; }
@@ -195,7 +221,13 @@ searchEl.addEventListener('input', function() { rebuildSidebar(); });
 })();
 
 /* ===== Init ===== */
-loadRegistry().then(function() {
+if (missingLibraries.length) {
+  const msg = mk('div', 'empty-state');
+  msg.appendChild(mk('h2', '', 'Dashboard libraries failed to load'));
+  msg.appendChild(mk('p', '', 'Run ./scripts/vendor-libs.sh, then kilagen build.'));
+  msg.appendChild(mk('p', 'nist-cat-notes', 'Missing: ' + missingLibraries.join(', ')));
+  mainEl.appendChild(msg);
+} else loadRegistry().then(function() {
   document.title = state.config.name;
   const nameEl = document.querySelector('.app-title-name');
   if (nameEl) nameEl.textContent = state.config.name;

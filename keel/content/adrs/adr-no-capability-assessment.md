@@ -34,7 +34,7 @@ Capabilities are demoted to two honest roles:
 1. **A starter checklist** — the menu of what a security program can build, seeded by `init` so a new program has somewhere to start.
 2. **A navigation vocabulary** — the facet behind "everything we have written about IAM".
 
-The ten domains and their capabilities collapse from ten per-domain files into one `model/capabilities.yml`, which is what a vocabulary should be. A capability page may state plainly that what is actually deployed is measured in the estate, not here.
+The domains and their capabilities collapse from one file per domain into a single `model/capabilities.yml`, which is what a vocabulary should be. A capability page may state plainly that what is actually deployed is measured in the estate, not here.
 
 `maturity.md` survives only as an essay about maturity, if it survives at all. It is not schema.
 

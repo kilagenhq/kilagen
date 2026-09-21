@@ -1,4 +1,4 @@
-import { mk, appendAttribution } from '../dom.js';
+import { mkClickable, mk, appendAttribution } from '../dom.js';
 import { state } from '../state.js';
 import { go, setActiveView, setBread, mainEl, rightEl, showRightPanel } from '../nav.js';
 
@@ -61,7 +61,7 @@ function card(container, label, route, note) {
   head.appendChild(mk('span', 'ref-card-name', label));
   el.appendChild(head);
   if (note) el.appendChild(mk('div', 'ref-card-note', note));
-  el.addEventListener('click', function(e) { go(route, e); });
+  mkClickable(el, function(e) { go(route, e); });
   container.appendChild(el);
 }
 

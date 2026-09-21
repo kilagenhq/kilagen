@@ -1,4 +1,4 @@
-import { mk, mkIcon, mkMetaRow, mkCopyBtn, mkSourcePanel, formatRoles } from '../dom.js';
+import { mkClickable, mk, mkIcon, mkMetaRow, mkCopyBtn, mkSourcePanel, formatRoles } from '../dom.js';
 import { state, isLiveException, supersededBy, statusOf } from '../state.js';
 import { go, setActiveView, setBread, mainEl, rightEl, showRightPanel } from '../nav.js';
 import { safeUrl } from '../security.js';
@@ -190,7 +190,7 @@ export function navigateDoc(path) {
   }
 
   setBread([
-    { label: typePlural(fm.type), action: function(e) { go('browse/' + fm.type, e); } },
+    { label: typePlural(fm.type), action: function(e) { go('program/' + fm.type, e); } },
     { label: fm.id },
   ]);
 
@@ -259,7 +259,10 @@ export function navigateDoc(path) {
     const value = field[1](fm);
     if (!value) return;
     const row = mkMetaRow(field[0], String(value));
-    if (field[0] === 'Status') row.querySelector('.meta-val').style.color = statusColor(fm.status);
+    // statusOf, not fm.status: the row prints the derived status, and a
+    // document superseded by another would read "superseded" in the colour
+    // this palette uses for active.
+    if (field[0] === 'Status') row.querySelector('.meta-val').style.color = statusColor(statusOf(fm));
     if (field[0] === 'Severity') row.querySelector('.meta-val').style.color = SEVERITY_COLORS[fm.severity] || '';
     rightEl.appendChild(row);
   });
@@ -283,10 +286,10 @@ export function navigateDoc(path) {
     const wrap = mk('div', 'facet-list');
     values.forEach(function(value) {
       const pill = mk('span', 'pill clickable', value);
-      if (facet === 'domains') pill.addEventListener('click', function(e) { go('domain/' + value, e); });
+      if (facet === 'domains') mkClickable(pill, function(e) { go('domain/' + value, e); });
       if (facet === 'capabilities') {
         const domain = String(value).split('.')[0];
-        pill.addEventListener('click', function(e) { go('domain/' + domain, e); });
+        mkClickable(pill, function(e) { go('domain/' + domain, e); });
       }
       wrap.appendChild(pill);
     });

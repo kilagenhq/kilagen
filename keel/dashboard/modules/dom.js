@@ -18,6 +18,17 @@ export function onActivate(el, run) {
     run(e);
   });
 }
+/* Make a non-<a>, non-<button> element behave like the thing it looks like.
+   onActivate alone is not enough: without a role and a tabindex the element is
+   not in the tab order at all, so the keys it now understands never arrive.
+   The two belong together, which is why they are one call. */
+export function mkClickable(el, run, role) {
+  el.setAttribute('role', role || 'link');
+  if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+  el.addEventListener('click', run);
+  onActivate(el, run);
+  return el;
+}
 export function mkEmpty(iconType, title, desc) {
   const el = mk('div', 'empty-state');
   el.appendChild(mkIcon(iconType, 'empty-state-icon'));
@@ -305,7 +316,11 @@ export function makeCollapsible(body, container) {
     btn.addEventListener('click', function() { setAll(spec[2]); });
     controls.appendChild(btn);
   });
-  const home = document.querySelector('.doc-header-actions');
+  // Scoped to the container, not the document: a body resolves asynchronously,
+  // so a global query can land doc A's controls in doc B's header, wired to a
+  // document that is no longer on screen.
+  const root = container || body.parentNode;
+  const home = root ? root.querySelector('.doc-header-actions') : null;
   if (home) home.insertBefore(controls, home.firstChild);
   else if (container) container.insertBefore(controls, body);
   return { setAll: setAll, count: sections.length };

@@ -64,7 +64,11 @@ export function hookLinks(c, goFn, basePath) {
     const h = a.getAttribute('href') || '';
     if (!h) continue;
     if (/^https?:\/\//.test(h) || /^mailto:/.test(h)) continue;
-    if (/^[a-z]+:/i.test(h)) { a.addEventListener('click', function(e) { e.preventDefault(); }); a.removeAttribute('href'); continue; }
+    // `//host/path` is external — the browser resolves it against the current
+    // scheme. It matches neither test below, so it used to fall through to the
+    // document branch: the click was cancelled, but the href stayed, and a
+    // middle-click or "open in new tab" navigated with window.opener live.
+    if (/^\/\//.test(h) || /^[a-z]+:/i.test(h)) { a.addEventListener('click', function(e) { e.preventDefault(); }); a.removeAttribute('href'); continue; }
     a.addEventListener('click', function(e) { const r = basePath ? resolveRelative(basePath, h) : resolvePath(h); if (isSafePath(r)) { goFn('doc/' + r, e); } else { if (typeof console !== 'undefined') console.warn('Unresolvable doc link:', h, basePath ? '(from ' + basePath + ')' : ''); e.preventDefault(); } });
   }
 }

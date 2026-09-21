@@ -6,13 +6,20 @@ import { safeFetch } from '../security.js';
    schema files, so the page cannot describe a rule the validators do not
    enforce. */
 
+/* All ten shipped schemas, not a selection: the page says it renders the
+   machine-readable law, and a rule that is enforced but not shown is the one a
+   reader trips over. Keep in step with keel/schemas/. */
 const SCHEMAS = [
   ['frontmatter.schema.json', 'Every document in program/'],
+  ['config.schema.json', 'program/config.yml'],
   ['model-domains.schema.json', 'program/model/domains.yml'],
   ['model-capabilities.schema.json', 'program/model/capabilities.yml'],
   ['model-systems.schema.json', 'program/model/systems.yml'],
+  ['model-risk-taxonomy.schema.json', 'program/model/risk-taxonomy.yml'],
   ['framework-vocab.schema.json', 'program/model/frameworks/<id>.yml'],
+  ['schedule.schema.json', 'program/schedule.yml'],
   ['publish.schema.json', 'program/publish.yml'],
+  ['tools.schema.json', 'program/model/tools/<id>.yml'],
 ];
 
 function renderProperties(container, properties, required) {
@@ -46,10 +53,16 @@ export function renderSchemas() {
 
   Promise.all(SCHEMAS.map(function(s) {
     return safeFetch('keel/schemas/' + s[0]).then(function(t) { return JSON.parse(t); })
-      .catch(function() { return null; });
+      .catch(function(err) {
+        // Not silently: one missing schema used to vanish from the page, and
+        // the empty state only appeared when every single one failed.
+        console.warn('Schema not loaded: ' + s[0] + ' — ' + err.message);
+        return null;
+      });
   })).then(function(loaded) {
+    const missing = [];
     loaded.forEach(function(schema, i) {
-      if (!schema) return;
+      if (!schema) { missing.push(SCHEMAS[i][0]); return; }
       const name = SCHEMAS[i][0], applies = SCHEMAS[i][1];
       mainEl.appendChild(mk('h2', '', schema.title || name));
       mainEl.appendChild(mk('p', 'section-note', applies + ' · ' + name));
@@ -76,6 +89,10 @@ export function renderSchemas() {
     });
     if (!loaded.filter(Boolean).length) {
       mainEl.appendChild(mkEmpty('file', 'Schemas unavailable', 'Run kilagen build.'));
+    } else if (missing.length) {
+      mainEl.appendChild(mk('p', 'section-note',
+        missing.length + ' schema(s) could not be loaded: ' + missing.join(', ')
+        + ' — run kilagen build.'));
     }
   });
 

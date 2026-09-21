@@ -51,7 +51,12 @@ export function lensOf(hash) {
 
 function item(label, route, opts) {
   const o = opts || {};
-  const el = mk('div', 'tree-item' + (o.active ? ' active' : '') + (o.nested ? ' tree-item-nested' : ''));
+  // A real button: this is the whole navigation, and as a <div> it could not
+  // be reached by Tab. The class carries the styling, `all: unset` in app.css
+  // takes the browser's away.
+  const el = mk('button', 'tree-item' + (o.active ? ' active' : '') + (o.nested ? ' tree-item-nested' : ''));
+  el.type = 'button';
+  if (o.active) el.setAttribute('aria-current', 'page');
   if (o.icon) {
     const icon = mkIcon(o.icon, 'doc-type-icon');
     if (o.color) icon.style.color = o.color;

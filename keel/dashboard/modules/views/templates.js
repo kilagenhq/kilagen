@@ -1,4 +1,4 @@
-import { mk, mkIcon, mkEmpty } from '../dom.js';
+import { mkClickable, mk, mkIcon, mkEmpty } from '../dom.js';
 import { state } from '../state.js';
 import { go, setActiveView, mainEl, rightEl, showRightPanel } from '../nav.js';
 import { safeFetch } from '../security.js';
@@ -49,7 +49,7 @@ export function renderTemplates() {
     row.appendChild(mk('div', 'right-item-note',
       t.prefix + '- · ' + (t.dated ? 'partitioned by year' : 'flat')
       + (t.immutable ? ' · immutable' : '')));
-    row.addEventListener('click', function(e) { go('browse/' + t.name, e); });
+    mkClickable(row, function(e) { go('program/' + t.name, e); });
     rightEl.appendChild(row);
   });
 }

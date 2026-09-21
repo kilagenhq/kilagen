@@ -1,4 +1,4 @@
-import { mk, mkEmpty, formatRoles, th, makeSortable } from '../dom.js';
+import { mkClickable, mk, mkEmpty, formatRoles, th, makeSortable } from '../dom.js';
 import { safeUrl } from '../security.js';
 import { state, isOpenGap } from '../state.js';
 import { go, setActiveView, setParams, splitHash, getHash, mainEl, hideRightPanel } from '../nav.js';
@@ -216,7 +216,7 @@ function renderReviews(container) {
           const when = mk('span', 'review-row-when');
           when.appendChild(dueCell(dueDate(fm)));
           row.appendChild(when);
-          row.addEventListener('click', function(e) { go('doc/' + fm.path, e); });
+          mkClickable(row, function(e) { go('doc/' + fm.path, e); });
           block.appendChild(row);
         });
         el.appendChild(block);
